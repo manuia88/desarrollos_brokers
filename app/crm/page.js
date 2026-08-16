@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
+import SuperBar from '../../components/SuperBar';
+import { getViewAs } from '../../lib/viewas';
 
 const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Contrato', 'Escriturado', 'Perdido'];
 const TERM = { Escriturado: 'win', Perdido: 'lost' };
@@ -32,6 +34,9 @@ export default function CRM() {
   const [q, setQ] = useState('');
   const [fDev, setFDev] = useState('');
   const [busy, setBusy] = useState(false);
+  const [viewAs, setViewAs] = useState(null);
+
+  useEffect(() => { setViewAs(getViewAs()); }, []);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -48,7 +53,7 @@ export default function CRM() {
         .from('profiles').select('id,nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: ppl }, { data: devs }] = await Promise.all([
-        supabase.from('profiles').select('id,nombre,rol').order('nombre'),
+        supabase.from('profiles').select('id,nombre,rol,org_id').order('nombre'),
         supabase.from('desarrollos').select('sku,nombre'),
       ]);
       setTeam(ppl || []);
@@ -58,7 +63,12 @@ export default function CRM() {
     })();
   }, [router, load]);
 
-  const puedeGestionar = me && GESTOR.includes(me.rol);
+  // Contexto efectivo: si el super-admin está "viendo como", manda ese contexto.
+  const superViewing = me?.rol === 'super_admin' && !!viewAs;
+  const effRol = superViewing ? viewAs.rol : me?.rol;
+  const effId = superViewing ? viewAs.asesor_id : me?.id;
+  const effOrg = superViewing ? viewAs.org_id : null;
+  const puedeGestionar = !!effRol && GESTOR.includes(effRol);
   const nombreDe = id => team.find(t => t.id === id)?.nombre || '—';
 
   async function logout() { await supabase.auth.signOut(); router.replace('/login'); }
@@ -98,15 +108,16 @@ export default function CRM() {
     const s = q.trim().toLowerCase();
     return leads.filter(l =>
       l.estatus !== 'duplicado' &&
-      (!mine || l.asesor_id === me?.id) &&
+      (!effOrg || l.org_id === effOrg) &&
+      (!mine || l.asesor_id === effId) &&
       (!fDev || l.dev_sku === fDev) &&
       (!s || (l.nombre || '').toLowerCase().includes(s) || (l.telefono || '').includes(s))
     );
-  }, [leads, mine, me, fDev, q]);
+  }, [leads, mine, effId, effOrg, fDev, q]);
 
   const revision = useMemo(
-    () => (leads || []).filter(l => l.estatus === 'en_revision'),
-    [leads]
+    () => (leads || []).filter(l => l.estatus === 'en_revision' && (!effOrg || l.org_id === effOrg)),
+    [leads, effOrg]
   );
   const cols = useMemo(() => {
     const g = Object.fromEntries(ETAPAS.map(e => [e, []]));
@@ -149,6 +160,8 @@ export default function CRM() {
           <button onClick={logout}>Salir</button>
         </nav>
       </div></header>
+
+      {me?.rol === 'super_admin' && <SuperBar onChange={setViewAs} />}
 
       <main className="wrap">
         <div className="crm-metrics">
@@ -265,7 +278,7 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, onClo
   const [cita, setCita] = useState({ fecha: '', hora: '', modalidad: 'Presencial', notas: '' });
   useEffect(() => { setNotas(lead.notas || ''); }, [lead.id]);
 
-  const asesores = team.filter(t => t.rol !== 'super_admin');
+  const asesores = team.filter(t => t.rol !== 'super_admin' && t.org_id === lead.org_id);
   const p = presupNum(lead.presupuesto);
   const telDig = lead.telefono ? soloDigitos(lead.telefono) : '';
   const waHref = telDig ? 'https://wa.me/' + (telDig.length === 10 ? '52' : '') + telDig : null;

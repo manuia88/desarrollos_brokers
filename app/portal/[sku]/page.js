@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
 import Cotizador from '../../../components/Cotizador';
+import { getViewAs } from '../../../lib/viewas';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const YN = v => (v === 'Sí' || v === 'No') ? v : (v || '—');
@@ -40,6 +41,22 @@ export default function Detalle() {
   async function enviarLead(e){
     e.preventDefault();
     if(!form.nombre || !form.telefono){ setLead({t:'err',m:'Nombre y teléfono son obligatorios'}); return; }
+    // Super-admin: registra a nombre de la inmobiliaria seleccionada en "Ver como".
+    if (me?.rol === 'super_admin') {
+      const va = getViewAs();
+      if (!va || !va.org_id) { setLead({t:'err',m:'Como super-admin, elige una inmobiliaria en “Ver como” (arriba en el CRM) para registrar el cliente a su nombre.'}); return; }
+      setSending(true);
+      const { error: eIns } = await supabase.from('leads').insert({
+        org_id: va.org_id, asesor_id: va.asesor_id || null,
+        nombre: form.nombre, email: form.email||null, telefono: form.telefono,
+        dev_sku: sku, mensaje: form.mensaje||null, etapa: 'Nuevo', fuente: 'Portal', estatus: 'ok',
+      });
+      setSending(false);
+      if (eIns) { setLead({t:'err',m:eIns.message}); return; }
+      setLead({t:'ok',m:`Cliente registrado en ${va.org_nombre}${va.asesor_nombre ? ' · '+va.asesor_nombre : ''}. Aparece en su CRM.`});
+      setForm({ nombre:'', telefono:'', email:'', mensaje:'' });
+      return;
+    }
     setSending(true);
     const { error } = await supabase.rpc('crear_lead', {
       p_nombre:form.nombre, p_email:form.email||null, p_telefono:form.telefono,

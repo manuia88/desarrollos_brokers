@@ -221,4 +221,12 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .cotiz-actions{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
 .cotiz-mini{background:var(--mag-soft);border:1px solid var(--mag-line);color:var(--mag);font-weight:700;font-size:.72rem;padding:.28rem .6rem;border-radius:7px;cursor:pointer;white-space:nowrap}
 .cotiz-mini:hover{background:var(--mag);color:#fff}
+/* ===== SuperBar (ver como) ===== */
+.superbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;background:var(--lime-soft);border-bottom:1px solid rgba(198,255,58,.3);padding:.55rem 1.25rem}
+.superbar .sb-tag{font-size:.7rem;font-weight:800;letter-spacing:.06em;color:var(--lime);text-transform:uppercase}
+.superbar select{appearance:none;padding:.35rem 1.4rem .35rem .7rem;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font-size:.82rem;cursor:pointer}
+.superbar .sb-now{font-size:.8rem;color:var(--sub)}
+.superbar .sb-now b{color:var(--ink)}
+.superbar .sb-exit{margin-left:auto;background:transparent;border:1px solid var(--mag-line);color:var(--mag);font-weight:700;font-size:.78rem;padding:.35rem .7rem;border-radius:8px;cursor:pointer}
+.superbar .sb-exit:hover{background:var(--mag);color:#fff}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
