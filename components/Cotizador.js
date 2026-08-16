@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { esquemaPago, resumenCredito, TASAS_DEFAULT } from '../lib/finance';
+import { esquemaPago, resumenCredito, BANCOS } from '../lib/finance';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 function mesesEntrega(fecha) {
@@ -9,8 +9,7 @@ function mesesEntrega(fecha) {
   return Math.max(0, (f.getFullYear() - h.getFullYear()) * 12 + f.getMonth() - h.getMonth());
 }
 
-// dev: registro de desarrollos (esq_enganche, esq_mensualidades, esq_escritura, apartado, fecha_entrega, nombre)
-// unidad: opcional (precio, torre, num_depto). Si no viene, usa dev.precio_min.
+// dev: registro de desarrollos. unidad: opcional (precio, torre, num_depto, prototipo).
 export default function Cotizador({ dev, unidad, onClose }) {
   const precio = (unidad && unidad.precio) || dev.precio_min || 0;
   const meses = mesesEntrega(dev.fecha_entrega);
@@ -19,18 +18,20 @@ export default function Cotizador({ dev, unidad, onClose }) {
     enganchePct: dev.esq_enganche || 0,
     obraPct: dev.esq_mensualidades || 0,
     escrituraPct: dev.esq_escritura || 0,
-    apartado: dev.apartado || 0,
+    apartado: (unidad && unidad.apartado) || dev.apartado || 0,
     meses,
-  }), [precio, dev, meses]);
+  }), [precio, dev, unidad, meses]);
 
-  const [tipo, setTipo] = useState('Bancario');
-  const [tasa, setTasa] = useState((TASAS_DEFAULT.Bancario * 100).toFixed(2)); // en %
+  // --- Sección 2: crédito hipotecario ---
+  const [banco, setBanco] = useState(BANCOS[3].nombre); // BBVA por defecto
+  const [tasa, setTasa] = useState(BANCOS[3].tasa.toFixed(2));
   const [plazo, setPlazo] = useState(20);
   const [financiar, setFinanciar] = useState(Math.round(esq.saldoEscritura));
 
-  function cambiarTipo(t) {
-    setTipo(t);
-    setTasa((TASAS_DEFAULT[t] * 100).toFixed(2));
+  function cambiarBanco(nombre) {
+    setBanco(nombre);
+    const b = BANCOS.find(x => x.nombre === nombre);
+    if (b) setTasa(b.tasa.toFixed(2));
   }
 
   const cred = useMemo(
@@ -44,17 +45,17 @@ export default function Cotizador({ dev, unidad, onClose }) {
 
   const resumenTxt =
     `Cotización — ${titulo}\n` +
-    `Precio: ${MXN(precio)}\n` +
-    `Apartado: ${MXN(esq.apartado)}\n` +
-    `Enganche (${Math.round((dev.esq_enganche || 0) * 100)}%): ${MXN(esq.enganche)}\n` +
-    `Mensualidades en obra: ${meses} x ${MXN(esq.mensualidadObra)}\n` +
-    `Saldo a escritura: ${MXN(esq.saldoEscritura)}\n` +
-    `Crédito ${tipo} — financiar ${MXN(financiar)} a ${tasa}% / ${plazo} años\n` +
-    `Mensualidad estimada: ${MXN(cred.mensualidad)}`;
+    `Precio: ${MXN(precio)}\n\n` +
+    `PLAN DEL DESARROLLADOR\n` +
+    `· Apartado: ${MXN(esq.apartado)}\n` +
+    `· Enganche (${Math.round((dev.esq_enganche || 0) * 100)}%): ${MXN(esq.enganche)}\n` +
+    `· Mensualidades en obra: ${meses} x ${MXN(esq.mensualidadObra)}\n` +
+    `· Saldo a escritura (${Math.round((dev.esq_escritura || 0) * 100)}%): ${MXN(esq.saldoEscritura)}\n\n` +
+    `CRÉDITO HIPOTECARIO (${banco})\n` +
+    `· Financiar: ${MXN(financiar)} a ${tasa}% / ${plazo} años\n` +
+    `· Mensualidad estimada: ${MXN(cred.mensualidad)}`;
 
-  function copiar() {
-    if (navigator.clipboard) navigator.clipboard.writeText(resumenTxt);
-  }
+  function copiar() { if (navigator.clipboard) navigator.clipboard.writeText(resumenTxt); }
   const waHref = 'https://wa.me/?text=' + encodeURIComponent(resumenTxt);
 
   return (
@@ -69,25 +70,28 @@ export default function Cotizador({ dev, unidad, onClose }) {
           <button className="x" onClick={onClose}>✕</button>
         </div>
 
-        <div className="cotiz-precio">
-          <span>Precio de lista</span><b>{MXN(precio)}</b>
-        </div>
+        <div className="cotiz-precio"><span>Precio de lista</span><b>{MXN(precio)}</b></div>
 
-        <div className="dw-sec">
-          <h3>Plan de pago</h3>
-          <div className="dw-kv"><span>Apartado</span><b>{MXN(esq.apartado)}</b></div>
-          <div className="dw-kv"><span>Enganche ({Math.round((dev.esq_enganche || 0) * 100)}%)</span><b>{MXN(esq.enganche)}</b></div>
-          <div className="dw-kv" style={{ paddingLeft: '.8rem' }}><span>· resto del enganche</span><b>{MXN(esq.engancheRestante)}</b></div>
-          <div className="dw-kv"><span>Mensualidades en obra{meses ? ` (${meses})` : ''}</span><b>{MXN(esq.mensualidadObra)}{meses ? '/mes' : ''}</b></div>
-          <div className="dw-kv"><span>Saldo a la escritura ({Math.round((dev.esq_escritura || 0) * 100)}%)</span><b>{MXN(esq.saldoEscritura)}</b></div>
-        </div>
+        {/* ── 1 · Plan del desarrollador ── */}
+        <section className="cotiz-block">
+          <div className="cotiz-blabel"><span className="cotiz-num">1</span> Plan del desarrollador</div>
+          <div className="pay-row"><span>Apartado</span><b>{MXN(esq.apartado)}</b></div>
+          <div className="pay-row"><span>Enganche <em>{Math.round((dev.esq_enganche || 0) * 100)}%</em></span><b>{MXN(esq.enganche)}</b></div>
+          <div className="pay-row sub"><span>· resto tras apartado</span><b>{MXN(esq.engancheRestante)}</b></div>
+          <div className="pay-row"><span>Mensualidades en obra <em>{meses ? meses + ' meses' : 'entrega inmediata'}</em></span><b>{MXN(esq.mensualidadObra)}{meses ? '/mes' : ''}</b></div>
+          <div className="pay-row"><span>Escrituración <em>{Math.round((dev.esq_escritura || 0) * 100)}%</em></span><b>{MXN(esq.saldoEscritura)}</b></div>
+          <div className="pay-total"><span>Suma</span><b>{MXN(esq.enganche + esq.montoObra + esq.saldoEscritura)}</b></div>
+        </section>
 
-        <div className="dw-sec">
-          <h3>Crédito hipotecario (simulación)</h3>
-          <div className="cotiz-tipos">
-            {['Infonavit', 'FOVISSSTE', 'Bancario'].map(t => (
-              <span key={t} className={'st' + (tipo === t ? ' on' : '')} onClick={() => cambiarTipo(t)}>{t}</span>
-            ))}
+        {/* ── 2 · Crédito hipotecario ── */}
+        <section className="cotiz-block">
+          <div className="cotiz-blabel"><span className="cotiz-num">2</span> Crédito hipotecario</div>
+          <p className="cotiz-anchor">Sobre el <b>saldo a escritura</b> ({MXN(esq.saldoEscritura)}) — lo que normalmente se financia.</p>
+          <div className="dw-field">
+            <label>Banco / fondo</label>
+            <select value={banco} onChange={e => cambiarBanco(e.target.value)}>
+              {BANCOS.map(b => <option key={b.nombre} value={b.nombre}>{b.nombre} · {b.tasa.toFixed(2)}%</option>)}
+            </select>
           </div>
           <div className="dw-row">
             <div className="dw-field"><label>Tasa anual %</label>
@@ -103,8 +107,8 @@ export default function Cotizador({ dev, unidad, onClose }) {
             <b>{MXN(cred.mensualidad)}</b>
             <small>{cred.meses} pagos · total {MXN(cred.totalPagado)} · intereses {MXN(cred.intereses)}</small>
           </div>
-          <p className="fnote">Simulación aproximada con amortización fija. La tasa de Infonavit varía según tu salario; ajústala arriba.</p>
-        </div>
+          <p className="fnote">Tasas de referencia (Banxico/CONDUSEF), editables. Infonavit varía por salario. Cálculo referencial, no es oferta vinculante.</p>
+        </section>
 
         <div className="cotiz-actions">
           <button className="btn lim block" onClick={copiar}>Copiar cotización</button>

@@ -1,18 +1,20 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
 import Cotizador from '../../../components/Cotizador';
+import UnitDrawer from '../../../components/UnitDrawer';
 import { getViewAs } from '../../../lib/viewas';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
-const YN = v => (v === 'Sí' || v === 'No') ? v : (v || '—');
 function meses(f){ if(!f) return null; const h=new Date(),x=new Date(f+'T12:00'); return Math.max(0,(x.getFullYear()-h.getFullYear())*12+x.getMonth()-h.getMonth()); }
-const fmes = f => f ? new Date(f+'T12:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}) : '—';
 const fmesShort = f => f ? new Date(f+'T12:00').toLocaleDateString('es-MX',{month:'short',year:'2-digit'}) : '—';
+const m2 = v => (v==null||v==='') ? '—' : (Math.round(v*10)/10);
 
 const FICHA_SCHEMA = [["Identificación y ubicación",["Tipo","Torre(s)","Dirección","Desarrollador","Colonia","Alcaldía / Municipio","Estado"]],["Etapa",["Preventa / En obra / Inmediata","Fecha de entrega"]],["Inventario y visita",["Unidades totales","Unidades disponibles","Unidades vendidas","% vendido","Niveles del edificio","Departamentos por piso","Caseta de venta","Depa muestra","Estacionamiento para clientes"]],["Precio",["Precio a partir de","Precio (mín)","Precio (máx)","Moneda","Precio por m²"]],["Esquema de pago",["Apartado","Enganche","Mensualidades","Meses para entrega","Mensualidad estimada","Escrituración","Descuentos disponibles"]],["Unidad",["M² habitables (mín)","M² habitables (máx)","M² terreno","Altura piso a techo","Recámaras (mín)","Recámaras (máx)","Baños (mín)","Baños (máx)","Estacionamientos (mín)","Estacionamientos (máx)","Tipo (dependiente/independiente)"]],["Espacios y acabados",["Balcón","Terraza","Roof garden privado","Bodega","Cuarto de servicio"]],["Amenidades y seguridad",["Lista de amenidades","Seguridad 24h","Acceso controlado","Elevadores"]],["Equipamiento",["Cocina integral","Barra de cocina","Canceles de baño","Clósets / vestidor","Cuarto de lavado"]],["Extras a la venta",["Estacionamiento a la venta","Precio por cajón","Bodega a la venta","Precio de bodega"]],["Comercialización",["Comisión al broker","Contacto del desarrollador"]],["Créditos aceptados",["Crédito Tradicional Infonavit","Infonavit Total","Cofinavit","Cofinavit Ingresos Adicionales","Unamos Créditos Infonavit","Crédito Conyugal Infonavit","Cuenta Infonavit + Crédito Bancario","Apoyo Infonavit","Crédito Tradicional FOVISSSTE","FOVISSSTE para Todos","Conyugal FOVISSSTE-Infonavit","Individual FOVISSSTE-Infonavit","Pensionados FOVISSSTE","ION","HIR","Yave","Bancario","IMSS","Banjército","PEMEX"]],["Costos recurrentes",["Mantenimiento mensual","Mantenimiento anticipado","Cuota de equipamiento","Predial estimado"]],["Legal",["Gastos de escrituración estimados","Permite Airbnb","Permite mascotas","Régimen de condominio","Escrituras listas"]],["Obra y edificio",["% avance de obra","Fecha de inicio de ventas","Niveles de estacionamiento","Cajones de bicicleta"]],["Servicios",["Agua (suministro)","Cisterna / capacidad","Agua caliente","Gas (tipo)","Gas (medidor)","Luz (CFE)","Planta de emergencia","Paneles solares","Drenaje","Internet / fibra"]],["Construcción y calidad",["Tipo de construcción","Sistema constructivo","Suelo / cimentación","Zona sísmica"]],["Documentación y ligas",["Memoria de acabados","Liga Drive","Liga EasyBroker","Liga brochure","Recorrido 360 / video"]]];
+
+const EST = { disponible:['Disponible','ust-ok'], apartado:['Apartado','ust-ap'], reservado:['Reservado','ust-re'], vendido:['Vendido','ust-vd'] };
 
 export default function Detalle() {
   const { sku } = useParams();
@@ -20,10 +22,15 @@ export default function Detalle() {
   const [me, setMe] = useState(null);
   const [d, setD] = useState(undefined);
   const [units, setUnits] = useState([]);
+  const [tab, setTab] = useState('resumen');
+  const [fProto, setFProto] = useState('');
+  const [cotizar, setCotizar] = useState(null);   // null | 'dev' | unidad
+  const [unitSel, setUnitSel] = useState(null);   // unidad | null
+  const [showReg, setShowReg] = useState(false);
+  const [regUnidad, setRegUnidad] = useState(null);
   const [form, setForm] = useState({ nombre:'', telefono:'', email:'', mensaje:'' });
   const [lead, setLead] = useState(null);
   const [sending, setSending] = useState(false);
-  const [cotizar, setCotizar] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -38,10 +45,16 @@ export default function Detalle() {
     })();
   }, [sku, router]);
 
+  const protos = useMemo(() => [...new Set(units.map(u=>u.prototipo).filter(Boolean))].sort(), [units]);
+  const unitsF = useMemo(() => fProto ? units.filter(u=>u.prototipo===fProto) : units, [units, fProto]);
+
+  function abrirReg(unidad) { setRegUnidad(unidad||null); setUnitSel(null); setLead(null); setShowReg(true); }
+
   async function enviarLead(e){
     e.preventDefault();
     if(!form.nombre || !form.telefono){ setLead({t:'err',m:'Nombre y teléfono son obligatorios'}); return; }
-    // Super-admin: registra a nombre de la inmobiliaria seleccionada en "Ver como".
+    const uSku = regUnidad ? regUnidad.sku : null;
+    // Super-admin: inserta a nombre de la inmobiliaria elegida en "Ver como".
     if (me?.rol === 'super_admin') {
       const va = getViewAs();
       if (!va || !va.org_id) { setLead({t:'err',m:'Como super-admin, elige una inmobiliaria en “Ver como” (arriba en el CRM) para registrar el cliente a su nombre.'}); return; }
@@ -49,21 +62,21 @@ export default function Detalle() {
       const { error: eIns } = await supabase.from('leads').insert({
         org_id: va.org_id, asesor_id: va.asesor_id || null,
         nombre: form.nombre, email: form.email||null, telefono: form.telefono,
-        dev_sku: sku, mensaje: form.mensaje||null, etapa: 'Nuevo', fuente: 'Portal', estatus: 'ok',
+        dev_sku: sku, unidad_sku: uSku, mensaje: form.mensaje||null, etapa:'Nuevo', fuente:'Portal', estatus:'ok',
       });
       setSending(false);
       if (eIns) { setLead({t:'err',m:eIns.message}); return; }
-      setLead({t:'ok',m:`Cliente registrado en ${va.org_nombre}${va.asesor_nombre ? ' · '+va.asesor_nombre : ''}. Aparece en su CRM.`});
+      setLead({t:'ok',m:`Cliente registrado en ${va.org_nombre}. Aparece en su CRM.`});
       setForm({ nombre:'', telefono:'', email:'', mensaje:'' });
       return;
     }
     setSending(true);
     const { error } = await supabase.rpc('crear_lead', {
       p_nombre:form.nombre, p_email:form.email||null, p_telefono:form.telefono,
-      p_dev_sku:sku, p_unidad_sku:null, p_mensaje:form.mensaje||null, p_presupuesto:null, p_fuente:'Portal'
+      p_dev_sku:sku, p_unidad_sku:uSku, p_mensaje:form.mensaje||null, p_presupuesto:null, p_fuente:'Portal'
     });
     setSending(false);
-    if(error){ setLead({t:'err',m:error.message.includes('organiz')?'Solo un broker con inmobiliaria puede registrar clientes. (Tú entras como super-admin.)':error.message}); return; }
+    if(error){ setLead({t:'err',m:error.message.includes('organiz')?'Solo un broker con inmobiliaria puede registrar clientes.':error.message}); return; }
     setLead({t:'ok',m:'¡Cliente registrado! Aparece en tu CRM.'});
     setForm({ nombre:'', telefono:'', email:'', mensaje:'' });
   }
@@ -86,6 +99,7 @@ export default function Detalle() {
       </div></header>
 
       <main className="wrap" style={{paddingBottom:'3rem'}}>
+        {/* HERO */}
         <div className="dcover" style={{background:'linear-gradient(135deg,hsl(330 45% 24%),hsl(348 55% 40%))'}}>
           <span className="badge2">{d.etapa==='Entrega inmediata'?'Entrega inmediata':(m!=null?`Preventa · entrega en ${m} meses`:'Preventa')}</span>
         </div>
@@ -93,53 +107,75 @@ export default function Detalle() {
           <div><h1>{d.nombre}</h1><p className="loc">📍 {d.direccion} · {d.colonia}, {d.alcaldia}, {d.estado}</p></div>
           <div className="pricebox"><span>Precio desde</span><b>{MXN(d.precio_min)}</b><small>hasta {MXN(d.precio_max)}</small></div>
         </div>
-
         <div className="dactions">
-          <button className="btn mag" onClick={() => setCotizar('dev')}>Cotizar</button>
-          {waNum && <a className="btn lim" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp asesor</a>}
+          <button className="btn mag" onClick={()=>setCotizar('dev')}>Cotizar</button>
+          <button className="btn lim" onClick={()=>abrirReg(null)}>Registrar cliente</button>
+          {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
         </div>
 
-        <div className="specrow">
-          <div className="sbox"><b>{d.rec_min===0?'Loft':d.rec_min}–{d.rec_max}</b><span>Recámaras</span></div>
-          <div className="sbox"><b>{d.banos_min}–{d.banos_max}</b><span>Baños</span></div>
-          <div className="sbox"><b>{d.estac_min}–{d.estac_max}</b><span>Estac. · {d.tipo_estac||'—'}</span></div>
-          <div className="sbox"><b>{Math.round(d.m2_min)}–{Math.round(d.m2_max)}</b><span>m² habitables</span></div>
-          <div className="sbox"><b>{units.length}</b><span>Disponibles hoy</span></div>
+        {/* TABS */}
+        <div className="ftabs">
+          {[['resumen','Resumen'],['unidades',`Unidades · ${units.length}`],['ficha','Ficha técnica']].map(([k,l])=>
+            <button key={k} className={'ftab'+(tab===k?' on':'')} onClick={()=>setTab(k)}>{l}</button>)}
         </div>
 
-        <div className="sec"><h2>Esquema de pago</h2>
-          <div className="esq">
-            <div><span>Apartado</span><b>{MXN(d.apartado)}</b></div>
-            <div><span>Enganche</span><b>{Math.round((d.esq_enganche||0)*100)}%{eng?` · ${MXN(eng)}`:''}</b></div>
-            <div><span>Mensualidades en obra</span><b>{Math.round((d.esq_mensualidades||0)*100)}%</b></div>
-            <div><span>Contra escritura</span><b>{Math.round((d.esq_escritura||0)*100)}%</b></div>
+        {/* ── RESUMEN ── */}
+        {tab==='resumen' && <>
+          <div className="specrow">
+            <div className="sbox"><b>{d.rec_min===0?'Loft':d.rec_min}–{d.rec_max}</b><span>Recámaras</span></div>
+            <div className="sbox"><b>{d.banos_min}–{d.banos_max}</b><span>Baños</span></div>
+            <div className="sbox"><b>{d.estac_min}–{d.estac_max}</b><span>Estac. · {d.tipo_estac||'—'}</span></div>
+            <div className="sbox"><b>{Math.round(d.m2_min)}–{Math.round(d.m2_max)}</b><span>m² habitables</span></div>
+            <div className="sbox"><b>{units.length}</b><span>Disponibles hoy</span></div>
           </div>
-        </div>
 
-        <div className="sec"><h2>Unidades disponibles ({units.length})</h2>
-          {units.length===0 ? <p className="fnote">Sin unidades disponibles publicadas.</p> :
+          <div className="sec"><h2>Esquema de pago</h2>
+            <div className="esq">
+              <div><span>Apartado</span><b>{MXN(d.apartado)}</b></div>
+              <div><span>Enganche</span><b>{Math.round((d.esq_enganche||0)*100)}%{eng?` · ${MXN(eng)}`:''}</b></div>
+              <div><span>Mensualidades en obra</span><b>{Math.round((d.esq_mensualidades||0)*100)}%</b></div>
+              <div><span>Contra escritura</span><b>{Math.round((d.esq_escritura||0)*100)}%</b></div>
+            </div>
+            <div style={{marginTop:'.9rem'}}><button className="btn mag sm" onClick={()=>setCotizar('dev')}>Abrir cotizador completo</button></div>
+          </div>
+
+          {amen.length>0 && <div className="sec"><h2>Amenidades</h2><div className="chips2">{amen.map((a,i)=><span className="chip2" key={i}>{a}</span>)}</div></div>}
+
+          <div className="sec"><h2>Créditos aceptados</h2><div className="chips2">
+            {creds.map(([l,v])=><span key={l} className={'chip2 '+(v&&/s/i.test(v)?'on':'off')}>{l}</span>)}
+          </div></div>
+        </>}
+
+        {/* ── UNIDADES ── */}
+        {tab==='unidades' && <>
+          {protos.length>0 && <div className="chips" style={{marginTop:'1rem'}}>
+            <span className={'chip'+(fProto===''?' on':'')} onClick={()=>setFProto('')}>Todos los prototipos</span>
+            {protos.map(p=><span key={p} className={'chip'+(fProto===p?' on':'')} onClick={()=>setFProto(p)}>{p}</span>)}
+          </div>}
+
+          {unitsF.length===0 ? <p className="fnote">Sin unidades disponibles publicadas.</p> :
           <div className="utbl-wrap"><table className="utbl"><thead><tr>
-            <th>Unidad</th><th>Rec</th><th>Baños</th><th>Estac</th><th>m² hab</th><th>m² tot</th><th>Precio</th><th>Enganche</th><th>Mensualidad est.</th><th>Entrega</th><th></th>
+            <th>Unidad</th><th>Prototipo</th><th>Rec</th><th>Baños</th><th>Estac</th>
+            <th>m² hab</th><th>Balcón</th><th>Terraza</th><th>Roof</th><th>m² tot</th>
+            <th>Precio</th><th>Estatus</th><th></th>
           </tr></thead><tbody>
-            {units.map(u=>{ const mm=meses(u.fecha_escrituracion); const mens=mm>0?MXN(u.precio*(d.esq_mensualidades||0)/mm):'—';
+            {unitsF.map(u=>{ const [el,cl]=EST[(u.estatus||'disponible').toLowerCase()]||EST.disponible;
               return <tr key={u.sku}>
                 <td><b>T{u.torre} · {u.num_depto}</b></td>
+                <td>{u.prototipo||'—'}</td>
                 <td>{u.rec===0?'Loft':u.rec}</td><td>{u.banos}</td><td>{u.n_estac||'—'}</td>
-                <td>{u.m2_hab}</td><td>{u.m2_total||'—'}</td>
-                <td><b>{MXN(u.precio)}</b></td><td>{MXN(u.precio*(d.esq_enganche||0))}</td><td>{mens}</td><td>{fmesShort(u.fecha_escrituracion)}</td>
-                <td><button className="cotiz-mini" onClick={()=>setCotizar(u)}>Cotizar</button></td>
+                <td>{m2(u.m2_hab)}</td><td>{m2(u.balcon_m2)}</td><td>{m2(u.terraza_m2)}</td><td>{m2(u.roof_m2)}</td><td>{m2(u.m2_total)}</td>
+                <td><b>{MXN(u.precio)}</b></td>
+                <td><span className={'ust '+cl}>{el}</span></td>
+                <td><button className="cotiz-mini" onClick={()=>setUnitSel(u)}>+ info</button></td>
               </tr>; })}
           </tbody></table></div>}
-        </div>
+          <p className="fnote">Toca <b>+ info</b> en cualquier unidad para ver plano, planta ambientada, estacionamiento y su plan de pago.</p>
+        </>}
 
-        {amen.length>0 && <div className="sec"><h2>Amenidades</h2><div className="chips2">{amen.map((a,i)=><span className="chip2" key={i}>{a}</span>)}</div></div>}
-
-        <div className="sec"><h2>Créditos aceptados</h2><div className="chips2">
-          {creds.map(([l,v])=><span key={l} className={'chip2 '+(v&&/s/i.test(v)?'on':'off')}>{l}</span>)}
-        </div></div>
-
-        <div className="sec"><h2>Ficha técnica completa</h2>
+        {/* ── FICHA TÉCNICA ── */}
+        {tab==='ficha' && <div className="sec" style={{marginTop:'1rem'}}>
           <p className="fnote" style={{marginTop:0,marginBottom:'.8rem'}}>Todas las columnas del inventario. Los campos vacíos se irán completando desde el wizard de captura.</p>
           {FICHA_SCHEMA.map(([titulo,campos])=>{
             const filled = campos.filter(c=>fichaMap[c]!=null && fichaMap[c]!=='').length;
@@ -150,20 +186,33 @@ export default function Detalle() {
               </details>
             );
           })}
-        </div>
+        </div>}
 
-        <div className="sec"><h2>Registrar cliente interesado</h2>
-          {lead && <div className={'msg '+lead.t}>{lead.m}</div>}
-          <form className="leadform" onSubmit={enviarLead}>
-            <div className="field"><label>Nombre*</label><input value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} /></div>
-            <div className="field"><label>Teléfono / WhatsApp*</label><input value={form.telefono} onChange={e=>setForm({...form,telefono:e.target.value})} /></div>
-            <div className="field"><label>Correo</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></div>
-            <div className="field full"><label>Mensaje</label><input value={form.mensaje} onChange={e=>setForm({...form,mensaje:e.target.value})} placeholder="Qué busca el cliente…" /></div>
-            <div className="full"><button className="btn mag block" disabled={sending}>{sending?'Registrando…':'Registrar en mi CRM'}</button></div>
-          </form>
-        </div>
+        {cotizar && <Cotizador dev={d} unidad={cotizar==='dev'?null:cotizar} onClose={()=>setCotizar(null)} />}
+        {unitSel && <UnitDrawer dev={d} unidad={unitSel} onClose={()=>setUnitSel(null)}
+          onCotizar={(u)=>{ setUnitSel(null); setCotizar(u); }}
+          onRegistrar={(u)=>abrirReg(u)} />}
 
-        {cotizar && <Cotizador dev={d} unidad={cotizar === 'dev' ? null : cotizar} onClose={() => setCotizar(null)} />}
+        {showReg && (
+          <>
+            <div className="drawer-bg" onClick={()=>setShowReg(false)} />
+            <aside className="drawer" onClick={e=>e.stopPropagation()}>
+              <div className="dw-h">
+                <div><span className="dw-tag">Registrar cliente</span><h2>{d.nombre}</h2>
+                  {regUnidad && <div className="ud-sub">Unidad T{regUnidad.torre} · {regUnidad.num_depto}</div>}</div>
+                <button className="x" onClick={()=>setShowReg(false)}>✕</button>
+              </div>
+              {lead && <div className={'msg '+lead.t}>{lead.m}</div>}
+              <form onSubmit={enviarLead} style={{display:'flex',flexDirection:'column',gap:'.2rem'}}>
+                <div className="dw-field"><label>Nombre *</label><input value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} /></div>
+                <div className="dw-field"><label>Teléfono / WhatsApp *</label><input value={form.telefono} onChange={e=>setForm({...form,telefono:e.target.value})} /></div>
+                <div className="dw-field"><label>Correo</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></div>
+                <div className="dw-field"><label>Mensaje</label><textarea value={form.mensaje} onChange={e=>setForm({...form,mensaje:e.target.value})} placeholder="Qué busca el cliente…" /></div>
+                <button className="btn mag block" disabled={sending}>{sending?'Registrando…':'Registrar en el CRM'}</button>
+              </form>
+            </aside>
+          </>
+        )}
       </main>
     </>
   );
