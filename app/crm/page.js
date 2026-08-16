@@ -154,6 +154,7 @@ export default function CRM() {
       <header className="topbar"><div className="topbar-in">
         <span className="logo"><b>Q</b>CRM · Pipeline</span>
         <nav className="nav">
+          <a onClick={() => router.push('/buscar')}>Buscar</a>
           <a onClick={() => router.push('/portal')}>Catálogo</a>
           {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
           <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>

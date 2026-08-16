@@ -63,6 +63,7 @@ export default function Portal() {
       <header className="topbar"><div className="topbar-in">
         <span className="logo"><b>Q</b>Portal de Brokers</span>
         <nav className="nav">
+          <a onClick={() => router.push('/buscar')}>Buscar</a>
           <a onClick={() => router.push('/crm')}>CRM</a>
           {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
           <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
