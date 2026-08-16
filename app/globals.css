@@ -209,4 +209,16 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .dw-kv span{color:var(--sub)}
 .wa-link{display:inline-flex;align-items:center;gap:.4rem;color:var(--lime);font-weight:700;font-size:.85rem}
 .crm-empty{text-align:center;color:var(--dim);padding:3rem 1rem;font-size:.9rem}
+/* ===== Cotizador ===== */
+.cotiz-precio{display:flex;justify-content:space-between;align-items:baseline;padding:.6rem 0 .2rem;border-bottom:1px solid var(--line)}
+.cotiz-precio span{color:var(--sub);font-size:.85rem}
+.cotiz-precio b{font-size:1.5rem;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.cotiz-tipos{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.7rem}
+.cotiz-result{background:linear-gradient(180deg,var(--lime-soft),transparent);border:1px solid rgba(198,255,58,.35);border-radius:12px;padding:.9rem 1rem;text-align:center;margin-top:.3rem}
+.cotiz-result span{display:block;color:var(--sub);font-size:.76rem}
+.cotiz-result b{display:block;font-size:1.9rem;color:var(--lime);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:.1rem 0}
+.cotiz-result small{color:var(--sub);font-size:.74rem}
+.cotiz-actions{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
+.cotiz-mini{background:var(--mag-soft);border:1px solid var(--mag-line);color:var(--mag);font-weight:700;font-size:.72rem;padding:.28rem .6rem;border-radius:7px;cursor:pointer;white-space:nowrap}
+.cotiz-mini:hover{background:var(--mag);color:#fff}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

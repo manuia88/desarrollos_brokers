@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
+import Cotizador from '../../../components/Cotizador';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const YN = v => (v === 'Sí' || v === 'No') ? v : (v || '—');
@@ -21,6 +22,7 @@ export default function Detalle() {
   const [form, setForm] = useState({ nombre:'', telefono:'', email:'', mensaje:'' });
   const [lead, setLead] = useState(null);
   const [sending, setSending] = useState(false);
+  const [cotizar, setCotizar] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -76,6 +78,7 @@ export default function Detalle() {
         </div>
 
         <div className="dactions">
+          <button className="btn mag" onClick={() => setCotizar('dev')}>Cotizar</button>
           {waNum && <a className="btn lim" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp asesor</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
         </div>
@@ -100,7 +103,7 @@ export default function Detalle() {
         <div className="sec"><h2>Unidades disponibles ({units.length})</h2>
           {units.length===0 ? <p className="fnote">Sin unidades disponibles publicadas.</p> :
           <div className="utbl-wrap"><table className="utbl"><thead><tr>
-            <th>Unidad</th><th>Rec</th><th>Baños</th><th>Estac</th><th>m² hab</th><th>m² tot</th><th>Precio</th><th>Enganche</th><th>Mensualidad est.</th><th>Entrega</th>
+            <th>Unidad</th><th>Rec</th><th>Baños</th><th>Estac</th><th>m² hab</th><th>m² tot</th><th>Precio</th><th>Enganche</th><th>Mensualidad est.</th><th>Entrega</th><th></th>
           </tr></thead><tbody>
             {units.map(u=>{ const mm=meses(u.fecha_escrituracion); const mens=mm>0?MXN(u.precio*(d.esq_mensualidades||0)/mm):'—';
               return <tr key={u.sku}>
@@ -108,6 +111,7 @@ export default function Detalle() {
                 <td>{u.rec===0?'Loft':u.rec}</td><td>{u.banos}</td><td>{u.n_estac||'—'}</td>
                 <td>{u.m2_hab}</td><td>{u.m2_total||'—'}</td>
                 <td><b>{MXN(u.precio)}</b></td><td>{MXN(u.precio*(d.esq_enganche||0))}</td><td>{mens}</td><td>{fmesShort(u.fecha_escrituracion)}</td>
+                <td><button className="cotiz-mini" onClick={()=>setCotizar(u)}>Cotizar</button></td>
               </tr>; })}
           </tbody></table></div>}
         </div>
@@ -141,6 +145,8 @@ export default function Detalle() {
             <div className="full"><button className="btn mag block" disabled={sending}>{sending?'Registrando…':'Registrar en mi CRM'}</button></div>
           </form>
         </div>
+
+        {cotizar && <Cotizador dev={d} unidad={cotizar === 'dev' ? null : cotizar} onClose={() => setCotizar(null)} />}
       </main>
     </>
   );

@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 
-const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Visita', 'Cotización', 'Apartado', 'Ganado', 'Perdido'];
-const TERM = { Ganado: 'win', Perdido: 'lost' };
+const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Contrato', 'Escriturado', 'Perdido'];
+const TERM = { Escriturado: 'win', Perdido: 'lost' };
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const GESTOR = ['director', 'gerente', 'super_admin'];
 
@@ -75,7 +75,7 @@ export default function CRM() {
   }
   const mover = (id, etapa) => patch(id, { etapa });
   const aprobar = id => patch(id, { estatus: 'ok' });
-  const rechazar = id => patch(id, { estatus: 'rechazado' });
+  const rechazar = id => patch(id, { estatus: 'duplicado' });
   const reasignar = (id, asesor_id) => patch(id, { asesor_id });
 
   async function agendar(lead, { fecha, hora, modalidad, notas }) {
@@ -97,7 +97,7 @@ export default function CRM() {
     if (!leads) return [];
     const s = q.trim().toLowerCase();
     return leads.filter(l =>
-      l.estatus !== 'rechazado' &&
+      l.estatus !== 'duplicado' &&
       (!mine || l.asesor_id === me?.id) &&
       (!fDev || l.dev_sku === fDev) &&
       (!s || (l.nombre || '').toLowerCase().includes(s) || (l.telefono || '').includes(s))
@@ -118,7 +118,7 @@ export default function CRM() {
 
   const kpi = useMemo(() => {
     const act = visibles.filter(l => l.estatus !== 'en_revision');
-    const ganados = act.filter(l => l.etapa === 'Ganado').length;
+    const ganados = act.filter(l => l.etapa === 'Escriturado').length;
     const perdidos = act.filter(l => l.etapa === 'Perdido').length;
     const abiertos = act.filter(l => !TERM[l.etapa]).length;
     const cerrados = ganados + perdidos;
@@ -154,7 +154,7 @@ export default function CRM() {
         <div className="crm-metrics">
           <div className="mtile"><b>{kpi.total}</b><span>Leads activos</span></div>
           <div className="mtile"><b>{kpi.abiertos}</b><span>En pipeline</span></div>
-          <div className="mtile win"><b>{kpi.ganados}</b><span>Ganados</span></div>
+          <div className="mtile win"><b>{kpi.ganados}</b><span>Escriturados</span></div>
           <div className="mtile"><b>{kpi.conv == null ? '—' : kpi.conv + '%'}</b><span>Tasa de cierre</span></div>
           {puedeGestionar && <div className="mtile acc"><b>{kpi.revision}</b><span>Por revisar</span></div>}
         </div>
