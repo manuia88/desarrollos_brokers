@@ -6,7 +6,7 @@ import SuperBar from '../../components/SuperBar';
 import RegistroCliente from '../../components/RegistroCliente';
 import DocsCliente from '../../components/DocsCliente';
 import { getViewAs } from '../../lib/viewas';
-import { googleCalUrl, descargarIcs, crearEventoGoogle } from '../../lib/calendario';
+import { googleCalUrl, descargarIcs, crearEventoGoogle, cancelarEventoGoogle } from '../../lib/calendario';
 
 const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Escriturado', 'Perdido'];
 const TERM = { Escriturado: 'win', Perdido: 'lost' };
@@ -372,6 +372,12 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, apart
       setCitas(data || []);
     })();
   }, [lead.id]);
+  async function cancelarCita(c) {
+    await supabase.from('citas').update({ estatus: 'Cancelada' }).eq('id', c.id);
+    cancelarEventoGoogle(c.id);
+    const { data } = await supabase.from('citas').select('*').eq('lead_id', lead.id).order('fecha');
+    setCitas(data || []);
+  }
 
   const asesores = team.filter(t => t.rol !== 'super_admin' && t.org_id === lead.org_id);
   const p = presupNum(lead.presupuesto);
@@ -462,6 +468,7 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, apart
                     <div className="cita-cal">
                       <a className="cita-btn" href={googleCalUrl(cal)} target="_blank" rel="noopener" title="Agregar a Google Calendar">📅</a>
                       <button className="cita-btn" onClick={() => descargarIcs(cal)} title="Descargar .ics">⬇</button>
+                      {c.estatus !== 'Cancelada' && <button className="cita-btn" onClick={() => cancelarCita(c)} title="Cancelar cita">✕</button>}
                     </div>
                   </div>
                 );
