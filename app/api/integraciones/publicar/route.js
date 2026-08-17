@@ -42,8 +42,12 @@ export async function POST(req) {
   const byId = Object.fromEntries((devs || []).map(d => [d.sku, d]));
   const { data: unitsRaw } = await db.from('unidades').select('*').eq('estatus', 'Disponible');
 
+  // CONVENIO: solo inventario que el desarrollador autorizó exportar a EB.
+  const autorizadas = (unitsRaw || []).filter(u => byId[u.dev_sku]?.permite_eb);
+  if (!autorizadas.length) return NextResponse.json({ error: 'Ningún desarrollo tiene autorizada la exportación a EasyBroker. El desarrollador lo habilita en Captura.' }, { status: 200 });
+
   // Selección hipersegmentada por reglas + prioridad de slots por objetivo.
-  let sel = resolverReglas(unitsRaw || [], byId, base, reglas);
+  let sel = resolverReglas(autorizadas, byId, base, reglas);
   sel = ordenar(sel, byId, orden);
   let items = sel.map(u => ({ ref: u.sku, u })).slice(0, limite);
 
@@ -59,12 +63,14 @@ export async function POST(req) {
   for (const it of items) {
     const u = it.u, d = byId[u.dev_sku];
     const precio = u.precio;
+    // Publicado visible en portales solo si el dev lo autorizó; si no, entra como borrador.
+    const stItem = (status === 'published' && d.permite_portales) ? 'published' : 'not_published';
     const body = mapEasyBroker({
       ref: it.ref,
       title: `${d.nombre}${u.prototipo ? ' · ' + u.prototipo : ''}`,
       description: d.notas || `${d.nombre} en ${d.colonia}, ${d.alcaldia}. ${u.rec === 0 ? 'Loft' : u.rec + ' recámaras'}.`,
       propertyType: d.tipo || 'Departamento',
-      status,
+      status: stItem,
       price: precio,
       bedrooms: u.rec || 0, bathrooms: Math.floor(u.banos || 0), halfBaths: Math.round(((u.banos || 0) % 1) * 2) || 0,
       parking: u.n_estac || 0, construction: u.m2_total || u.m2_hab || null, lot: u.m2_total || null,
@@ -75,7 +81,7 @@ export async function POST(req) {
     if (portal === 'easybroker') res = await pushEasyBroker(body, prevMap[it.ref], cfg);
     else res = { skipped: true, error: 'portal no soportado aún: ' + portal };
 
-    const estatus = res.skipped ? 'pendiente' : (res.ok ? (status === 'published' ? 'publicado' : 'borrador') : 'error');
+    const estatus = res.skipped ? 'pendiente' : (res.ok ? (stItem === 'published' ? 'publicado' : 'borrador') : 'error');
     await db.from('publicaciones').upsert({
       org_id: p.org_id, portal, ref: it.ref, dev_sku: u.dev_sku, cuenta,
       external_id: res.external_id || prevMap[it.ref] || null,

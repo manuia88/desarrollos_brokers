@@ -79,10 +79,13 @@ export default function Publicador() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       setToken(session.access_token);
       const [{ data: d }, { data: u }] = await Promise.all([
-        supabase.from('desarrollos').select('sku,nombre,alcaldia').order('nombre'),
+        supabase.from('desarrollos').select('sku,nombre,alcaldia,permite_eb,permite_portales').order('nombre'),
         supabase.from('unidades').select('sku,dev_sku,rec,banos,n_estac,m2_hab,precio,prototipo,torre,num_depto,estatus').eq('estatus', 'Disponible'),
       ]);
-      setDevs(d || []); setUnits(u || []);
+      // CONVENIO: solo se muestra/publica lo que el desarrollador autorizó a EasyBroker.
+      const auth = (d || []).filter(x => x.permite_eb);
+      const authSet = new Set(auth.map(x => x.sku));
+      setDevs(auth); setUnits((u || []).filter(x => authSet.has(x.dev_sku)));
       await cargarPubs(); await cargarCampanas();
       try { const r = await fetch('/api/integraciones/status', { headers: { Authorization: 'Bearer ' + session.access_token } }); const j = await r.json(); setEbOk(j?.estado?.easybroker?.configured); } catch { setEbOk(false); }
     })();
@@ -124,6 +127,7 @@ export default function Publicador() {
         </div>
 
         {ebOk === false && <div className="cap-msg err">EasyBroker no está configurado. Agrega <code>EASYBROKER_API_KEY</code> en Vercel y haz redeploy. Puedes armar y previsualizar la selección igual.</div>}
+        {devs.length === 0 && <div className="cap-msg err">Ningún desarrollo tiene autorizada la exportación a EasyBroker. El desarrollador lo habilita en <b>Captura</b> (“Autorizo exportar a EasyBroker”). Solo aparece aquí el inventario autorizado.</div>}
 
         {/* Filtros base */}
         <div className="crit">

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   subirMedio, agregarPorUrl, listarMedios, borrarMedio, hacerPortada,
   TIPOS_MEDIO, AREAS, TIPOS_CON_AREA, TIPOS_CON_PROTO,
@@ -13,6 +14,7 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
   const [titulo, setTitulo] = useState('');
   const [files, setFiles] = useState([]);
   const [url, setUrl] = useState('');
+  const [drive, setDrive] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [k, setK] = useState(0);
@@ -53,6 +55,26 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
     if (error) { setMsg({ t: 'err', m: error.message }); return; }
     setUrl(''); setMsg({ t: 'ok', m: 'Imagen agregada por URL.' });
     await reload();
+  }
+
+  async function importarDrive() {
+    if (!drive.trim()) { setMsg({ t: 'err', m: 'Pega el link de la carpeta de Drive.' }); return; }
+    setBusy(true); setMsg({ t: 'ok', m: 'Leyendo la carpeta de Drive e importando…' });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/medios/drive-import', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dev_sku: dev.sku, folder: drive.trim(), tipo, area: conArea ? area : null }),
+      });
+      const j = await r.json();
+      if (j.error) setMsg({ t: 'err', m: j.error });
+      else {
+        const desg = Object.entries(j.porTipo || {}).map(([t, n]) => `${n} ${t}`).join(', ');
+        setMsg({ t: 'ok', m: `✓ ${j.importados} importadas${desg ? ' (' + desg + ')' : ''}.${j.mas ? ` Quedan ${j.mas}, corre otra vez para traer más.` : ''}` });
+        setDrive(''); setK(x => x + 1); await reload();
+      }
+    } catch (e) { setMsg({ t: 'err', m: String(e?.message || e) }); }
+    setBusy(false);
   }
 
   async function portada(m) { setBusy(true); await hacerPortada(dev.sku, m.id); setBusy(false); await reload(); }
@@ -105,6 +127,13 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
               <button className="btn ghost sm" disabled={busy || !url.trim()} onClick={porUrl}>Agregar</button></div>
           </div>
           <p className="fnote" style={{ marginTop: 0 }}>El tipo, ambiente y prototipo de arriba se aplican tanto a la subida como a la URL.</p>
+
+          <div className="med-or">o importa una carpeta completa de Google Drive</div>
+          <div className="dw-field">
+            <div className="med-url"><input value={drive} onChange={e => setDrive(e.target.value)} placeholder="https://drive.google.com/drive/folders/…" />
+              <button className="btn lim sm" disabled={busy || !drive.trim()} onClick={importarDrive}>Importar</button></div>
+          </div>
+          <p className="fnote" style={{ marginTop: 0 }}>Trae todas las imágenes de la carpeta (y subcarpetas) y las <b>re-hospeda</b> en tu portal. Si nombras las subcarpetas <i>Renders, Planos, Plantas, Amenidades, Brochure</i>, se clasifican solas; lo demás usa el tipo de arriba. Requiere tener conectado tu Google con permiso de Drive.</p>
         </div>
 
         <div className="dw-sec">

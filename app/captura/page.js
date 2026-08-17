@@ -41,6 +41,8 @@ const PASOS = [
     ['liga_disponibilidad', 'Sitio oficial / disponibilidad', 'text'],
     ['whatsapp', 'WhatsApp (liga)', 'text'], ['notas', 'Notas internas', 'area'],
     ['publicado', 'Publicado (visible para brokers)', 'bool'],
+    ['permite_eb', 'Autorizo exportar este inventario a EasyBroker', 'bool'],
+    ['permite_portales', 'Autorizo publicarlo en portales inmobiliarios (visible al público)', 'bool'],
   ]],
 ];
 const TODOS = PASOS.flatMap(([, c]) => c.map(f => f[0]));

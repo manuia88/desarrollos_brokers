@@ -83,6 +83,37 @@ async function autorizado(req) {
   return prof?.rol === 'super_admin' ? { cron: false } : null;
 }
 
+// Barrido global: baja de TODAS las cuentas lo que ya no debe estar publicado —
+// unidad vendida/apartada por el dev, o desarrollo con la exportación revocada.
+async function barridoGlobal(db) {
+  const { data: pubs } = await db.from('publicaciones').select('*').in('estatus', ['publicado', 'borrador']);
+  if (!pubs?.length) return { bajados: 0 };
+  const { data: unitsAll } = await db.from('unidades').select('sku,estatus');
+  const byUnit = Object.fromEntries((unitsAll || []).map(u => [u.sku, u]));
+  const { data: devs } = await db.from('desarrollos').select('sku,permite_eb');
+  const permite = Object.fromEntries((devs || []).map(d => [d.sku, d.permite_eb]));
+  const { data: conns } = await db.from('conexiones').select('*');
+  const cfgDe = (cuenta) => {
+    if (!cuenta || cuenta === 'dev') return null; // env global
+    const [scope, id] = cuenta.split(':');
+    const c = (conns || []).find(x => x.proveedor === 'easybroker' && x.activa &&
+      ((scope === 'org' && x.scope === 'org' && x.org_id === id) || (scope === 'asesor' && x.scope === 'asesor' && x.asesor_id === id)));
+    return c ? { key: c.api_key, ambiente: c.ambiente } : null;
+  };
+  let bajados = 0;
+  for (const p of pubs) {
+    const u = byUnit[p.ref?.split(':').pop()] || byUnit[p.ref]; // ref puede ser sku o dev:proto
+    const noDisp = u && u.estatus !== 'Disponible';
+    const revocado = p.dev_sku && permite[p.dev_sku] === false;
+    if (!noDisp && !revocado) continue;
+    const st = revocado ? 'not_published' : (u && /vend/i.test(u.estatus) ? 'sold' : 'reserved');
+    if (p.portal === 'easybroker' && p.external_id) { try { await pushEasyBroker({ status: st }, p.external_id, cfgDe(p.cuenta)); } catch { /* noop */ } }
+    await db.from('publicaciones').update({ estatus: 'retirado', meta: { ...(p.meta || {}), motivo: revocado ? 'revocado' : st }, actualizado: ahora() }).eq('id', p.id);
+    bajados++;
+  }
+  return { bajados };
+}
+
 async function correr(req, body) {
   const db = svc();
   let q = db.from('campanas').select('*').eq('activa', true);
@@ -91,7 +122,8 @@ async function correr(req, body) {
   const manual = !!body?.campana_id;
   const res = [];
   for (const c of (camps || [])) res.push(await reconciliarCampana(db, c, (manual || c.reponer) ? 'full' : 'takedown'));
-  return { ok: true, campanas: res.length, detalle: res };
+  const global = await barridoGlobal(db);   // aplica a todas las cuentas
+  return { ok: true, campanas: res.length, detalle: res, barrido: global };
 }
 
 export async function POST(req) {

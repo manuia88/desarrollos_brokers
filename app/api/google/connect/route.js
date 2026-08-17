@@ -20,7 +20,7 @@ export async function GET(req) {
   auth.searchParams.set('client_id', G.clientId);
   auth.searchParams.set('redirect_uri', G.redirect);
   auth.searchParams.set('response_type', 'code');
-  auth.searchParams.set('scope', 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email');
+  auth.searchParams.set('scope', 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email');
   auth.searchParams.set('access_type', 'offline');
   auth.searchParams.set('prompt', 'consent');
   auth.searchParams.set('state', nonce);
