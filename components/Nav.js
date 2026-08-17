@@ -24,6 +24,7 @@ const LINKS = [
 const SUPER = [
   ['/captura', 'Captura'],
   ['/publicador', 'Publicador'],
+  ['/pricing', 'Pricing'],
   ['/integraciones', 'Integraciones'],
   ['/altas', 'Altas'],
 ];

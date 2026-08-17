@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { mapEasyBroker, pushEasyBroker } from '../../../../lib/integraciones';
-import { resolverReglas } from '../../../../lib/publicador';
+import { resolverReglas, ordenar } from '../../../../lib/publicador';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ async function reconciliarCampana(db, camp, mode) {
   const byUnit = Object.fromEntries((unitsAll || []).map(u => [u.sku, u]));
   const disponibles = (unitsAll || []).filter(u => u.estatus === 'Disponible');
 
-  const desired = resolverReglas(disponibles, byId, camp.base || {}, camp.reglas || []).slice(0, camp.limite || 30);
+  const desired = ordenar(resolverReglas(disponibles, byId, camp.base || {}, camp.reglas || []), byId, camp.orden || 'precio').slice(0, camp.limite || 30);
   const desiredRefs = new Set(desired.map(u => u.sku));
 
   const { data: pubs } = await db.from('publicaciones').select('*').eq('campana_id', camp.id);

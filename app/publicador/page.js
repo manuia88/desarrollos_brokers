@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
-import { resolverReglas, etiquetaRegla } from '../../lib/publicador';
+import { resolverReglas, ordenar } from '../../lib/publicador';
 
 const AMBITOS = [['dev', 'Por desarrollo'], ['prototipo', 'Por prototipo'], ['global', 'Global']];
 const RECS = [['', 'Todas'], ['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3+']];
@@ -14,6 +14,14 @@ const PRESETS = [
   ['1 por prototipo (más barata)', [{ ambito: 'prototipo', rec: '', puntos: ['min'] }]],
   ['Mín y máx por prototipo', [{ ambito: 'prototipo', rec: '', puntos: ['min', 'max'] }]],
   ['2 y 3 rec (mín+máx) por desarrollo', [{ ambito: 'dev', rec: '2', puntos: ['min', 'max'] }, { ambito: 'dev', rec: '3', puntos: ['min', 'max'] }]],
+];
+const ORDENES = [['precio', 'Precio ↑'], ['comision', 'Mayor comisión'], ['dias', 'Más días en inventario']];
+// Objetivos de negocio: arman base + reglas + orden de un jalón.
+const OBJETIVOS = [
+  { label: '💰 Máxima comisión', base: {}, reglas: [{ ambito: 'prototipo', rec: '', puntos: ['min'] }], orden: 'comision' },
+  { label: '🐌 Mover lo estancado', base: {}, reglas: [{ ambito: 'prototipo', rec: '', puntos: ['min', 'max'] }], orden: 'dias' },
+  { label: '⚡ Entrega inmediata', base: { etapa: 'Entrega inmediata' }, reglas: [{ ambito: 'prototipo', rec: '', puntos: ['todas'] }], orden: 'precio' },
+  { label: '🔻 Con promoción', base: { descuento: true }, reglas: [{ ambito: 'prototipo', rec: '', puntos: ['min'] }], orden: 'precio' },
 ];
 
 export default function Publicador() {
@@ -29,6 +37,7 @@ export default function Publicador() {
   const [reglas, setReglas] = useState([{ ambito: 'dev', rec: '2', puntos: ['min', 'max'] }, { ambito: 'dev', rec: '3', puntos: ['min', 'max'] }]);
   const [status, setStatus] = useState('not_published');
   const [limite, setLimite] = useState(30);
+  const [orden, setOrden] = useState('precio');
   const [campanas, setCampanas] = useState([]);
   const [campNombre, setCampNombre] = useState('');
   const [reponer, setReponer] = useState(true);
@@ -54,7 +63,7 @@ export default function Publicador() {
     } catch (e) { setRun({ error: String(e?.message || e) }); }
   }
   async function guardarCampana() {
-    const { data, error } = await supabase.from('campanas').insert({ org_id: me.org_id, portal: 'easybroker', nombre: campNombre || ('Campaña ' + (campanas.length + 1)), base, reglas, status, reponer, limite, activa: true }).select('id').single();
+    const { data, error } = await supabase.from('campanas').insert({ org_id: me.org_id, portal: 'easybroker', nombre: campNombre || ('Campaña ' + (campanas.length + 1)), base, reglas, status, reponer, limite, orden, activa: true }).select('id').single();
     if (error) { setRun({ error: error.message }); return; }
     setCampNombre(''); await cargarCampanas();
     reconciliar(data.id);   // primer llenado
@@ -86,7 +95,7 @@ export default function Publicador() {
   }, [units, base.devs]);
   const byId = useMemo(() => Object.fromEntries((devs || []).map(d => [d.sku, d])), [devs]);
 
-  const seleccion = useMemo(() => resolverReglas(units, byId, base, reglas), [units, byId, base, reglas]);
+  const seleccion = useMemo(() => ordenar(resolverReglas(units, byId, base, reglas), byId, orden), [units, byId, base, reglas, orden]);
   const preview = useMemo(() => {
     const porDev = {}; seleccion.forEach(u => { (porDev[u.dev_sku] = porDev[u.dev_sku] || []).push(u); });
     return { total: seleccion.length, devs: Object.keys(porDev).length, porDev };
@@ -97,7 +106,7 @@ export default function Publicador() {
     try {
       const r = await fetch('/api/integraciones/publicar', {
         method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ portal: 'easybroker', status, limite, base, reglas }),
+        body: JSON.stringify({ portal: 'easybroker', status, limite, orden, base, reglas }),
       });
       setRun(await r.json()); cargarPubs();
     } catch (e) { setRun({ error: String(e?.message || e) }); }
@@ -131,6 +140,16 @@ export default function Publicador() {
             <select className="crit-sel" value={base.zona} onChange={e => setB('zona', e.target.value)}><option value="">Cualquier zona</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
             <input className="inp" style={{ maxWidth: 150 }} inputMode="decimal" value={base.precioMin} onChange={e => setB('precioMin', e.target.value)} placeholder="Precio mín." />
             <input className="inp" style={{ maxWidth: 150 }} inputMode="decimal" value={base.precioMax} onChange={e => setB('precioMax', e.target.value)} placeholder="Precio máx." />
+          </div>
+        </div>
+
+        {/* Objetivos de negocio */}
+        <div className="crit" style={{ marginTop: '1rem' }}>
+          <div className="crit-row"><label>Objetivo</label>
+            <div className="crit-chips">{OBJETIVOS.map(o => <span key={o.label} className="chip" onClick={() => { setBase(b => ({ ...b, ...o.base })); setReglas(o.reglas.map(x => ({ ...x }))); setOrden(o.orden); }}>{o.label}</span>)}</div>
+          </div>
+          <div className="crit-row"><label>Priorizar slots por</label>
+            <div className="crit-chips">{ORDENES.map(([v, l]) => <span key={v} className={'chip' + (orden === v ? ' on' : '')} onClick={() => setOrden(v)}>{l}</span>)}</div>
           </div>
         </div>
 
