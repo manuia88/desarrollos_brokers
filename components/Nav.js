@@ -17,11 +17,13 @@ const LINKS = [
   ['/escrituracion', 'Escrituración'],
   ['/calor', 'Interés'],
   ['/tablero', 'Tablero'],
+  ['/metricas', 'Métricas'],
   ['/comisiones', 'Comisiones'],
   ['/academia', 'Academia'],
 ];
 const SUPER = [
   ['/captura', 'Captura'],
+  ['/publicador', 'Publicador'],
   ['/integraciones', 'Integraciones'],
   ['/altas', 'Altas'],
 ];

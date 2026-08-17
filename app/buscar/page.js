@@ -9,6 +9,7 @@ import {
   CREDITOS, AMENIDADES_CLAVE, VISTAS, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
+import { track } from '../../lib/track';
 
 const RECS = [['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3+']];
 const CAJONES = [['', 'Cualquiera'], ['1', '1+'], ['2', '2+']];
@@ -186,6 +187,13 @@ export default function Buscar() {
     });
     return out;
   }, [devs, units, f]);
+
+  // Registra la búsqueda (con debounce) para métricas y demanda insatisfecha.
+  useEffect(() => {
+    if (!activo || !me) return;
+    const t = setTimeout(() => track('busqueda', { fuente: 'buscar', criterios: { recs: f.recs, zona: f.zona, presMax: f.presMax, creditos: f.creditos, amenidades: f.amenidades }, resultados: totalU }, me), 1500);
+    return () => clearTimeout(t);
+  }, [f, totalU, activo]);
 
   function aplicarVista(v) {
     setF(o => ({ ...F0, sort: v.sort || 'precio', ...v.patch, recs: v.patch.recs || [], creditos: v.patch.creditos || [], amenidades: v.patch.amenidades || [] }));

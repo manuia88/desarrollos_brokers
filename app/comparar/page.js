@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
 import { MXN, EmptyState } from '../../components/ui';
 import { meses, fitScore, parseConsulta, mensualidadHipoteca, ingresoMinimo, precioM2, yieldBruto } from '../../lib/matching';
+import { track } from '../../lib/track';
 
 const EJEMPLOS = ['$3.5M, 2 recámaras, Cuauhtémoc, Infonavit', 'Loft entrega inmediata con roof garden', '2 cajones y bodega hasta 6 millones', 'Preventa Benito Juárez 3 recámaras bancario'];
 
@@ -45,6 +46,8 @@ export default function Comparar() {
     return units.map(u => { const d = byId[u.dev_sku]; if (!d) return null; const f = fitScore(u, d, consulta.crit); return { u, d, score: f.score, reasons: f.reasons }; })
       .filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 24);
   }, [consulta, units, byId, devs]);
+
+  useEffect(() => { if (consulta && me) track('busqueda', { fuente: 'comparar', chips: consulta.chips, criterios: consulta.crit, resultados: ranked.length }, me); }, [consulta]);
 
   function toggleCmp(sku) { setCmp(c => c.includes(sku) ? c.filter(x => x !== sku) : (c.length >= 3 ? c : [...c, sku])); }
   const comparados = useMemo(() => cmp.map(sku => { const u = units.find(x => x.sku === sku); return u ? { u, d: byId[u.dev_sku] } : null; }).filter(Boolean), [cmp, units, byId]);
