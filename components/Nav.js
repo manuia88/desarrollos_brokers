@@ -4,8 +4,10 @@ import { supabase } from '../lib/supabase';
 
 // Barra de navegación compartida por todas las pantallas del portal.
 const LINKS = [
+  ['/hoy', 'Hoy'],
   ['/portal', 'Catálogo'],
   ['/buscar', 'Buscar'],
+  ['/comparar', 'Comparar'],
   ['/clientes', 'Clientes'],
   ['/crm', 'CRM'],
   ['/calor', 'Interés'],

@@ -53,6 +53,8 @@ export default function Captura() {
   const [paso, setPaso] = useState(0);
   const [msg, setMsg] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [csv, setCsv] = useState(null);
+  const [hist, setHist] = useState([]);
   const nuevo = !d._existente;
 
   useEffect(() => {
@@ -68,9 +70,53 @@ export default function Captura() {
   }, [router]);
 
   async function cargar(sku) {
-    if (!sku) { setD({}); setPaso(0); setMsg(null); return; }
+    if (!sku) { setD({}); setPaso(0); setMsg(null); setHist([]); setCsv(null); return; }
     const { data } = await supabase.from('desarrollos').select('*').eq('sku', sku).single();
-    setD({ ...(data || {}), _existente: true }); setPaso(0); setMsg(null);
+    setD({ ...(data || {}), _existente: true }); setPaso(0); setMsg(null); setCsv(null);
+    const { data: ev } = await supabase.from('eventos').select('creado,meta,actor').eq('entidad', 'desarrollo').eq('entidad_id', sku).eq('tipo', 'dev_editado').order('creado', { ascending: false }).limit(8);
+    setHist(ev || []);
+  }
+
+  // ---- Carga masiva de unidades por CSV ----
+  const COLS_CSV = ['sku', 'dev_sku', 'torre', 'num_depto', 'nivel', 'prototipo', 'rec', 'banos', 'n_estac', 'm2_hab', 'm2_total', 'balcon_m2', 'terraza_m2', 'roof_m2', 'precio', 'estatus'];
+  function plantillaCSV() {
+    const ej = [d.sku ? d.sku + '-101' : 'DEV-101', d.sku || 'DEV', '1', '101', '1', 'Tipo A', '2', '2', '1', '65', '78', '0', '0', '0', '3500000', 'Disponible'];
+    const csvTxt = COLS_CSV.join(',') + '\n' + ej.join(',');
+    const blob = new Blob(['﻿' + csvTxt], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'plantilla_unidades.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+  function parseCSV(txt) {
+    const lines = txt.replace(/\r/g, '').split('\n').filter(l => l.trim());
+    if (!lines.length) return [];
+    const head = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(l => {
+      const cells = l.split(','); const row = {};
+      head.forEach((h, i) => { row[h] = (cells[i] ?? '').trim(); });
+      return row;
+    });
+  }
+  async function onCSV(e) {
+    const file = e.target.files?.[0]; if (!file) return;
+    const txt = await file.text();
+    const raw = parseCSV(txt);
+    const rows = raw.map(r => {
+      const o = {}; COLS_CSV.forEach(k => { if (r[k] !== undefined && r[k] !== '') o[k] = r[k]; });
+      if (!o.dev_sku && d.sku) o.dev_sku = d.sku;
+      ['torre', 'num_depto', 'nivel', 'rec', 'banos', 'n_estac', 'precio'].forEach(k => { if (o[k] != null) o[k] = Number(String(o[k]).replace(/[^0-9.]/g, '')) || 0; });
+      ['m2_hab', 'm2_total', 'balcon_m2', 'terraza_m2', 'roof_m2'].forEach(k => { if (o[k] != null) o[k] = Number(String(o[k]).replace(/[^0-9.]/g, '')) || 0; });
+      if (!o.estatus) o.estatus = 'Disponible';
+      return o;
+    }).filter(o => o.sku && o.dev_sku);
+    setCsv({ rows, total: raw.length, ok: rows.length });
+    e.target.value = '';
+  }
+  async function importarCSV() {
+    if (!csv?.rows?.length) return;
+    const { error } = await supabase.from('unidades').upsert(csv.rows, { onConflict: 'sku' });
+    if (error) { setCsv(c => ({ ...c, err: error.message })); return; }
+    try { await supabase.from('eventos').insert({ tipo: 'dev_editado', entidad: 'desarrollo', entidad_id: d.sku, actor: me.id, org_id: me.org_id, meta: { accion: 'carga_masiva', unidades: csv.rows.length } }); } catch { /* noop */ }
+    setCsv(c => ({ ...c, done: true }));
+    cargar(d.sku);
   }
 
   const pct = useMemo(() => {
@@ -94,9 +140,12 @@ export default function Captura() {
     setSaving(false);
     if (error) { setMsg({ t: 'err', m: 'No se pudo guardar: ' + error.message }); return; }
     setMsg({ t: 'ok', m: nuevo ? '✓ Desarrollo creado.' : '✓ Cambios guardados.' });
+    try { await supabase.from('eventos').insert({ tipo: 'dev_editado', entidad: 'desarrollo', entidad_id: row.sku, actor: me.id, org_id: me.org_id, meta: { accion: nuevo ? 'crear' : 'editar', publicado: row.publicado ?? d.publicado } }); } catch { /* noop */ }
     setD(o => ({ ...o, _existente: true, publicado: publicarAhora != null ? publicarAhora : o.publicado }));
     const { data: devs } = await supabase.from('desarrollos').select('sku,nombre,publicado').order('nombre');
     setLista(devs || []);
+    const { data: ev } = await supabase.from('eventos').select('creado,meta,actor').eq('entidad', 'desarrollo').eq('entidad_id', row.sku).eq('tipo', 'dev_editado').order('creado', { ascending: false }).limit(8);
+    setHist(ev || []);
   }
 
   function field([k, label, type, opts]) {
@@ -162,6 +211,39 @@ export default function Captura() {
             : <button className="btn mag" disabled={saving} onClick={() => guardar(true)}>Publicar</button>}
         </div>
         <p className="fnote">Las 113 columnas de la ficha técnica (servicios, legal, obra, etc.) viven en el detalle de la ficha; este wizard cubre los campos que mueven catálogo y búsqueda. Para fotos y planos usa <b>🖼️ Gestionar medios</b> dentro de la ficha del desarrollo.</p>
+
+        {/* Carga masiva de unidades */}
+        <section className="sec" style={{ marginTop: '1.4rem' }}>
+          <h2>Carga masiva de unidades (CSV)</h2>
+          <p className="fnote" style={{ marginTop: 0 }}>Sube muchas unidades de golpe. Descarga la plantilla, llénala en Excel y súbela — se actualizan por SKU (las que ya existen se sobrescriben).{d.sku ? ` Se asignan al desarrollo ${d.nombre || d.sku} si no traen dev_sku.` : ' Selecciona o crea primero un desarrollo, o incluye la columna dev_sku.'}</p>
+          <div className="cap-acts" style={{ marginTop: '.3rem' }}>
+            <button className="btn ghost" onClick={plantillaCSV}>⬇ Descargar plantilla</button>
+            <label className="btn lim" style={{ cursor: 'pointer' }}>Elegir CSV<input type="file" accept=".csv,text/csv" onChange={onCSV} style={{ display: 'none' }} /></label>
+          </div>
+          {csv && !csv.done && (
+            <div className="csv-prev">
+              Detecté <b>{csv.ok}</b> unidad{csv.ok === 1 ? '' : 'es'} válida{csv.ok === 1 ? '' : 's'}{csv.total !== csv.ok ? ` de ${csv.total} filas (las demás sin SKU/dev_sku se ignoran)` : ''}.
+              {csv.err ? <div className="cap-msg err" style={{ marginTop: '.6rem' }}>{csv.err}</div> :
+                <button className="btn mag sm" style={{ marginLeft: '.6rem' }} onClick={importarCSV} disabled={!csv.ok}>Importar {csv.ok}</button>}
+            </div>
+          )}
+          {csv?.done && <div className="cap-msg ok" style={{ marginTop: '.6rem' }}>✓ Unidades importadas.</div>}
+        </section>
+
+        {/* Historial de cambios */}
+        {d._existente && hist.length > 0 && (
+          <section className="sec">
+            <h2>Historial de cambios</h2>
+            {hist.map((h, i) => (
+              <div className="hist-row" key={i}>
+                <span className="calor-dot" />
+                <div><b>{h.meta?.accion === 'carga_masiva' ? `Carga masiva (${h.meta?.unidades} unidades)` : h.meta?.accion === 'crear' ? 'Creación' : 'Edición'}</b>
+                  {h.meta?.publicado != null && <span className="hist-tag">{h.meta.publicado ? 'publicado' : 'borrador'}</span>}
+                  <div className="calor-feed-t">{new Date(h.creado).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>
+              </div>
+            ))}
+          </section>
+        )}
       </main>
     </>
   );

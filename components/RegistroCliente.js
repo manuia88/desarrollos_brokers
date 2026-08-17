@@ -29,6 +29,15 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
   const [showCita, setShowCita] = useState(!!unidad ? false : false);
   const [sending, setSending] = useState(false);
   const [res, setRes] = useState(null);
+  const [dup, setDup] = useState(null);
+
+  async function checkDup() {
+    const tel = f.telefono.trim(), mail = f.email.trim();
+    if (tel.replace(/[^0-9]/g, '').length < 10 && !mail) { setDup(null); return; }
+    const { data } = await supabase.rpc('cliente_registrado', { p_telefono: tel || null, p_email: mail || null });
+    const hit = Array.isArray(data) ? data[0] : data;
+    setDup(hit || null);
+  }
 
   const [f, setF] = useState({
     nombre: '', telefono: '', email: '',
@@ -150,6 +159,13 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
 
         {res && <div className={'msg ' + res.t}>{res.m}</div>}
 
+        {dup && (
+          <div className="dup-warn">
+            <b>⚠ Este cliente ya está registrado</b>
+            <span>{dup.mismo_org ? 'En tu inmobiliaria' : 'Por otra inmobiliaria'}: <b>{dup.asesor || 'un asesor'}</b>{dup.inmobiliaria ? ' · ' + dup.inmobiliaria : ''} lo registró primero{dup.cuando ? ' el ' + new Date(dup.cuando).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}. Por protección de cliente, gana quien lo registró primero.</span>
+          </div>
+        )}
+
         <form onSubmit={submit} className="rc-form">
           {/* Inmobiliaria (solo super-admin) */}
           {isSuper && (
@@ -181,9 +197,9 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
               <input value={f.nombre} onChange={e => set('nombre', e.target.value)} placeholder="Nombre y apellidos" /></div>
             <div className="dw-row">
               <div className="dw-field"><label>Teléfono / WhatsApp *</label>
-                <input value={f.telefono} onChange={e => set('telefono', e.target.value)} placeholder="55 1234 5678" /></div>
+                <input value={f.telefono} onChange={e => set('telefono', e.target.value)} onBlur={checkDup} placeholder="55 1234 5678" /></div>
               <div className="dw-field"><label>Correo</label>
-                <input type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="cliente@correo.com" /></div>
+                <input type="email" value={f.email} onChange={e => set('email', e.target.value)} onBlur={checkDup} placeholder="cliente@correo.com" /></div>
             </div>
           </section>
 
