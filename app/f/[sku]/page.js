@@ -22,5 +22,5 @@ export async function generateMetadata({ params }) {
 }
 
 export default function Page({ params, searchParams }) {
-  return <FichaPublica sku={params.sku} asesor={searchParams?.a || null} />;
+  return <FichaPublica sku={params.sku} asesor={searchParams?.a || null} unidad={searchParams?.u || null} />;
 }

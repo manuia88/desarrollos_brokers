@@ -6,6 +6,7 @@ import SuperBar from '../../components/SuperBar';
 import RegistroCliente from '../../components/RegistroCliente';
 import DocsCliente from '../../components/DocsCliente';
 import { getViewAs } from '../../lib/viewas';
+import { googleCalUrl, descargarIcs } from '../../lib/calendario';
 
 const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Escriturado', 'Perdido'];
 const TERM = { Escriturado: 'win', Perdido: 'lost' };
@@ -362,7 +363,14 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, apart
   const [notas, setNotas] = useState(lead.notas || '');
   const [showCita, setShowCita] = useState(false);
   const [cita, setCita] = useState({ fecha: '', hora: '', modalidad: 'Presencial', notas: '' });
+  const [citas, setCitas] = useState([]);
   useEffect(() => { setNotas(lead.notas || ''); }, [lead.id]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('citas').select('*').eq('lead_id', lead.id).order('fecha');
+      setCitas(data || []);
+    })();
+  }, [lead.id]);
 
   const asesores = team.filter(t => t.rol !== 'super_admin' && t.org_id === lead.org_id);
   const p = presupNum(lead.presupuesto);
@@ -435,6 +443,30 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, apart
 
         <div className="dw-sec">
           <h3>Cita</h3>
+          {citas.length > 0 && (
+            <div className="cita-list">
+              {citas.map(c => {
+                const cal = {
+                  titulo: `Cita — ${devName[c.dev_sku] || c.dev_sku || lead.nombre}`,
+                  fecha: c.fecha, hora: c.hora,
+                  detalles: `Cliente: ${c.nombre || lead.nombre} · Tel ${c.telefono || lead.telefono || ''}. ${c.notas || ''}`,
+                  ubicacion: '',
+                };
+                return (
+                  <div className="cita-row" key={c.id}>
+                    <div>
+                      <b>{new Date(c.fecha + 'T12:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}{c.hora ? ` · ${c.hora}` : ''}</b>
+                      <span>{[c.modalidad, c.estatus].filter(Boolean).join(' · ')}{c.notas ? ' · ' + c.notas : ''}</span>
+                    </div>
+                    <div className="cita-cal">
+                      <a className="cita-btn" href={googleCalUrl(cal)} target="_blank" rel="noopener" title="Agregar a Google Calendar">📅</a>
+                      <button className="cita-btn" onClick={() => descargarIcs(cal)} title="Descargar .ics">⬇</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {!showCita ? (
             <button className="btn ghost sm" onClick={() => setShowCita(true)}>+ Agendar cita / visita</button>
           ) : (

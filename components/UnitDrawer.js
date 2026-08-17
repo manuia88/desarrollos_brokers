@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { esquemaPago } from '../lib/finance';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
@@ -17,7 +18,11 @@ const ESTADO = {
   vendido:    { l: 'Vendido',    c: '#ff8fa3', bg: 'rgba(255,80,110,.14)' },
 };
 
-export default function UnitDrawer({ dev, unidad: u, medios = [], onClose, onCotizar, onRegistrar }) {
+export default function UnitDrawer({ dev, unidad: u, medios = [], asesorId = null, onClose, onCotizar, onRegistrar }) {
+  const [copiado, setCopiado] = useState(false);
+  const shareLink = (typeof window !== 'undefined' && asesorId) ? `${window.location.origin}/f/${dev.sku}?a=${asesorId}&u=${u.sku}` : '';
+  const waShare = shareLink ? 'https://wa.me/?text=' + encodeURIComponent(`Te comparto el depa T${u.torre} ${u.num_depto} de ${dev.nombre}: ${shareLink}`) : '';
+  function copiar() { if (navigator.clipboard && shareLink) { navigator.clipboard.writeText(shareLink); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } }
   const meses = mesesEntrega(dev.fecha_entrega);
   const medioDe = tipo => medios.find(x => x.tipo === tipo && (x.unidad_sku === u.sku || (x.prototipo && x.prototipo === u.prototipo)));
   const planoUrl = medioDe('plano')?.url || u.plano_url;
@@ -94,8 +99,11 @@ export default function UnitDrawer({ dev, unidad: u, medios = [], onClose, onCot
 
         <div className="cotiz-actions">
           <button className="btn mag block" onClick={() => onCotizar(u)}>Cotizar esta unidad</button>
+          {shareLink && <button className="btn lim block" onClick={copiar}>{copiado ? '¡Link copiado!' : '🔗 Compartir esta unidad'}</button>}
+          {waShare && <a className="btn ghost block" href={waShare} target="_blank" rel="noopener">Compartir por WhatsApp</a>}
           {onRegistrar && <button className="btn ghost block" onClick={() => onRegistrar(u)}>Registrar cliente por esta unidad</button>}
         </div>
+        {shareLink && <p className="fnote" style={{ marginTop: '.5rem' }}>El link abre la ficha de <b>esta unidad</b> con tu marca; el cliente puede agendar cita directo.</p>}
       </aside>
     </>
   );

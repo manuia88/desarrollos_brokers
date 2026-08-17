@@ -442,4 +442,36 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .fp-viewer{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:60;display:grid;place-items:center;padding:1rem;cursor:zoom-out}
 .fp-viewer img{max-width:100%;max-height:92vh;border-radius:8px}
 .fp-viewer-x{position:fixed;top:1rem;right:1rem;background:rgba(255,255,255,.12);border:0;color:#fff;width:40px;height:40px;border-radius:50%;font-size:1.1rem;cursor:pointer}
+/* unidad destacada + agendador */
+.fp-unit{background:linear-gradient(180deg,var(--mag-soft),transparent);border:1px solid var(--mag-line);border-radius:16px;padding:1rem 1.1rem;margin-bottom:1.2rem}
+.fp-unit-h{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.7rem}
+.fp-unit-h b{font-size:1.15rem}
+.fp-unit-tag{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mag);background:var(--panel);border:1px solid var(--mag-line);padding:.2rem .55rem;border-radius:99px}
+.fp-unit-proto{font-size:.75rem;color:var(--sub);background:var(--panel2);border:1px solid var(--line);padding:.15rem .5rem;border-radius:6px}
+.fp-unit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.fp-unit-grid>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.5rem .6rem}
+.fp-unit-grid span{display:block;color:var(--sub);font-size:.7rem}
+.fp-unit-grid b{font-variant-numeric:tabular-nums}
+.fp-unit-grid .acc{border-color:var(--mag-line)}.fp-unit-grid .acc b{color:var(--mag)}
+.fp-unit-planos{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.7rem}
+.fp-unit-planos a{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);display:block}
+.fp-unit-planos img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.fp-unit-planos span{position:absolute;left:.4rem;bottom:.4rem;font-size:.66rem;font-weight:700;color:#fff;background:rgba(10,10,12,.7);padding:.12rem .45rem;border-radius:6px}
+.fp-cta{display:block;text-align:center;margin-top:.8rem;font-weight:800;color:var(--mag);font-size:.9rem}
+.fp-toggle{display:flex;gap:.4rem;margin-bottom:.8rem}
+.fp-toggle button{flex:1;padding:.55rem;border:1px solid var(--line);background:var(--panel2);color:var(--sub);border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer}
+.fp-toggle button.on{border-color:var(--mag);color:var(--mag);background:var(--mag-soft)}
+.fp-cita-row{display:grid;grid-template-columns:1.1fr .9fr 1fr;gap:.4rem;margin-bottom:.5rem}
+.fp-cita-row input,.fp-cita-row select{margin-bottom:0!important}
+.fp-done-h{font-size:1.1rem;font-weight:800;color:var(--lime);margin-bottom:.4rem}
+.fp-done p{color:var(--sub);font-size:.88rem;margin-bottom:.8rem}
+.fp-cal{display:flex;flex-direction:column;gap:.5rem}
+/* citas en el CRM */
+.cita-list{display:flex;flex-direction:column;gap:.4rem;margin-bottom:.7rem}
+.cita-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.5rem .7rem}
+.cita-row b{font-size:.85rem;text-transform:capitalize}
+.cita-row span{display:block;color:var(--sub);font-size:.74rem}
+.cita-cal{display:flex;gap:.3rem;flex:none}
+.cita-btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.25rem .5rem;cursor:pointer;font-size:.9rem;text-decoration:none}
+.cita-btn:hover{border-color:var(--mag-line)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
