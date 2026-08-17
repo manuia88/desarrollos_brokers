@@ -779,3 +779,75 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .mat-img{aspect-ratio:1;border-radius:9px;overflow:hidden;border:1px solid var(--line);display:block}
 .mat-img img{width:100%;height:100%;object-fit:cover}
 .mat-empty{background:var(--panel2);border:1px dashed var(--line);border-radius:10px;padding:.7rem;color:var(--dim);font-size:.8rem;text-align:center}
+
+/* ═══════════ NAV bell ═══════════ */
+.nav-bell{position:relative}
+.nav-badge{position:absolute;top:-6px;right:-10px;background:var(--mag);color:#fff;font-size:.62rem;font-weight:800;border-radius:99px;padding:.05rem .3rem;min-width:15px;text-align:center;line-height:1.3}
+
+/* ═══════════ PRECALIFICACIÓN ═══════════ */
+.pc-form{display:grid;grid-template-columns:1fr 1fr;gap:.6rem 1rem;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:1.1rem;align-items:end;margin-bottom:1.1rem}
+.pc-f{display:flex;flex-direction:column}
+.pc-form>.btn{grid-column:1/-1;justify-self:start}
+.pc-result{background:linear-gradient(135deg,var(--mag-soft),rgba(255,30,122,.02));border:1px solid var(--mag-line);border-radius:15px;padding:1.2rem}
+.pc-main{display:flex;flex-direction:column}
+.pc-main span{color:var(--sub);font-size:.82rem}
+.pc-main b{font-size:2.2rem;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.pc-sub{display:flex;gap:1.6rem;flex-wrap:wrap;margin-top:.9rem}
+.pc-sub span{color:var(--sub);font-size:.76rem;display:block}
+.pc-sub b{font-size:1.05rem;font-variant-numeric:tabular-nums}
+@media(max-width:560px){.pc-form{grid-template-columns:1fr}}
+
+/* ═══════════ AVISOS ═══════════ */
+.av-list{display:flex;flex-direction:column;gap:.5rem}
+.av{display:flex;gap:.7rem;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.7rem .85rem;cursor:pointer}
+.av.unread{border-color:var(--mag-line);background:var(--mag-soft)}
+.av:hover{border-color:var(--mag-line)}
+.av-ic{font-size:1.3rem;line-height:1}
+.av-body{flex:1;display:flex;flex-direction:column;gap:.15rem}
+.av-body b{font-size:.92rem}
+.av-body span{color:var(--sub);font-size:.84rem}
+.av-body em{color:var(--dim);font-style:normal;font-size:.74rem;margin-top:.1rem}
+.av-dot{width:8px;height:8px;border-radius:99px;background:var(--mag);margin-top:.4rem;flex:0 0 auto}
+
+/* ═══════════ CHECKLIST por etapa ═══════════ */
+.chk{display:flex;flex-direction:column;gap:.35rem}
+.chk-item{display:flex;align-items:center;gap:.55rem;font-size:.88rem;cursor:pointer;padding:.15rem 0}
+.chk-item input{accent-color:var(--lime);width:17px;height:17px}
+.chk-item.done span{color:var(--dim);text-decoration:line-through}
+
+/* ═══════════ ESCRITURACIÓN / RUTEO ═══════════ */
+.ruteo{display:flex;gap:1.6rem;flex-wrap:wrap}
+.ap-badge.es{background:rgba(198,255,58,.14);color:var(--lime);border:1px solid rgba(198,255,58,.3)}
+.ap-badge.ap{background:rgba(255,180,40,.14);color:#ffcf7a;border:1px solid rgba(255,180,40,.3)}
+
+/* ═══════════ ACADEMIA / FAQ ═══════════ */
+.acad-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.8rem}
+.acad{display:flex;align-items:center;gap:.9rem;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:.9rem 1rem;cursor:pointer;transition:border-color .2s}
+.acad:hover{border-color:var(--mag-line)}
+.acad-ic{font-size:1.6rem;width:44px;height:44px;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:11px;flex:0 0 auto}
+.acad h3{font-size:.98rem;margin-bottom:.15rem}
+.acad p{color:var(--sub);font-size:.82rem;line-height:1.35}
+.acad-go{margin-left:auto;color:var(--mag);font-size:1.2rem;font-weight:700}
+.faq{display:flex;flex-direction:column;gap:.5rem}
+.faq-item{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.faq-item.on{border-color:var(--mag-line)}
+.faq-q{width:100%;text-align:left;background:none;border:none;color:var(--ink);font-weight:600;font-size:.92rem;padding:.85rem 1rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.faq-q span{color:var(--mag);font-size:1.2rem;font-weight:700}
+.faq-a{color:var(--sub);font-size:.88rem;line-height:1.5;padding:0 1rem .9rem}
+
+/* ═══════════ INTEGRACIONES ═══════════ */
+.intg{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.55rem}
+.intg-h{display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}
+.intg-h h3{font-size:1rem;letter-spacing:-.01em}
+.intg-dir{font-size:.68rem;font-weight:700;padding:.1rem .45rem;border-radius:99px;text-transform:uppercase;letter-spacing:.03em}
+.intg-dir.entrada{background:rgba(60,130,255,.14);color:#8fbcff;border:1px solid rgba(60,130,255,.3)}
+.intg-dir.salida{background:var(--mag-soft);color:var(--mag);border:1px solid var(--mag-line)}
+.intg-st{font-size:.74rem;font-weight:700;white-space:nowrap}
+.intg-st.on{color:var(--lime)}
+.intg-st.off{color:var(--dim)}
+.intg-doc{color:var(--sub);font-size:.84rem;line-height:1.4}
+.intg-env{font-size:.74rem;color:var(--dim);display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
+.intg-env code,.fnote code,.faq-a code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:.05rem .35rem;font-size:.74rem;color:var(--ink);font-family:ui-monospace,monospace}
+.wh-row{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 0;border-bottom:1px solid var(--line)}
+.wh-row:last-of-type{border-bottom:none}
+.wh-url{font-family:ui-monospace,monospace;font-size:.76rem;color:var(--sub);word-break:break-all;margin-top:.15rem}

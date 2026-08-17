@@ -1,6 +1,8 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
+import { contarNoLeidos } from '../lib/notif';
 
 // Barra de navegación compartida por todas las pantallas del portal.
 const LINKS = [
@@ -8,20 +10,26 @@ const LINKS = [
   ['/portal', 'Catálogo'],
   ['/buscar', 'Buscar'],
   ['/comparar', 'Comparar'],
+  ['/precalifica', 'Precalifica'],
   ['/clientes', 'Clientes'],
   ['/crm', 'CRM'],
   ['/materiales', 'Materiales'],
+  ['/escrituracion', 'Escrituración'],
   ['/calor', 'Interés'],
   ['/tablero', 'Tablero'],
   ['/comisiones', 'Comisiones'],
+  ['/academia', 'Academia'],
 ];
 const SUPER = [
   ['/captura', 'Captura'],
+  ['/integraciones', 'Integraciones'],
   ['/altas', 'Altas'],
 ];
 
 export default function Nav({ me, current, logo = 'Portal de Brokers' }) {
   const router = useRouter();
+  const [noLeidos, setNoLeidos] = useState(0);
+  useEffect(() => { contarNoLeidos().then(setNoLeidos).catch(() => {}); }, []);
   async function logout() { await supabase.auth.signOut(); router.replace('/login'); }
   const items = me?.rol === 'super_admin' ? [...LINKS, ...SUPER] : LINKS;
   return (
@@ -31,6 +39,9 @@ export default function Nav({ me, current, logo = 'Portal de Brokers' }) {
         {items.map(([href, label]) => (
           <a key={href} onClick={() => router.push(href)} className={current === href ? 'on' : ''}>{label}</a>
         ))}
+        <a onClick={() => router.push('/avisos')} className={'nav-bell' + (current === '/avisos' ? ' on' : '')}>
+          🔔{noLeidos > 0 && <span className="nav-badge">{noLeidos > 9 ? '9+' : noLeidos}</span>}
+        </a>
         <span className="nav-user">{me?.nombre || me?.email}</span>
         <button onClick={logout}>Salir</button>
       </nav>
