@@ -33,6 +33,9 @@ export default function Detalle() {
   const [regUnidad, setRegUnidad] = useState(null);
   const [medios, setMedios] = useState([]);
   const [showMedios, setShowMedios] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [vistas, setVistas] = useState(null);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,6 +48,9 @@ export default function Detalle() {
       const { data: us } = await supabase.from('unidades').select('*').eq('dev_sku', sku).eq('estatus','Disponible').order('torre').order('num_depto');
       setUnits(us || []);
       setMedios(await listarMedios(sku));
+      const { count } = await supabase.from('eventos').select('id', { count: 'exact', head: true })
+        .eq('tipo', 'vista_ficha').eq('entidad_id', sku).eq('actor', session.user.id);
+      setVistas(count || 0);
     })();
   }, [sku, router]);
 
@@ -91,6 +97,7 @@ export default function Detalle() {
         <div className="dactions">
           <button className="btn mag" onClick={()=>setCotizar('dev')}>Cotizar</button>
           <button className="btn lim" onClick={()=>abrirReg(null)}>Registrar cliente</button>
+          <button className="btn ghost" onClick={()=>setShowShare(true)}>🔗 Compartir ficha{vistas>0?` · 👁 ${vistas}`:''}</button>
           {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
           {me?.rol==='super_admin' && <button className="btn ghost" onClick={()=>setShowMedios(true)}>🖼️ Gestionar medios</button>}
@@ -198,6 +205,28 @@ export default function Detalle() {
           <MediosManager dev={d} units={units}
             onClose={() => setShowMedios(false)} onChange={setMedios} />
         )}
+
+        {showShare && (() => {
+          const link = typeof window !== 'undefined' ? `${window.location.origin}/f/${sku}?a=${me?.id}` : '';
+          const wa = 'https://wa.me/?text=' + encodeURIComponent(`Te comparto la ficha de ${d.nombre}: ${link}`);
+          return (
+            <>
+              <div className="drawer-bg" onClick={() => setShowShare(false)} />
+              <aside className="drawer" onClick={e => e.stopPropagation()}>
+                <div className="dw-h"><div><span className="dw-tag">Compartir ficha</span><h2>{d.nombre}</h2></div>
+                  <button className="x" onClick={() => setShowShare(false)}>✕</button></div>
+                <p className="fnote" style={{ marginTop: 0 }}>Link público (sin login), sale con tu marca. Cuando el cliente llena el formulario, el lead cae directo en tu CRM, a tu nombre.</p>
+                <div className="share-link">{link}</div>
+                <div className="cotiz-actions">
+                  <button className="btn lim block" onClick={() => { if (navigator.clipboard) { navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } }}>{copiado ? '¡Copiado!' : 'Copiar link'}</button>
+                  <a className="btn ghost block" href={wa} target="_blank" rel="noopener">Compartir por WhatsApp</a>
+                </div>
+                {vistas != null && <div className="share-views">👁 {vistas} {vistas === 1 ? 'vista' : 'vistas'} de esta ficha compartida por ti</div>}
+                <p className="fnote">¿El link no sale con tu logo o teléfono? Complétalos en <a onClick={() => router.push('/marca')} style={{ cursor: 'pointer' }}>Mi marca</a>.</p>
+              </aside>
+            </>
+          );
+        })()}
       </main>
     </>
   );

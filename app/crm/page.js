@@ -207,6 +207,7 @@ export default function CRM() {
           <a onClick={() => router.push('/buscar')}>Buscar</a>
           <a onClick={() => router.push('/portal')}>Catálogo</a>
           <a onClick={() => router.push('/comisiones')}>Comisiones</a>
+          <a onClick={() => router.push('/marca')}>Mi marca</a>
           {me?.rol === 'super_admin' && <a onClick={() => router.push('/altas')}>Altas</a>}
           {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
           <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
