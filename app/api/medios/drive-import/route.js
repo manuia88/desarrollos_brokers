@@ -5,16 +5,28 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const TIPOS = ['render', 'plano', 'planta', 'amenidad', 'foto', 'brochure', 'portada'];
+// Reconoce la taxonomía real de las carpetas (soporta prefijos numerados: "2. Planos", "6. Renders"…).
 function tipoDeNombre(nombre, fallback) {
   const s = (nombre || '').toLowerCase();
-  if (/plano/.test(s)) return 'plano';
-  if (/planta/.test(s)) return 'planta';
-  if (/render/.test(s)) return 'render';
-  if (/amenidad|amenit|alberca|\bgym\b|roof|lobby/.test(s)) return 'amenidad';
-  if (/brochure|folleto|dossier|pdf/.test(s)) return 'brochure';
+  if (/prototipo/.test(s)) return 'planta';                          // "3. Prototipos" = plantas por unidad
+  if (/planta/.test(s)) return 'planta';                             // "4. Plantas"
+  if (/plano/.test(s)) return 'plano';                               // "2. Planos"
+  if (/render/.test(s)) return 'render';                             // "6. Renders"
+  if (/amenidad|amenit|alberca|\bgym\b|roof|lobby|terraza/.test(s)) return 'amenidad';
+  if (/brochure|folleto|dossier|ficha|memoria|acabado|mantenim/.test(s)) return 'brochure'; // 1/7/8/9
+  if (/ubicaci|localizaci|mapa|entorno/.test(s)) return 'foto';      // "10. Ubicación"
   if (/fachada|portada/.test(s)) return 'render';
   if (/foto/.test(s)) return 'foto';
   return fallback;
+}
+// De "5d.png" / "8i-F ROOF GARDEN.png" saca el prototipo "AN1-5d" / "AN1-8i-F"
+// (en la base los prototipos son SKU-código, así la planta queda ligada a su unidad).
+function protoDeArchivo(nombre, sku) {
+  if (!sku) return null;
+  const stem = (nombre || '').replace(/\.[^.]+$/, '').trim();
+  const code = stem.split(/\s+/)[0];                                 // primer token: "8i-F ROOF GARDEN" -> "8i-F"
+  if (!/^\d/.test(code)) return null;                                // los prototipos empiezan con dígito
+  return sku + '-' + code;
 }
 function folderId(input) {
   const s = String(input || '').trim();
@@ -59,10 +71,11 @@ export async function POST(req) {
     if (f.mimeType === 'application/vnd.google-apps.folder') {
       const sub = await driveList(token, `'${f.id}' in parents and trashed=false`);
       const t = tipoDeNombre(f.name, fallback);
+      const esProto = /prototipo/i.test(f.name);                     // etiquetar prototipo desde el nombre del archivo
       sub.files.filter(x => x.mimeType?.startsWith('image/') || x.mimeType === 'application/pdf')
-        .forEach(x => trabajos.push({ ...x, tipo: x.mimeType === 'application/pdf' ? 'brochure' : t }));
+        .forEach(x => trabajos.push({ ...x, tipo: x.mimeType === 'application/pdf' ? 'brochure' : t, proto: esProto ? protoDeArchivo(x.name, dev_sku) : null }));
     } else if (f.mimeType?.startsWith('image/') || f.mimeType === 'application/pdf') {
-      trabajos.push({ ...f, tipo: f.mimeType === 'application/pdf' ? 'brochure' : tipoDeNombre(f.name, fallback) });
+      trabajos.push({ ...f, tipo: f.mimeType === 'application/pdf' ? 'brochure' : tipoDeNombre(f.name, fallback), proto: null });
     }
   }
   // Dedup: no reimportar lo que ya está (por título/nombre en este desarrollo).
@@ -83,7 +96,7 @@ export async function POST(req) {
       if (up.error) { err++; continue; }
       const { data: pub } = db.storage.from('medios').getPublicUrl(path);
       const con_area = ['render', 'foto', 'amenidad', 'portada'].includes(it.tipo);
-      await db.from('media').insert({ dev_sku, tipo: it.tipo, area: con_area ? area : null, url: pub.publicUrl, titulo: (it.name || '').replace(/\.[^.]+$/, '') });
+      await db.from('media').insert({ dev_sku, tipo: it.tipo, area: con_area ? area : null, prototipo: it.proto || null, url: pub.publicUrl, titulo: (it.name || '').replace(/\.[^.]+$/, '') });
       porTipo[it.tipo] = (porTipo[it.tipo] || 0) + 1; ok++;
     } catch { err++; }
   }
