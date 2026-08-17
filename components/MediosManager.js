@@ -18,6 +18,8 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [k, setK] = useState(0);
+  const [sesion, setSesion] = useState(undefined); // undefined=cargando, null=sin sesión, obj=ok
+  const [gmail, setGmail] = useState(null);         // correo de Google conectado (o null)
 
   const prototipos = useMemo(() => [...new Set(units.map(u => u.prototipo).filter(Boolean))].sort(), [units]);
   const conArea = TIPOS_CON_AREA.includes(tipo);
@@ -25,6 +27,26 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
 
   async function reload() { const d = await listarMedios(dev.sku); setMedios(d); if (onChange) onChange(d); }
   useEffect(() => { reload(); }, [dev.sku]);
+
+  // Estado de sesión y de Google (para poder reautenticarse desde aquí mismo).
+  async function checarSesion() {
+    let { data: { session } } = await supabase.auth.getSession();
+    if (!session) { try { const r = await supabase.auth.refreshSession(); session = r.data.session; } catch { /* noop */ } }
+    setSesion(session || null);
+    if (session) {
+      const { data: prof } = await supabase.from('profiles').select('google_email').eq('id', session.user.id).maybeSingle();
+      setGmail(prof?.google_email || null);
+    }
+    return session || null;
+  }
+  useEffect(() => { checarSesion(); }, []);
+
+  function iniciarSesion() { window.location.href = '/login?next=' + encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname : '/'); }
+  async function conectarDrive() {
+    const s = await checarSesion();
+    if (!s) { iniciarSesion(); return; }
+    window.location.href = '/api/google/connect?token=' + encodeURIComponent(s.access_token);
+  }
 
   const meta = () => ({
     dev_sku: dev.sku, tipo,
@@ -61,16 +83,21 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
     if (!drive.trim()) { setMsg({ t: 'err', m: 'Pega el link de la carpeta de Drive.' }); return; }
     setBusy(true); setMsg({ t: 'ok', m: 'Leyendo la carpeta de Drive e importando…' });
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Refresca la sesión ANTES de llamar (evita el "no autenticado" por token vencido).
+      const s = await checarSesion();
+      if (!s) { setMsg({ t: 'err', m: 'Tu sesión expiró. Inicia sesión de nuevo para importar.' }); setBusy(false); return; }
       const r = await fetch('/api/medios/drive-import', {
-        method: 'POST', headers: { Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { Authorization: 'Bearer ' + s.access_token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ dev_sku: dev.sku, folder: drive.trim(), tipo, area: conArea ? area : null }),
       });
       const j = await r.json();
-      if (j.error) setMsg({ t: 'err', m: j.error });
-      else {
+      if (j.error) {
+        if (/autenticad/i.test(j.error)) { setSesion(null); setMsg({ t: 'err', m: 'Tu sesión expiró. Inicia sesión de nuevo (botón de arriba) y reintenta.' }); }
+        else if (/google|drive|conecta/i.test(j.error)) { setGmail(null); setMsg({ t: 'err', m: j.error }); }
+        else setMsg({ t: 'err', m: j.error });
+      } else {
         const desg = Object.entries(j.porTipo || {}).map(([t, n]) => `${n} ${t}`).join(', ');
-        setMsg({ t: 'ok', m: `✓ ${j.importados} importadas${desg ? ' (' + desg + ')' : ''}.${j.mas ? ` Quedan ${j.mas}, corre otra vez para traer más.` : ''}` });
+        setMsg({ t: 'ok', m: `✓ ${j.importados} importadas${desg ? ' (' + desg + ')' : ''}${j.saltados ? ` · ${j.saltados} ya estaban` : ''}.${j.mas ? ` Quedan ${j.mas}, corre otra vez para traer más.` : ''}` });
         setDrive(''); setK(x => x + 1); await reload();
       }
     } catch (e) { setMsg({ t: 'err', m: String(e?.message || e) }); }
@@ -89,6 +116,13 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
           <button className="x" onClick={onClose}>✕</button>
         </div>
         {msg && <div className={'msg ' + msg.t}>{msg.m}</div>}
+
+        {sesion === null && (
+          <div className="msg err" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.6rem', flexWrap: 'wrap' }}>
+            <span>Tu sesión expiró. Vuelve a iniciar sesión para subir o importar.</span>
+            <button className="btn mag sm" type="button" onClick={iniciarSesion}>Iniciar sesión</button>
+          </div>
+        )}
 
         <div className="dw-sec">
           <h3>Subir</h3>
@@ -132,6 +166,14 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
           <div className="dw-field">
             <div className="med-url"><input value={drive} onChange={e => setDrive(e.target.value)} placeholder="https://drive.google.com/drive/folders/…" />
               <button className="btn lim sm" disabled={busy || !drive.trim()} onClick={importarDrive}>Importar</button></div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap', margin: '.1rem 0 .3rem' }}>
+            <button className="btn ghost sm" type="button" disabled={busy} onClick={conectarDrive}>{gmail ? 'Reconectar Google Drive' : 'Conectar Google Drive'}</button>
+            <span className="fnote" style={{ margin: 0 }}>
+              {sesion === undefined ? 'Verificando conexión…'
+                : gmail ? `Conectado como ${gmail}. Si el import falla por permisos, reconecta para dar acceso a Drive.`
+                  : 'Aún no conectas Google Drive — necesario para importar carpetas.'}
+            </span>
           </div>
           <p className="fnote" style={{ marginTop: 0 }}>Trae todas las imágenes de la carpeta (y subcarpetas) y las <b>re-hospeda</b> en tu portal. Si nombras las subcarpetas <i>Renders, Planos, Plantas, Amenidades, Brochure</i>, se clasifican solas; lo demás usa el tipo de arriba. Requiere tener conectado tu Google con permiso de Drive.</p>
         </div>

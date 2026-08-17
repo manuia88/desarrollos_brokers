@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { fetchEBContactRequests } from '../../../../lib/integraciones';
+import { descifrar } from '../../../../lib/cripto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,7 +23,7 @@ async function correr() {
 
   // Fuentes: cada conexión EB activa (por cuenta) + la env global (desarrollador).
   const { data: conns } = await db.from('conexiones').select('*').eq('proveedor', 'easybroker').eq('activa', true);
-  const fuentes = (conns || []).map(c => ({ org_id: c.org_id, key: c.api_key, ambiente: c.ambiente, tag: 'c' + c.id }));
+  const fuentes = (conns || []).map(c => ({ org_id: c.org_id, key: descifrar(c.api_key), ambiente: c.ambiente, tag: 'c' + c.id }));
   if (process.env.EASYBROKER_API_KEY) {
     let og = process.env.DEFAULT_ORG_ID || null;
     if (!og) { const { data: o } = await db.from('orgs').select('id').order('creado').limit(1).maybeSingle(); og = o?.id || null; }
@@ -51,7 +52,12 @@ async function correr() {
         dev_sku: dev_sku || null, mensaje: cr.message || null,
         etapa: 'Nuevo', fuente: 'EasyBroker', estatus: 'ok', consentimiento: true,
       }).select('id').single();
-      if (nl) { creados++; try { await db.from('eventos').insert({ tipo: 'eb_lead', entidad: 'lead', entidad_id: extId, org_id: f.org_id, meta: { lead_id: nl.id, property: propId } }); } catch { /* noop */ } }
+      if (nl) {
+        creados++;
+        // #3 Ruteo: reparte el lead entrante entre los asesores activos de la org (round-robin) y avisa.
+        try { await db.rpc('rutear_lead', { p_lead_id: nl.id }); } catch { /* noop */ }
+        try { await db.from('eventos').insert({ tipo: 'eb_lead', entidad: 'lead', entidad_id: extId, org_id: f.org_id, meta: { lead_id: nl.id, property: propId } }); } catch { /* noop */ }
+      }
     }
   }
   return { ok: true, fuentes: fuentes.length, revisados, creados };

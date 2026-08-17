@@ -12,7 +12,7 @@ export default function Conexiones() {
   const [token, setToken] = useState('');
   const [conns, setConns] = useState([]);
   const [modo, setModo] = useState('org');
-  const [form, setForm] = useState({ ambiente: 'produccion', api_key: '', etiqueta: '' });
+  const [form, setForm] = useState({ ambiente: 'produccion', api_key: '', etiqueta: '', cuota: '' });
   const [msg, setMsg] = useState(null);
 
   const esDirectivo = me && ['director', 'gerente', 'independiente', 'super_admin'].includes(me.rol);
@@ -40,11 +40,11 @@ export default function Conexiones() {
     try {
       const r = await fetch('/api/integraciones/conectar', {
         method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proveedor: 'easybroker', scope, ambiente: form.ambiente, api_key: form.api_key, etiqueta: form.etiqueta }),
+        body: JSON.stringify({ proveedor: 'easybroker', scope, ambiente: form.ambiente, api_key: form.api_key, etiqueta: form.etiqueta, cuota: form.cuota }),
       });
       const j = await r.json();
       if (j.error) setMsg({ t: 'err', m: j.error });
-      else { setMsg({ t: 'ok', m: j.valida ? '✓ Cuenta conectada y validada.' : '⚠ Guardada, pero la llave no validó (revisa que sea correcta y el ambiente).' }); setForm({ ambiente: 'produccion', api_key: '', etiqueta: '' }); cargar(); }
+      else { setMsg({ t: 'ok', m: j.valida ? '✓ Cuenta conectada y validada.' : '⚠ Guardada, pero la llave no validó (revisa que sea correcta y el ambiente).' }); setForm({ ambiente: 'produccion', api_key: '', etiqueta: '', cuota: '' }); cargar(); }
     } catch (e) { setMsg({ t: 'err', m: String(e?.message || e) }); }
   }
   async function desconectar(id) {
@@ -90,6 +90,8 @@ export default function Conexiones() {
             <input className="inp" value={form.api_key} onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))} placeholder="Pega tu API key aquí" />
             <label className="lbl">Etiqueta (opcional)</label>
             <input className="inp" value={form.etiqueta} onChange={e => setForm(f => ({ ...f, etiqueta: e.target.value }))} placeholder="Ej. Cuenta principal" />
+            <label className="lbl">Cuota de anuncios (opcional)</label>
+            <input className="inp" type="number" min="1" value={form.cuota} onChange={e => setForm(f => ({ ...f, cuota: e.target.value }))} placeholder="Ej. 20 (máximo de anuncios vivos en esta cuenta)" />
             <button className="btn mag block" style={{ marginTop: '.8rem' }} disabled={!form.api_key || msg?.t === 'load'} onClick={conectar}>{msg?.t === 'load' ? 'Validando…' : 'Conectar'}</button>
             {msg && msg.t !== 'load' && <div className={'cap-msg ' + (msg.t === 'ok' ? 'ok' : 'err')} style={{ marginTop: '.7rem' }}>{msg.m}</div>}
             <p className="fnote">Tu API key la sacas de EasyBroker → Configuración → API. Para probar sin cuenta, usa el ambiente de pruebas con la llave de prueba.</p>
@@ -105,7 +107,7 @@ export default function Conexiones() {
             {conns.map(c => (
               <div className="camp" key={c.id}>
                 <div className="camp-main"><b>{c.proveedor} · {c.scope === 'org' ? 'inmobiliaria' : 'asesor'}</b>
-                  <span className="camp-sub">{c.ambiente}{c.etiqueta ? ' · ' + c.etiqueta : ''} · {c.valida ? '✓ validada' : '⚠ sin validar'}</span></div>
+                  <span className="camp-sub">{c.ambiente}{c.etiqueta ? ' · ' + c.etiqueta : ''}{c.cuota ? ' · tope ' + c.cuota + ' anuncios' : ''} · {c.valida ? '✓ validada' : '⚠ sin validar'}</span></div>
                 <button className="regla-x" onClick={() => desconectar(c.id)}>✕</button>
               </div>
             ))}

@@ -16,15 +16,27 @@ export default function Metricas() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
-      setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
+      let tipoOrg = null;
+      if (prof?.org_id) { const { data: o } = await supabase.from('orgs').select('tipo').eq('id', prof.org_id).maybeSingle(); tipoOrg = o?.tipo; }
+      setMe({ id: session.user.id, email: session.user.email, tipoOrg, ...(prof || {}) });
       const [ev, ld, ci, no, de] = await Promise.all([
         supabase.from('eventos').select('tipo,entidad_id,meta,creado').order('creado', { ascending: false }).limit(3000),
         supabase.from('leads').select('id,dev_sku,rec_interes,zona_interes,fuente,etapa,creado'),
         supabase.from('citas').select('id,dev_sku,estatus'),
         supabase.from('notificaciones').select('tipo,leido'),
-        supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('desarrollos').select('sku,nombre,dev_org_id'),
       ]);
-      setD({ ev: ev.data || [], ld: ld.data || [], ci: ci.data || [], no: no.data || [], de: de.data || [] });
+      // #8 Aislar por dueño: un desarrollador ve SOLO sus desarrollos; super ve todo.
+      let de2 = de.data || [];
+      if (prof?.rol !== 'super_admin' && tipoOrg === 'desarrollador') de2 = de2.filter(x => x.dev_org_id === prof.org_id);
+      const mine = new Set(de2.map(x => x.sku));
+      const esDev = prof?.rol !== 'super_admin' && tipoOrg === 'desarrollador';
+      setD({
+        ev: esDev ? (ev.data || []).filter(e => e.tipo !== 'vista_ficha' || mine.has(e.entidad_id)) : (ev.data || []),
+        ld: esDev ? (ld.data || []).filter(l => mine.has(l.dev_sku)) : (ld.data || []),
+        ci: esDev ? (ci.data || []).filter(c => mine.has(c.dev_sku)) : (ci.data || []),
+        no: no.data || [], de: de2,
+      });
     })();
   }, [router]);
 

@@ -17,15 +17,22 @@ export default function Pricing() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
-      if (prof?.rol !== 'super_admin') { router.replace('/portal'); return; }
-      setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
+      let tipoOrg = null;
+      if (prof?.org_id) { const { data: o } = await supabase.from('orgs').select('tipo').eq('id', prof.org_id).maybeSingle(); tipoOrg = o?.tipo; }
+      // Solo super o desarrollador ven pricing (su propio inventario).
+      if (prof?.rol !== 'super_admin' && tipoOrg !== 'desarrollador') { router.replace('/portal'); return; }
+      setMe({ id: session.user.id, email: session.user.email, tipoOrg, ...(prof || {}) });
       const [ev, ld, un, de] = await Promise.all([
         supabase.from('eventos').select('tipo,entidad_id,meta').limit(5000),
         supabase.from('leads').select('dev_sku'),
         supabase.from('unidades').select('dev_sku,precio,estatus,creado,m2_hab,rec'),
-        supabase.from('desarrollos').select('sku,nombre,comision_broker,etapa'),
+        supabase.from('desarrollos').select('sku,nombre,comision_broker,etapa,dev_org_id'),
       ]);
-      setD({ ev: ev.data || [], ld: ld.data || [], un: un.data || [], de: de.data || [] });
+      // #8 Aislar por dueño: un desarrollador ve SOLO su inventario.
+      let de2 = de.data || [];
+      if (prof?.rol !== 'super_admin' && tipoOrg === 'desarrollador') de2 = de2.filter(x => x.dev_org_id === prof.org_id);
+      const mine = new Set(de2.map(x => x.sku));
+      setD({ ev: (ev.data || []).filter(e => mine.has(e.entidad_id) || e.tipo !== 'vista_ficha'), ld: (ld.data || []).filter(l => mine.has(l.dev_sku)), un: (un.data || []).filter(u => mine.has(u.dev_sku)), de: de2 });
     })();
   }, [router]);
 

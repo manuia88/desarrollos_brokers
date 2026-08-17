@@ -32,7 +32,13 @@ async function crear(body) {
   const { data, error } = await db.from('leads').insert(row).select('id').single();
   if (error) return { error: error.message };
   try { await db.from('eventos').insert({ tipo: 'lead_integracion', entidad: 'lead', entidad_id: String(data.id), org_id, meta: { fuente: row.fuente } }); } catch { /* noop */ }
-  if (body.asesor_id) { try { await db.rpc('notificar', { p_user: body.asesor_id, p_tipo: 'lead_asignado', p_titulo: 'Nuevo lead de integración', p_cuerpo: `${row.nombre} entró por ${row.fuente}.`, p_link: '/crm' }); } catch { /* noop */ } }
+  if (body.asesor_id) {
+    // Vino con asesor explícito: respétalo y avísale.
+    try { await db.rpc('notificar', { p_user: body.asesor_id, p_tipo: 'lead_asignado', p_titulo: 'Nuevo lead de integración', p_cuerpo: `${row.nombre} entró por ${row.fuente}.`, p_link: '/crm' }); } catch { /* noop */ }
+  } else {
+    // #3 Sin asesor: reparte round-robin entre los asesores activos de la org.
+    try { await db.rpc('rutear_lead', { p_lead_id: data.id }); } catch { /* noop */ }
+  }
   return { ok: true, lead_id: data.id };
 }
 

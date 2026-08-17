@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { validarEB } from '../../../../lib/integraciones';
+import { cifrar } from '../../../../lib/cripto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,9 +36,13 @@ export async function POST(req) {
   let valida = true;
   if (proveedor === 'easybroker') valida = await validarEB(api_key, ambiente);
 
+  // Cuota opcional: máximo de anuncios vivos que esta cuenta puede tener en el portal.
+  let cuota = null;
+  if (b.cuota != null && b.cuota !== '') { const n = parseInt(b.cuota, 10); if (Number.isFinite(n) && n > 0) cuota = n; }
+
   const db = svc();
   const { error } = await db.from('conexiones').upsert({
-    org_id, scope, asesor_id, proveedor, ambiente, api_key,
+    org_id, scope, asesor_id, proveedor, ambiente, api_key: cifrar(api_key), cuota,
     etiqueta: b.etiqueta || null, activa: true, valida, ultimo_check: new Date().toISOString(), actualizado: new Date().toISOString(),
   }, { onConflict: 'org_id,proveedor,scope,asesor_id' });
   if (error) return NextResponse.json({ error: error.message }, { status: 200 });

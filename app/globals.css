@@ -883,3 +883,11 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .camp-sub{color:var(--sub);font-size:.78rem}
 .camp-tog{display:inline-flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--sub)}
 .camp-tog input{accent-color:var(--mag)}
+
+/* ═══════════ MATERIALES · completitud + descarga con marca ═══════════ */
+.mat-comp{display:flex;gap:.3rem;flex-wrap:wrap}
+.mc-dot{font-size:.66rem;padding:.12rem .45rem;border-radius:99px;border:1px solid var(--line);color:var(--dim);background:var(--panel2)}
+.mc-dot.on{color:var(--lime);border-color:rgba(198,255,58,.3);background:var(--lime-soft)}
+.mat-img{position:relative;padding:0;border:1px solid var(--line);cursor:pointer;background:var(--panel2)}
+.mat-dl{position:absolute;bottom:4px;right:4px;background:rgba(10,10,12,.7);color:#fff;border-radius:6px;font-size:.7rem;padding:.05rem .3rem;opacity:0;transition:opacity .15s}
+.mat-img:hover .mat-dl{opacity:1}

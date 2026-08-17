@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { mapEasyBroker, pushEasyBroker, elegirConexionEB } from '../../../../lib/integraciones';
 import { resolverReglas, ordenar } from '../../../../lib/publicador';
+import { descifrar } from '../../../../lib/cripto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,12 +31,12 @@ export async function POST(req) {
   const db = svc();
 
   // Resolver la credencial EB de quien publica (su cuenta o la de su inmobiliaria).
-  let cfg = null, cuenta = 'dev';
+  let cfg = null, cuenta = 'dev', cuotaCuenta = null;
   if (portal === 'easybroker' && p.org_id) {
     const { data: org } = await db.from('orgs').select('eb_modo').eq('id', p.org_id).maybeSingle();
     const { data: conns } = await db.from('conexiones').select('*').eq('org_id', p.org_id);
     const sel = elegirConexionEB(conns, { org_id: p.org_id, asesor_id: p.uid, eb_modo: org?.eb_modo });
-    if (sel) { cfg = { key: sel.key, ambiente: sel.ambiente }; cuenta = (org?.eb_modo === 'asesor') ? 'asesor:' + p.uid : 'org:' + p.org_id; }
+    if (sel) { cfg = { key: descifrar(sel.key), ambiente: sel.ambiente }; cuotaCuenta = sel.cuota || null; cuenta = (org?.eb_modo === 'asesor') ? 'asesor:' + p.uid : 'org:' + p.org_id; }
   }
 
   const { data: devs } = await db.from('desarrollos').select('*');
@@ -49,10 +50,22 @@ export async function POST(req) {
   // Selección hipersegmentada por reglas + prioridad de slots por objetivo.
   let sel = resolverReglas(autorizadas, byId, base, reglas);
   sel = ordenar(sel, byId, orden);
-  let items = sel.map(u => ({ ref: u.sku, u })).slice(0, limite);
+  let items = sel.map(u => ({ ref: u.sku, u }));
 
   // Mapa de publicaciones previas de ESTA cuenta (para actualizar en vez de duplicar)
-  const { data: prev } = await db.from('publicaciones').select('ref,external_id').eq('portal', portal).eq('cuenta', cuenta);
+  const { data: prev } = await db.from('publicaciones').select('ref,external_id,estatus').eq('portal', portal).eq('cuenta', cuenta);
+
+  // #6 Cuota por portal: nunca superar los anuncios vivos permitidos para esta cuenta.
+  let topeCuota = null;
+  if (cuotaCuenta) {
+    const vivas = new Set((prev || []).filter(x => ['publicado', 'borrador'].includes(x.estatus)).map(x => x.ref));
+    const yaVivos = items.filter(it => vivas.has(it.ref));
+    const espacio = Math.max(0, cuotaCuenta - vivas.size);
+    const nuevos = items.filter(it => !vivas.has(it.ref)).slice(0, espacio);
+    items = [...yaVivos, ...nuevos];
+    topeCuota = cuotaCuenta;
+  }
+  items = items.slice(0, limite);
   const prevMap = Object.fromEntries((prev || []).map(x => [x.ref, x.external_id]));
 
   // Medios por desarrollo (para imágenes)
@@ -92,5 +105,5 @@ export async function POST(req) {
     detalles.push({ ref: it.ref, ok: !!res.ok, estatus, error: res.error || null });
   }
 
-  return NextResponse.json({ ok: true, intentos: items.length, publicados, errores, detalles: detalles.slice(0, 50) });
+  return NextResponse.json({ ok: true, intentos: items.length, publicados, errores, cuota: topeCuota, detalles: detalles.slice(0, 50) });
 }

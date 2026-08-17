@@ -17,7 +17,10 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) { setErr(error.message); return; }
-    router.push('/portal');
+    // Regresa a la pantalla de origen si vino con ?next=/ruta (solo rutas internas).
+    let next = '/portal';
+    try { const p = new URLSearchParams(window.location.search).get('next'); if (p && p.startsWith('/') && !p.startsWith('//')) next = p; } catch { /* noop */ }
+    router.push(next);
   }
 
   return (

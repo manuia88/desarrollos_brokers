@@ -65,7 +65,11 @@ export async function POST(req) {
       trabajos.push({ ...f, tipo: f.mimeType === 'application/pdf' ? 'brochure' : tipoDeNombre(f.name, fallback) });
     }
   }
-  const lote = trabajos.slice(0, max);
+  // Dedup: no reimportar lo que ya está (por título/nombre en este desarrollo).
+  const { data: existentes } = await db.from('media').select('titulo').eq('dev_sku', dev_sku);
+  const yaSet = new Set((existentes || []).map(m => (m.titulo || '').toLowerCase()));
+  const lote = trabajos.filter(it => !yaSet.has((it.name || '').replace(/\.[^.]+$/, '').toLowerCase())).slice(0, max);
+  const saltados = trabajos.length - trabajos.filter(it => !yaSet.has((it.name || '').replace(/\.[^.]+$/, '').toLowerCase())).length;
 
   const porTipo = {}; let ok = 0, err = 0;
   for (const it of lote) {
@@ -83,5 +87,14 @@ export async function POST(req) {
       porTipo[it.tipo] = (porTipo[it.tipo] || 0) + 1; ok++;
     } catch { err++; }
   }
-  return NextResponse.json({ ok: true, encontrados: trabajos.length, importados: ok, errores: err, porTipo, mas: trabajos.length > lote.length ? trabajos.length - lote.length : 0 });
+  // Portada automática: si el desarrollo no tiene portada, promueve el primer render/foto.
+  if (ok > 0) {
+    const { data: port } = await db.from('media').select('id').eq('dev_sku', dev_sku).eq('tipo', 'portada').maybeSingle();
+    if (!port) {
+      const { data: fr } = await db.from('media').select('id').eq('dev_sku', dev_sku).in('tipo', ['render', 'foto']).order('creado').limit(1).maybeSingle();
+      if (fr) await db.from('media').update({ tipo: 'portada' }).eq('id', fr.id);
+    }
+  }
+  const restantes = trabajos.filter(it => !yaSet.has((it.name || '').replace(/\.[^.]+$/, '').toLowerCase())).length - lote.length;
+  return NextResponse.json({ ok: true, encontrados: trabajos.length, importados: ok, saltados, errores: err, porTipo, mas: restantes > 0 ? restantes : 0 });
 }

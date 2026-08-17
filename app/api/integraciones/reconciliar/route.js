@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { mapEasyBroker, pushEasyBroker, elegirConexionEB } from '../../../../lib/integraciones';
 import { resolverReglas, ordenar } from '../../../../lib/publicador';
+import { descifrar } from '../../../../lib/cripto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,12 +14,12 @@ const ahora = () => new Date().toISOString();
 async function reconciliarCampana(db, camp, mode) {
   const portal = camp.portal || 'easybroker';
   // Credencial de la cuenta dueña de la campaña (org) o env global del desarrollador.
-  let cfg = null, cuenta = 'dev';
+  let cfg = null, cuenta = 'dev', cuotaCuenta = null;
   if (portal === 'easybroker' && camp.org_id) {
     const { data: org } = await db.from('orgs').select('eb_modo').eq('id', camp.org_id).maybeSingle();
     const { data: conns } = await db.from('conexiones').select('*').eq('org_id', camp.org_id);
     const sel = elegirConexionEB(conns, { org_id: camp.org_id, asesor_id: null, eb_modo: 'org' });
-    if (sel) { cfg = { key: sel.key, ambiente: sel.ambiente }; cuenta = 'org:' + camp.org_id; }
+    if (sel) { cfg = { key: descifrar(sel.key), ambiente: sel.ambiente }; cuotaCuenta = sel.cuota || null; cuenta = 'org:' + camp.org_id; }
   }
   const { data: devs } = await db.from('desarrollos').select('*');
   const byId = Object.fromEntries((devs || []).map(d => [d.sku, d]));
@@ -26,7 +27,9 @@ async function reconciliarCampana(db, camp, mode) {
   const byUnit = Object.fromEntries((unitsAll || []).map(u => [u.sku, u]));
   const disponibles = (unitsAll || []).filter(u => u.estatus === 'Disponible');
 
-  const desired = ordenar(resolverReglas(disponibles, byId, camp.base || {}, camp.reglas || []), byId, camp.orden || 'precio').slice(0, camp.limite || 30);
+  // #6 El tope efectivo es el menor entre el límite de la campaña y la cuota de la cuenta.
+  const tope = Math.min(camp.limite || 30, cuotaCuenta || Infinity);
+  const desired = ordenar(resolverReglas(disponibles, byId, camp.base || {}, camp.reglas || []), byId, camp.orden || 'precio').slice(0, tope);
   const desiredRefs = new Set(desired.map(u => u.sku));
 
   const { data: pubs } = await db.from('publicaciones').select('*').eq('campana_id', camp.id);
@@ -98,7 +101,7 @@ async function barridoGlobal(db) {
     const [scope, id] = cuenta.split(':');
     const c = (conns || []).find(x => x.proveedor === 'easybroker' && x.activa &&
       ((scope === 'org' && x.scope === 'org' && x.org_id === id) || (scope === 'asesor' && x.scope === 'asesor' && x.asesor_id === id)));
-    return c ? { key: c.api_key, ambiente: c.ambiente } : null;
+    return c ? { key: descifrar(c.api_key), ambiente: c.ambiente } : null;
   };
   let bajados = 0;
   for (const p of pubs) {

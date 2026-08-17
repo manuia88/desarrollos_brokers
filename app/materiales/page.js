@@ -51,6 +51,26 @@ export default function Materiales() {
   function wa(sku, nombre) {
     return 'https://wa.me/?text=' + encodeURIComponent(`Te comparto ${nombre}: ${link(sku)}`);
   }
+  // Descarga la imagen con la marca del broker sobrepuesta (watermark en canvas).
+  async function descargarConMarca(url, filename) {
+    try {
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+      const marca = String(me?.nombre || 'Quiero Casa').toUpperCase();
+      const pad = Math.round(c.width * 0.02);
+      const fs = Math.max(16, Math.round(c.width * 0.028));
+      ctx.font = `700 ${fs}px system-ui, sans-serif`;
+      const tw = ctx.measureText(marca).width;
+      ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(pad - 6, c.height - pad - fs - 12, tw + 14, fs + 14);
+      ctx.fillStyle = 'rgba(255,255,255,.96)'; ctx.textBaseline = 'top';
+      ctx.fillText(marca, pad, c.height - pad - fs - 4);
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename || 'imagen.jpg'; a.click(); URL.revokeObjectURL(a.href);
+    } catch { window.open(url, '_blank'); }
+  }
+
   function ligas(d) {
     const out = [];
     if (d.liga_disponibilidad && /^https?:/.test(d.liga_disponibilidad)) out.push(['🌐 Sitio oficial', d.liga_disponibilidad]);
@@ -77,12 +97,16 @@ export default function Materiales() {
             {lista.map(d => {
               const imgs = (porDev[d.sku] || []).filter(m => ['portada', 'render', 'foto', 'amenidad', 'plano', 'planta'].includes(m.tipo));
               const ls = ligas(d);
+              const tset = new Set((porDev[d.sku] || []).map(m => m.tipo));
+              const comp = [['portada', 'Portada'], ['render', 'Renders'], ['plano', 'Planos'], ['planta', 'Plantas'], ['amenidad', 'Amenidades'], ['brochure', 'Brochure']];
               return (
                 <article className="mat" key={d.sku}>
                   <div className="mat-h">
                     <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
                     <span className="mat-count">{imgs.length} img</span>
                   </div>
+
+                  <div className="mat-comp">{comp.map(([k, l]) => <span key={k} className={'mc-dot' + (tset.has(k) || (k === 'render' && tset.has('foto')) ? ' on' : '')} title={l}>{l}</span>)}</div>
 
                   <div className="mat-share">
                     <div className="mat-link">{link(d.sku)}</div>
@@ -97,9 +121,10 @@ export default function Materiales() {
 
                   {imgs.length > 0 ? (
                     <div className="mat-imgs">{imgs.slice(0, 8).map((m, i) => (
-                      <a key={i} className="mat-img" href={m.url} target="_blank" rel="noopener" download title={m.titulo || m.area || m.tipo}>
+                      <button key={i} className="mat-img" onClick={() => descargarConMarca(m.url, (m.titulo || m.tipo) + '.jpg')} title={'Descargar con tu marca · ' + (m.titulo || m.area || m.tipo)}>
                         <img src={m.url} alt={m.titulo || m.tipo} loading="lazy" />
-                      </a>
+                        <span className="mat-dl">⬇</span>
+                      </button>
                     ))}</div>
                   ) : (
                     <div className="mat-empty">Sin imágenes cargadas. {me?.rol === 'super_admin' ? 'Súbelas desde 🖼️ Gestionar medios en la ficha.' : 'El link brandeado ya funciona para compartir.'}</div>

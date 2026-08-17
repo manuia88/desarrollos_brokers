@@ -60,20 +60,21 @@ export default function Registro() {
       <form className="authcard" onSubmit={onSubmit}>
         <span className="logo" style={{ marginBottom: '1rem' }}><b>Q</b>Quiero Casa</span>
         <h1>Únete al programa</h1>
-        <p className="sub">Registra tu inmobiliaria o tu cuenta de broker independiente.</p>
+        <p className="sub">{tipo === 'desarrollador' ? 'Registra tu empresa desarrolladora para publicar y administrar tu propio inventario.' : 'Registra tu inmobiliaria o tu cuenta de broker independiente.'}</p>
         {msg && <div className={'msg ' + msg.t}>{msg.m}</div>}
 
         <div className="field"><label>Tipo de cuenta</label>
           <select value={tipo} onChange={e => setTipo(e.target.value)}>
             <option value="inmobiliaria">Inmobiliaria (con equipo)</option>
             <option value="independiente">Broker independiente</option>
+            <option value="desarrollador">Desarrollador (administro mi inventario)</option>
           </select></div>
         <div className="field"><label>Régimen</label>
           <select value={persona} onChange={e => setPersona(e.target.value)}>
             <option value="fisica">Persona física</option>
             <option value="moral">Persona moral (empresa)</option>
           </select></div>
-        <div className="field"><label>{tipo === 'independiente' ? 'Nombre comercial' : 'Nombre de la inmobiliaria'}</label>
+        <div className="field"><label>{tipo === 'independiente' ? 'Nombre comercial' : tipo === 'desarrollador' ? 'Nombre del desarrollador / empresa' : 'Nombre de la inmobiliaria'}</label>
           <input value={nombreOrg} onChange={e => setNombreOrg(e.target.value)} required /></div>
         <div className="field"><label>Tu nombre</label>
           <input value={nombre} onChange={e => setNombre(e.target.value)} required /></div>
