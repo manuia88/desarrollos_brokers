@@ -1,6 +1,8 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import { esquemaPago, resumenCredito, BANCOS } from '../lib/finance';
+import { generarPDF, generarPPTX } from '../lib/propuesta';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const soloDig = s => String(s ?? '').replace(/[^0-9]/g, '');
@@ -12,7 +14,7 @@ function mesesEntrega(fecha) {
 }
 
 // dev: registro de desarrollos. unidad: opcional (precio, torre, num_depto, prototipo).
-export default function Cotizador({ dev, unidad, onClose }) {
+export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
   const precio = (unidad && unidad.precio) || dev.precio_min || 0;
   const meses = mesesEntrega(dev.fecha_entrega);
 
@@ -40,6 +42,32 @@ export default function Cotizador({ dev, unidad, onClose }) {
     () => resumenCredito(Number(financiar) || 0, (Number(tasa) || 0) / 100, Number(plazo) || 0),
     [financiar, tasa, plazo]
   );
+
+  const [brand, setBrand] = useState(null);
+  const [gen, setGen] = useState(null);       // 'pdf' | 'pptx' | null
+  const [genErr, setGenErr] = useState(null);
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: prof } = await supabase.from('profiles').select('nombre,telefono,org_id').eq('id', user.id).single();
+      let org = null;
+      if (prof?.org_id) { const { data: o } = await supabase.from('orgs').select('nombre,logo_url').eq('id', prof.org_id).single(); org = o; }
+      setBrand({ id: user.id, nombre: prof?.nombre, telefono: prof?.telefono, org_nombre: org?.nombre, org_logo: org?.logo_url });
+    })();
+  }, []);
+
+  function payload() {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const link = origin + '/f/' + dev.sku + (brand?.id ? '?a=' + brand.id : '');
+    return { dev, unidad, esq, cred, banco, tasa, plazo, financiar: Number(financiar) || 0, meses, asesor: brand || {}, portadaUrl, link };
+  }
+  async function descargar(fmt) {
+    setGen(fmt); setGenErr(null);
+    try { if (fmt === 'pdf') await generarPDF(payload()); else await generarPPTX(payload()); }
+    catch (e) { setGenErr('No se pudo generar: ' + (e?.message || 'error')); }
+    setGen(null);
+  }
 
   const titulo = unidad
     ? `${dev.nombre} · T${unidad.torre} ${unidad.num_depto}`
@@ -113,9 +141,13 @@ export default function Cotizador({ dev, unidad, onClose }) {
         </section>
 
         <div className="cotiz-actions">
-          <button className="btn lim block" onClick={copiar}>Copiar cotización</button>
+          <button className="btn mag block" disabled={gen === 'pdf'} onClick={() => descargar('pdf')}>{gen === 'pdf' ? 'Generando PDF…' : '⬇ Propuesta en PDF'}</button>
+          <button className="btn ghost block" disabled={gen === 'pptx'} onClick={() => descargar('pptx')}>{gen === 'pptx' ? 'Generando PPTX…' : '⬇ Propuesta en PowerPoint'}</button>
+          <button className="btn lim block" onClick={copiar}>Copiar cotización (texto)</button>
           <a className="btn ghost block" href={waHref} target="_blank" rel="noopener">Compartir por WhatsApp</a>
         </div>
+        {genErr && <div className="msg err" style={{ marginTop: '.5rem' }}>{genErr}</div>}
+        <p className="fnote" style={{ marginTop: '.5rem' }}>La propuesta sale con el logo de tu inmobiliaria, tu contacto y un QR a la ficha en vivo. Complétalos en “Mi marca”.</p>
       </aside>
     </>
   );

@@ -191,7 +191,7 @@ export default function Detalle() {
           })}
         </div>}
 
-        {cotizar && <Cotizador dev={d} unidad={cotizar==='dev'?null:cotizar} onClose={()=>setCotizar(null)} />}
+        {cotizar && <Cotizador dev={d} unidad={cotizar==='dev'?null:cotizar} portadaUrl={portada?.url} onClose={()=>setCotizar(null)} />}
         {unitSel && <UnitDrawer dev={d} unidad={unitSel} medios={medios} onClose={()=>setUnitSel(null)}
           onCotizar={(u)=>{ setUnitSel(null); setCotizar(u); }}
           onRegistrar={(u)=>abrirReg(u)} />}
