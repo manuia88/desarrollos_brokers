@@ -6,7 +6,7 @@ import Nav from '../../components/Nav';
 import { MXN, EmptyState } from '../../components/ui';
 import {
   meses, precioM2, pasaEntrega, ENTREGA_BUCKETS, creditosDe, cabeEnCredito,
-  CREDITOS, AMENIDADES_CLAVE, VISTAS, fitScore, mensualidadHipoteca, ingresoMinimo,
+  CREDITOS, AMENIDADES_CLAVE, VISTAS, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
 
@@ -29,6 +29,18 @@ export default function Buscar() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveForm, setSaveForm] = useState({ nombre: '', telefono: '', email: '', notas: '' });
   const [saved, setSaved] = useState(false);
+  const [vistas, setVistas] = useState([]);       // vistas propias guardadas
+  const [persona, setPersona] = useState(null);
+
+  useEffect(() => { try { setVistas(JSON.parse(localStorage.getItem('qc_vistas') || '[]')); } catch { setVistas([]); } }, []);
+  function guardarVista() {
+    const nombre = (typeof window !== 'undefined') ? window.prompt('Nombre de la vista (ej. "2 rec Infonavit BJ")') : '';
+    if (!nombre) return;
+    const next = [...vistas.filter(v => v.nombre !== nombre), { nombre, f }];
+    setVistas(next); try { localStorage.setItem('qc_vistas', JSON.stringify(next)); } catch { /* noop */ }
+  }
+  function aplicarVistaPropia(v) { setF({ ...F0, ...v.f }); }
+  function borrarVista(nombre) { const next = vistas.filter(v => v.nombre !== nombre); setVistas(next); try { localStorage.setItem('qc_vistas', JSON.stringify(next)); } catch { /* noop */ } }
 
   const set = (k, v) => setF(o => ({ ...o, [k]: v }));
   const toggleArr = (k, v) => setF(o => ({ ...o, [k]: o[k].includes(v) ? o[k].filter(x => x !== v) : [...o[k], v] }));
@@ -200,6 +212,26 @@ export default function Buscar() {
           {VISTAS.map(v => <button key={v.id} className="vista" onClick={() => aplicarVista(v)}><i>{v.icon}</i>{v.label}</button>)}
         </div>
 
+        {/* Personas: perfil de cliente + pitch sugerido */}
+        <div className="pers-row">
+          <span className="pers-lbl">Perfil:</span>
+          {PERSONAS.map(p => <button key={p.id} className={'chip' + (persona?.id === p.id ? ' on' : '')} onClick={() => setPersona(persona?.id === p.id ? null : p)}>{p.label}</button>)}
+        </div>
+        {persona && <div className="pers-pitch">💡 <b>{persona.label}:</b> {persona.pitch}</div>}
+
+        {/* Vistas propias guardadas */}
+        {vistas.length > 0 && (
+          <div className="saved-row">
+            <span className="pers-lbl">Mis vistas:</span>
+            {vistas.map(v => (
+              <span key={v.nombre} className="saved-chip">
+                <button onClick={() => aplicarVistaPropia(v)}>{v.nombre}</button>
+                <i onClick={() => borrarVista(v.nombre)}>✕</i>
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Facetas */}
         <div className="crit">
           <div className="crit-row"><label>Recámaras</label>
@@ -245,6 +277,7 @@ export default function Buscar() {
           </div>
           <div className="crit-row crit-foot">
             <div className="crit-chips"><label style={{ minWidth: 0 }}>Ordenar</label>{SORTS.map(([v, l]) => <span key={v} className={'chip' + (f.sort === v ? ' on' : '')} onClick={() => set('sort', v)}>{l}</span>)}</div>
+            {activo && <button className="crit-clear" onClick={guardarVista}>☆ Guardar vista</button>}
             {activo && <button className="crit-clear" onClick={() => setF(F0)}>Limpiar</button>}
           </div>
         </div>
@@ -279,7 +312,7 @@ export default function Buscar() {
                 </div>
                 <div className="match-meta">
                   <span>{d.etapa === 'Entrega inmediata' ? '⚡ Inmediata' : (m != null ? `🕑 ${m} meses` : 'Preventa')}</span>
-                  <span>🏠 {us.length} disp.</span>
+                  {us.length <= 3 ? <span className="escaso">🔥 Solo {us.length}</span> : <span>🏠 {us.length} disp.</span>}
                   {comMonto ? <span className="lim">💰 {comPct}% · {MXN(comMonto)}</span> : (comPct ? <span className="lim">💰 {comPct}%</span> : null)}
                 </div>
                 <div className="match-foot"><span>Ver desarrollo →</span></div>

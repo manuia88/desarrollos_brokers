@@ -21,22 +21,24 @@ export default function Tablero() {
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       const meObj = { id: session.user.id, email: session.user.email, ...(prof || {}) };
       setMe(meObj);
-      const [u, l, ci, ap, ev, d] = await Promise.all([
+      const [u, l, ci, ap, ev, d, pf] = await Promise.all([
         supabase.from('unidades').select('dev_sku,precio,estatus'),
-        supabase.from('leads').select('id,etapa,estatus,dev_sku,creado'),
-        supabase.from('citas').select('id,estatus,fecha'),
-        supabase.from('apartados').select('id,estatus,precio,comision_monto'),
+        supabase.from('leads').select('id,etapa,estatus,dev_sku,creado,asesor_id'),
+        supabase.from('citas').select('id,estatus,fecha,asesor_id'),
+        supabase.from('apartados').select('id,estatus,precio,comision_monto,asesor_id'),
         supabase.from('eventos').select('tipo,entidad_id'),
         supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('profiles').select('id,nombre,rol'),
       ]);
-      setData({ u: u.data || [], l: l.data || [], ci: ci.data || [], ap: ap.data || [], ev: ev.data || [], d: d.data || [] });
+      setData({ u: u.data || [], l: l.data || [], ci: ci.data || [], ap: ap.data || [], ev: ev.data || [], d: d.data || [], pf: pf.data || [] });
     })();
   }, [router]);
 
   const k = useMemo(() => {
     if (!data) return null;
-    const { u, l, ci, ap, ev, d } = data;
+    const { u, l, ci, ap, ev, d, pf } = data;
     const devName = Object.fromEntries(d.map(x => [x.sku, x.nombre]));
+    const aseName = Object.fromEntries((pf || []).map(x => [x.id, x.nombre]));
     const disp = u.filter(x => x.estatus === 'Disponible');
     const vend = u.filter(x => /vend/i.test(x.estatus || ''));
     const apar = u.filter(x => /apart|reserv/i.test(x.estatus || ''));
@@ -53,7 +55,20 @@ export default function Tablero() {
     // inventario por desarrollo (valor disponible)
     const invd = {}; disp.forEach(x => { invd[x.dev_sku] = invd[x.dev_sku] || { n: 0, val: 0 }; invd[x.dev_sku].n++; invd[x.dev_sku].val += x.precio || 0; });
     const topInv = Object.entries(invd).map(([sku, o]) => ({ sku, ...o, nombre: devName[sku] || sku })).sort((a, b) => b.val - a.val).slice(0, 6);
-    return { totalU: u.length, disp: disp.length, vend: vend.length, apar: apar.length, valorDisp, porEtapa, leads: l.length, citasAct, apart: ap.length, comEst, topVistas, topInv, vistas: vistas.length, conv };
+    // Ranking del equipo (por asesor)
+    const team = {};
+    const bump = (id, k) => { if (!id) return; team[id] = team[id] || { leads: 0, citas: 0, apart: 0, com: 0 }; team[id][k]++; };
+    l.forEach(x => bump(x.asesor_id, 'leads'));
+    ci.forEach(x => bump(x.asesor_id, 'citas'));
+    ap.forEach(x => { bump(x.asesor_id, 'apart'); if (x.asesor_id && team[x.asesor_id]) team[x.asesor_id].com += (x.estatus === 'Escriturado' ? (x.comision_monto || 0) : 0); });
+    const ranking = Object.entries(team).map(([id, o]) => ({ id, nombre: aseName[id] || 'Asesor', ...o, score: o.leads + o.citas * 2 + o.apart * 4 }))
+      .sort((a, b) => b.score - a.score).slice(0, 8);
+    // Absorción por desarrollo (% colocado)
+    const abs = {};
+    u.forEach(x => { abs[x.dev_sku] = abs[x.dev_sku] || { tot: 0, col: 0 }; abs[x.dev_sku].tot++; if (x.estatus !== 'Disponible') abs[x.dev_sku].col++; });
+    const absorcion = Object.entries(abs).map(([sku, o]) => ({ sku, nombre: devName[sku] || sku, tot: o.tot, col: o.col, pct: Math.round(o.col / o.tot * 100) }))
+      .filter(x => x.tot >= 3).sort((a, b) => b.pct - a.pct).slice(0, 8);
+    return { totalU: u.length, disp: disp.length, vend: vend.length, apar: apar.length, valorDisp, porEtapa, leads: l.length, citasAct, apart: ap.length, comEst, topVistas, topInv, vistas: vistas.length, conv, ranking, absorcion };
   }, [data]);
 
   if (!k) return <div className="loading">Cargando tablero…</div>;
@@ -116,7 +131,39 @@ export default function Tablero() {
               </div>
             ))}
           </section>
+
+          <section className="sec">
+            <h2>Absorción por desarrollo</h2>
+            {k.absorcion.length === 0 ? <p className="fnote">Aún sin ventas/apartados para medir absorción.</p> : k.absorcion.map(v => (
+              <div className="tb-row" key={v.sku} onClick={() => router.push('/portal/' + v.sku)} style={{ cursor: 'pointer' }}>
+                <span className="tb-lbl">{v.nombre}</span>
+                <div className="tb-bar mag"><i style={{ width: Math.max(4, v.pct) + '%' }} /></div>
+                <b className="tb-n">{v.pct}%</b>
+              </div>
+            ))}
+            <p className="fnote">% de unidades ya colocadas (apartadas o vendidas) sobre el total.</p>
+          </section>
         </div>
+
+        {/* Ranking del equipo (director / super) */}
+        {(esSuper || me?.rol === 'director' || me?.rol === 'gerente') && (
+          <section className="sec" style={{ marginTop: '1rem' }}>
+            <h2>Ranking del equipo</h2>
+            {k.ranking.length === 0 ? <p className="fnote">Aún no hay actividad por asesor.</p> : (
+              <div className="utbl-wrap"><table className="utbl"><thead><tr>
+                <th>#</th><th>Asesor</th><th>Leads</th><th>Citas</th><th>Apartados</th><th>Comisión ganada</th>
+              </tr></thead><tbody>
+                {k.ranking.map((r, i) => (
+                  <tr key={r.id}>
+                    <td><b>{i + 1}</b></td><td><b>{r.nombre}</b></td>
+                    <td>{r.leads}</td><td>{r.citas}</td><td>{r.apart}</td>
+                    <td><b style={{ color: 'var(--lime)' }}>{MXN(r.com)}</b></td>
+                  </tr>
+                ))}
+              </tbody></table></div>
+            )}
+          </section>
+        )}
       </main>
     </>
   );

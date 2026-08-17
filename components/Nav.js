@@ -10,6 +10,7 @@ const LINKS = [
   ['/comparar', 'Comparar'],
   ['/clientes', 'Clientes'],
   ['/crm', 'CRM'],
+  ['/materiales', 'Materiales'],
   ['/calor', 'Interés'],
   ['/tablero', 'Tablero'],
   ['/comisiones', 'Comisiones'],
