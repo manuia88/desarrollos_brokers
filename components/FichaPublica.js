@@ -9,7 +9,7 @@ const m2 = v => (v == null || v === '') ? '—' : (Math.round(v * 10) / 10);
 function meses(f) { if (!f) return null; const h = new Date(), x = new Date(f + 'T12:00'); return Math.max(0, (x.getFullYear() - h.getFullYear()) * 12 + x.getMonth() - h.getMonth()); }
 const IMG = ['portada', 'render', 'foto', 'amenidad', 'planta', 'plano'];
 
-export default function FichaPublica({ sku, asesor, unidad }) {
+export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const [data, setData] = useState(undefined);
   const [foto, setFoto] = useState(null);
   const [modo, setModo] = useState('cita'); // 'cita' | 'contacto'
@@ -22,9 +22,9 @@ export default function FichaPublica({ sku, asesor, unidad }) {
     (async () => {
       const { data: d } = await supabase.rpc('ficha_publica', { p_sku: sku, p_asesor: asesor || null });
       setData(d || null);
-      supabase.rpc('registrar_vista', { p_sku: sku, p_asesor: asesor || null });
+      supabase.rpc('registrar_vista', { p_sku: sku, p_asesor: asesor || null, p_client: cliente ? Number(cliente) : null });
     })();
-  }, [sku, asesor]);
+  }, [sku, asesor, cliente]);
 
   const dev = data?.dev;
   const unidades = data?.unidades || [];
