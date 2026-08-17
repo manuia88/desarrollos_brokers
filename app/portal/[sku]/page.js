@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
 import Cotizador from '../../../components/Cotizador';
 import UnitDrawer from '../../../components/UnitDrawer';
-import { getViewAs } from '../../../lib/viewas';
+import RegistroCliente from '../../../components/RegistroCliente';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 function meses(f){ if(!f) return null; const h=new Date(),x=new Date(f+'T12:00'); return Math.max(0,(x.getFullYear()-h.getFullYear())*12+x.getMonth()-h.getMonth()); }
@@ -28,16 +28,13 @@ export default function Detalle() {
   const [unitSel, setUnitSel] = useState(null);   // unidad | null
   const [showReg, setShowReg] = useState(false);
   const [regUnidad, setRegUnidad] = useState(null);
-  const [form, setForm] = useState({ nombre:'', telefono:'', email:'', mensaje:'' });
-  const [lead, setLead] = useState(null);
-  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('rol,org_id').eq('id', session.user.id).single();
-      setMe(prof || {});
+      setMe({ id: session.user.id, ...(prof || {}) });
       const { data } = await supabase.from('desarrollos').select('*').eq('sku', sku).single();
       setD(data || null);
       const { data: us } = await supabase.from('unidades').select('*').eq('dev_sku', sku).eq('estatus','Disponible').order('torre').order('num_depto');
@@ -48,38 +45,7 @@ export default function Detalle() {
   const protos = useMemo(() => [...new Set(units.map(u=>u.prototipo).filter(Boolean))].sort(), [units]);
   const unitsF = useMemo(() => fProto ? units.filter(u=>u.prototipo===fProto) : units, [units, fProto]);
 
-  function abrirReg(unidad) { setRegUnidad(unidad||null); setUnitSel(null); setLead(null); setShowReg(true); }
-
-  async function enviarLead(e){
-    e.preventDefault();
-    if(!form.nombre || !form.telefono){ setLead({t:'err',m:'Nombre y teléfono son obligatorios'}); return; }
-    const uSku = regUnidad ? regUnidad.sku : null;
-    // Super-admin: inserta a nombre de la inmobiliaria elegida en "Ver como".
-    if (me?.rol === 'super_admin') {
-      const va = getViewAs();
-      if (!va || !va.org_id) { setLead({t:'err',m:'Como super-admin, elige una inmobiliaria en “Ver como” (arriba en el CRM) para registrar el cliente a su nombre.'}); return; }
-      setSending(true);
-      const { error: eIns } = await supabase.from('leads').insert({
-        org_id: va.org_id, asesor_id: va.asesor_id || null,
-        nombre: form.nombre, email: form.email||null, telefono: form.telefono,
-        dev_sku: sku, unidad_sku: uSku, mensaje: form.mensaje||null, etapa:'Nuevo', fuente:'Portal', estatus:'ok',
-      });
-      setSending(false);
-      if (eIns) { setLead({t:'err',m:eIns.message}); return; }
-      setLead({t:'ok',m:`Cliente registrado en ${va.org_nombre}. Aparece en su CRM.`});
-      setForm({ nombre:'', telefono:'', email:'', mensaje:'' });
-      return;
-    }
-    setSending(true);
-    const { error } = await supabase.rpc('crear_lead', {
-      p_nombre:form.nombre, p_email:form.email||null, p_telefono:form.telefono,
-      p_dev_sku:sku, p_unidad_sku:uSku, p_mensaje:form.mensaje||null, p_presupuesto:null, p_fuente:'Portal'
-    });
-    setSending(false);
-    if(error){ setLead({t:'err',m:error.message.includes('organiz')?'Solo un broker con inmobiliaria puede registrar clientes.':error.message}); return; }
-    setLead({t:'ok',m:'¡Cliente registrado! Aparece en tu CRM.'});
-    setForm({ nombre:'', telefono:'', email:'', mensaje:'' });
-  }
+  function abrirReg(unidad) { setRegUnidad(unidad||null); setUnitSel(null); setShowReg(true); }
 
   if (d === undefined) return <div className="loading">Cargando…</div>;
   if (d === null) return <div className="loading">No encontrado. <Link href="/portal">Volver</Link></div>;
@@ -194,24 +160,8 @@ export default function Detalle() {
           onRegistrar={(u)=>abrirReg(u)} />}
 
         {showReg && (
-          <>
-            <div className="drawer-bg" onClick={()=>setShowReg(false)} />
-            <aside className="drawer" onClick={e=>e.stopPropagation()}>
-              <div className="dw-h">
-                <div><span className="dw-tag">Registrar cliente</span><h2>{d.nombre}</h2>
-                  {regUnidad && <div className="ud-sub">Unidad T{regUnidad.torre} · {regUnidad.num_depto}</div>}</div>
-                <button className="x" onClick={()=>setShowReg(false)}>✕</button>
-              </div>
-              {lead && <div className={'msg '+lead.t}>{lead.m}</div>}
-              <form onSubmit={enviarLead} style={{display:'flex',flexDirection:'column',gap:'.2rem'}}>
-                <div className="dw-field"><label>Nombre *</label><input value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} /></div>
-                <div className="dw-field"><label>Teléfono / WhatsApp *</label><input value={form.telefono} onChange={e=>setForm({...form,telefono:e.target.value})} /></div>
-                <div className="dw-field"><label>Correo</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} /></div>
-                <div className="dw-field"><label>Mensaje</label><textarea value={form.mensaje} onChange={e=>setForm({...form,mensaje:e.target.value})} placeholder="Qué busca el cliente…" /></div>
-                <button className="btn mag block" disabled={sending}>{sending?'Registrando…':'Registrar en el CRM'}</button>
-              </form>
-            </aside>
-          </>
+          <RegistroCliente me={me} dev={d} unidad={regUnidad}
+            onClose={() => setShowReg(false)} onDone={() => {}} />
         )}
       </main>
     </>

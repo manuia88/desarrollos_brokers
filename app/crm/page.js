@@ -3,11 +3,14 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import SuperBar from '../../components/SuperBar';
+import RegistroCliente from '../../components/RegistroCliente';
+import DocsCliente from '../../components/DocsCliente';
 import { getViewAs } from '../../lib/viewas';
 
-const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Contrato', 'Escriturado', 'Perdido'];
+const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Escriturado', 'Perdido'];
 const TERM = { Escriturado: 'win', Perdido: 'lost' };
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
+const MXNc = n => n == null ? '—' : (Math.abs(n) >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n).toLocaleString('es-MX'));
 const GESTOR = ['director', 'gerente', 'super_admin'];
 
 function dias(iso) {
@@ -35,14 +38,19 @@ export default function CRM() {
   const [fDev, setFDev] = useState('');
   const [busy, setBusy] = useState(false);
   const [viewAs, setViewAs] = useState(null);
+  const [showReg, setShowReg] = useState(false);
+  const [devsFull, setDevsFull] = useState([]);
+  const [apartados, setApartados] = useState([]);
 
   useEffect(() => { setViewAs(getViewAs()); }, []);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('leads').select('*').order('actualizado', { ascending: false });
-    if (!error) setLeads(data || []);
-    else setLeads([]);
+    const [{ data: ld }, { data: ap }] = await Promise.all([
+      supabase.from('leads').select('*').order('actualizado', { ascending: false }),
+      supabase.from('apartados').select('*').order('creado', { ascending: false }),
+    ]);
+    setLeads(ld || []);
+    setApartados(ap || []);
   }, []);
 
   useEffect(() => {
@@ -54,9 +62,10 @@ export default function CRM() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: ppl }, { data: devs }] = await Promise.all([
         supabase.from('profiles').select('id,nombre,rol,org_id').order('nombre'),
-        supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('desarrollos').select('sku,nombre,comision_broker').order('nombre'),
       ]);
       setTeam(ppl || []);
+      setDevsFull(devs || []);
       const m = {}; (devs || []).forEach(d => { m[d.sku] = d.nombre; });
       setDevName(m);
       await load();
@@ -102,6 +111,37 @@ export default function CRM() {
     return true;
   }
 
+  async function apartar(unidadSku, leadId) {
+    setBusy(true);
+    const { error } = await supabase.rpc('apartar_unidad', { p_unidad_sku: unidadSku, p_lead_id: leadId, p_notas: null });
+    setBusy(false);
+    if (error) { alert('No se pudo apartar: ' + error.message); return false; }
+    await load(); return true;
+  }
+  async function apartadoEstatus(apId, estatus, motivo) {
+    setBusy(true);
+    const { error } = await supabase.rpc('apartado_set_estatus', { p_apartado_id: apId, p_estatus: estatus, p_motivo: motivo || null });
+    setBusy(false);
+    if (error) { alert('No se pudo actualizar: ' + error.message); return false; }
+    await load(); return true;
+  }
+  async function autorizar(apId, aprobar, motivo) {
+    setBusy(true);
+    const { error } = await supabase.rpc('autorizar_apartado', { p_apartado_id: apId, p_aprobar: aprobar, p_motivo: motivo || null });
+    setBusy(false);
+    if (error) { alert('No se pudo procesar: ' + error.message); return false; }
+    await load(); return true;
+  }
+
+  // Apartado activo (no cancelado/rechazado) por lead
+  const apByLead = useMemo(() => {
+    const m = {};
+    (apartados || []).forEach(a => { if (!['Cancelado', 'Rechazado'].includes(a.estatus) && a.lead_id != null && !m[a.lead_id]) m[a.lead_id] = a; });
+    return m;
+  }, [apartados]);
+  const pendientes = useMemo(() => (apartados || []).filter(a => a.estatus === 'Pendiente'), [apartados]);
+  const leadById = useMemo(() => Object.fromEntries((leads || []).map(l => [l.id, l])), [leads]);
+
   // ---- derived ----
   const visibles = useMemo(() => {
     if (!leads) return [];
@@ -140,6 +180,16 @@ export default function CRM() {
     };
   }, [visibles, revision]);
 
+  const comision = useMemo(() => {
+    let pipe = 0, ganada = 0;
+    visibles.forEach(l => {
+      const a = apByLead[l.id]; if (!a) return;
+      if (a.estatus === 'Escriturado') ganada += a.comision_monto || 0;
+      else if (a.estatus === 'Apartado') pipe += a.comision_monto || 0;
+    });
+    return { pipe, ganada };
+  }, [visibles, apByLead]);
+
   const selLead = sel != null ? (leads || []).find(l => l.id === sel) : null;
   const devFiltros = useMemo(() => {
     const set = new Map();
@@ -156,6 +206,8 @@ export default function CRM() {
         <nav className="nav">
           <a onClick={() => router.push('/buscar')}>Buscar</a>
           <a onClick={() => router.push('/portal')}>Catálogo</a>
+          <a onClick={() => router.push('/comisiones')}>Comisiones</a>
+          {me?.rol === 'super_admin' && <a onClick={() => router.push('/altas')}>Altas</a>}
           {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
           <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
           <button onClick={logout}>Salir</button>
@@ -170,6 +222,9 @@ export default function CRM() {
           <div className="mtile"><b>{kpi.abiertos}</b><span>En pipeline</span></div>
           <div className="mtile win"><b>{kpi.ganados}</b><span>Escriturados</span></div>
           <div className="mtile"><b>{kpi.conv == null ? '—' : kpi.conv + '%'}</b><span>Tasa de cierre</span></div>
+          <div className="mtile com" onClick={() => router.push('/comisiones')} style={{ cursor: 'pointer' }}
+            title="Ver comisiones"><b>{MXNc(comision.pipe)}</b><span>Comisión en pipeline →</span></div>
+          {me?.rol === 'super_admin' && <div className="mtile acc"><b>{pendientes.length}</b><span>Apartados por autorizar</span></div>}
           {puedeGestionar && <div className="mtile acc"><b>{kpi.revision}</b><span>Por revisar</span></div>}
         </div>
 
@@ -191,7 +246,29 @@ export default function CRM() {
           </section>
         )}
 
+        {me?.rol === 'super_admin' && pendientes.length > 0 && (
+          <section className="inbox">
+            <h2><span className="warn-ic">🔖</span> Apartados por autorizar</h2>
+            <p className="sub">Ninguna unidad sale del inventario hasta que tú autorices. Aprueba para descontarla y confirmar la comisión, o rechaza la solicitud.</p>
+            {pendientes.map(a => {
+              const l = leadById[a.lead_id];
+              return (
+                <div className="rev-row" key={a.id}>
+                  <div className="who">
+                    <b>{l?.nombre || 'Cliente'}</b>
+                    <small>{devName[a.dev_sku] || a.dev_sku} · {a.unidad_sku} · {MXN(a.precio)} · comisión {MXN(a.comision_monto)} · solicitó {nombreDe(a.asesor_id)}</small>
+                  </div>
+                  <span className="why">Pendiente</span>
+                  <button className="btn ok sm" disabled={busy} onClick={() => autorizar(a.id, true)}>Autorizar</button>
+                  <button className="btn no sm" disabled={busy} onClick={() => autorizar(a.id, false)}>Rechazar</button>
+                </div>
+              );
+            })}
+          </section>
+        )}
+
         <div className="filters">
+          <button className="btn mag sm" onClick={() => setShowReg(true)}>+ Nuevo cliente</button>
           <input
             style={{ appearance: 'none', padding: '.55rem .85rem', border: '1px solid var(--line)', borderRadius: 99, background: 'var(--panel)', color: 'var(--ink)', fontSize: '.86rem', minWidth: 200 }}
             placeholder="Buscar por nombre o teléfono…" value={q} onChange={e => setQ(e.target.value)} />
@@ -206,7 +283,8 @@ export default function CRM() {
         {kpi.total === 0 && revision.length === 0 ? (
           <div className="crm-empty">
             Todavía no hay clientes registrados.<br />
-            Ve al <a onClick={() => router.push('/portal')}>catálogo</a>, abre una ficha y usa <b>“Registrar cliente”</b> para capturar tu primer lead.
+            Captura tu primer lead con <b>“+ Nuevo cliente”</b>, o ve al <a onClick={() => router.push('/portal')}>catálogo</a> y regístralo desde una ficha.
+            <div style={{ marginTop: '1rem' }}><button className="btn mag" onClick={() => setShowReg(true)}>+ Nuevo cliente</button></div>
           </div>
         ) : (
           <div className="kboard">
@@ -245,6 +323,7 @@ export default function CRM() {
                           <h4>{l.nombre}{!TERM[etapa] && <span className={'age ' + ageClass(d)}>{d}d</span>}</h4>
                           <div className="dev">{devName[l.dev_sku] || l.dev_sku || 'Sin desarrollo'}{l.unidad_sku ? ' · ' + l.unidad_sku : ''}</div>
                           <div className="lmeta">
+                            {apByLead[l.id] && <span className="lchip com">🔖 {MXNc(apByLead[l.id].comision_monto)}</span>}
                             {presupNum(l.presupuesto) && <span className="lchip">{MXN(presupNum(l.presupuesto))}</span>}
                             {l.telefono && <span className="lchip">📞 {l.telefono}</span>}
                           </div>
@@ -264,16 +343,21 @@ export default function CRM() {
         <LeadDrawer
           lead={selLead} devName={devName} team={team} puedeGestionar={puedeGestionar}
           busy={busy} nombreDe={nombreDe}
+          apartado={apByLead[selLead.id]} devsFull={devsFull} esSuper={me?.rol === 'super_admin'}
           onClose={() => setSel(null)}
           onMover={mover} onReasignar={reasignar} onNotas={(id, notas) => patch(id, { notas })}
-          onAgendar={agendar}
+          onAgendar={agendar} onApartar={apartar} onApartadoEstatus={apartadoEstatus} onAutorizar={autorizar}
         />
+      )}
+
+      {showReg && (
+        <RegistroCliente me={me} onClose={() => setShowReg(false)} onDone={() => load()} />
       )}
     </>
   );
 }
 
-function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, onClose, onMover, onReasignar, onNotas, onAgendar }) {
+function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, apartado, devsFull, esSuper, onClose, onMover, onReasignar, onNotas, onAgendar, onApartar, onApartadoEstatus, onAutorizar }) {
   const [notas, setNotas] = useState(lead.notas || '');
   const [showCita, setShowCita] = useState(false);
   const [cita, setCita] = useState({ fecha: '', hora: '', modalidad: 'Presencial', notas: '' });
@@ -313,11 +397,20 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, onClo
           <div className="dw-kv"><span>Desarrollo</span><b>{devName[lead.dev_sku] || lead.dev_sku || '—'}</b></div>
           {lead.unidad_sku && <div className="dw-kv"><span>Unidad</span><b>{lead.unidad_sku}</b></div>}
           <div className="dw-kv"><span>Presupuesto</span><b>{p ? MXN(p) : (lead.presupuesto || '—')}</b></div>
+          <div className="dw-kv"><span>Forma de pago</span><b>{lead.forma_pago || '—'}</b></div>
+          {lead.rec_interes != null && <div className="dw-kv"><span>Recámaras</span><b>{lead.rec_interes === 3 ? '3+' : lead.rec_interes}</b></div>}
+          {lead.zona_interes && <div className="dw-kv"><span>Zona de interés</span><b>{lead.zona_interes}</b></div>}
+          {lead.urgencia && <div className="dw-kv"><span>Horizonte de compra</span><b>{lead.urgencia}</b></div>}
           <div className="dw-kv"><span>Fuente</span><b>{lead.fuente}</b></div>
           <div className="dw-kv"><span>Registrado</span><b>{new Date(lead.creado).toLocaleDateString('es-MX')}</b></div>
           {lead.mensaje && <div style={{ color: 'var(--sub)', fontSize: '.85rem', marginTop: '.5rem' }}>“{lead.mensaje}”</div>}
           {waHref && <div style={{ marginTop: '.7rem' }}><a className="wa-link" href={waHref} target="_blank" rel="noopener">💬 Abrir WhatsApp</a></div>}
         </div>
+
+        <ApartadoSection lead={lead} apartado={apartado} devsFull={devsFull} busy={busy} esSuper={esSuper}
+          onApartar={onApartar} onEstatus={onApartadoEstatus} onAutorizar={onAutorizar} />
+
+        <DocsCliente lead={lead} />
 
         <div className="dw-sec">
           <h3>Asesor asignado</h3>
@@ -365,5 +458,125 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, onClo
         </div>
       </aside>
     </>
+  );
+}
+
+function ApartadoSection({ lead, apartado, devsFull, busy, esSuper, onApartar, onEstatus, onAutorizar }) {
+  const [open, setOpen] = useState(false);
+  const [dev, setDev] = useState(lead.dev_sku || '');
+  const [units, setUnits] = useState(null);
+  const [unit, setUnit] = useState('');
+  const [cancel, setCancel] = useState(false);
+  const [motivo, setMotivo] = useState('');
+
+  useEffect(() => {
+    if (!open || !dev) { setUnits(null); return; }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase.from('unidades')
+        .select('sku,torre,num_depto,prototipo,precio,apartado,estatus')
+        .eq('dev_sku', dev).eq('estatus', 'Disponible').order('num_depto');
+      if (alive) setUnits(data || []);
+    })();
+    return () => { alive = false; };
+  }, [open, dev]);
+
+  const ESTC = { Pendiente: 'pd', Apartado: 'ap', Escriturado: 'es', Cancelado: 'cx', Rechazado: 'cx' };
+
+  if (apartado) {
+    const e = apartado.estatus;
+    return (
+      <div className="dw-sec">
+        <h3>Apartado y comisión</h3>
+        <div className="ap-card">
+          <div className="ap-top">
+            <div>
+              <b>{apartado.unidad_sku}</b>
+              <div className="ap-sub">{MXN(apartado.precio)} · apartado {MXN(apartado.monto_apartado)}</div>
+            </div>
+            <span className={'ap-badge ' + (ESTC[e] || '')}>{e}</span>
+          </div>
+          <div className="ap-com">
+            <span>Comisión {apartado.comision_pct != null ? Math.round(apartado.comision_pct * 100) + '%' : ''}</span>
+            <b>{MXN(apartado.comision_monto)}</b>
+          </div>
+
+          {e === 'Pendiente' && !esSuper && (
+            <div className="ap-hint">⏳ Solicitud enviada. La unidad se aparta cuando un super-admin la autorice.</div>
+          )}
+          {e === 'Pendiente' && esSuper && (
+            <div className="ap-actions">
+              <button className="btn ok sm" disabled={busy} onClick={() => onAutorizar(apartado.id, true)}>Autorizar</button>
+              <button className="btn no sm" disabled={busy} onClick={() => onAutorizar(apartado.id, false)}>Rechazar</button>
+            </div>
+          )}
+          {e === 'Apartado' && !esSuper && (
+            <div className="ap-hint">Apartado autorizado. La escrituración y la cancelación las gestiona el super-admin.</div>
+          )}
+          {e === 'Apartado' && esSuper && !cancel && (
+            <div className="ap-actions">
+              <button className="btn mag sm" disabled={busy} onClick={() => onEstatus(apartado.id, 'Escriturado')}>Escriturar</button>
+              <button className="btn ghost sm" disabled={busy} onClick={() => setCancel(true)}>Cancelar</button>
+            </div>
+          )}
+          {e === 'Escriturado' && <div className="ap-won">✅ Comisión ganada</div>}
+
+          {cancel && e === 'Apartado' && esSuper && (
+            <div className="ap-cancel">
+              <input placeholder="Motivo (opcional)" value={motivo} onChange={ev => setMotivo(ev.target.value)} />
+              <div className="ap-actions">
+                <button className="btn no sm" disabled={busy} onClick={async () => { const ok = await onEstatus(apartado.id, 'Cancelado', motivo); if (ok) setCancel(false); }}>Confirmar cancelación</button>
+                <button className="btn ghost sm" onClick={() => setCancel(false)}>Volver</button>
+              </div>
+              <p className="ap-hint">La unidad vuelve a inventario disponible.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const d = devsFull.find(x => x.sku === dev);
+  const u = (units || []).find(x => x.sku === unit);
+  const com = u ? Math.round((u.precio || 0) * (d?.comision_broker || 0)) : null;
+
+  return (
+    <div className="dw-sec">
+      <h3>{esSuper ? 'Apartar unidad' : 'Solicitar apartado'}</h3>
+      {!open ? (
+        <button className="btn lim sm" onClick={() => setOpen(true)}>🔖 {esSuper ? 'Apartar una unidad para este cliente' : 'Solicitar apartado de una unidad'}</button>
+      ) : (
+        <>
+          <div className="dw-field">
+            <label>Desarrollo</label>
+            <select value={dev} onChange={e => { setDev(e.target.value); setUnit(''); }}>
+              <option value="">Elige…</option>
+              {devsFull.map(x => <option key={x.sku} value={x.sku}>{x.nombre}</option>)}
+            </select>
+          </div>
+          {dev && (
+            <div className="dw-field">
+              <label>Unidad disponible</label>
+              <select value={unit} onChange={e => setUnit(e.target.value)}>
+                <option value="">{units == null ? 'Cargando…' : units.length ? 'Elige unidad…' : 'Sin unidades disponibles'}</option>
+                {(units || []).map(x => <option key={x.sku} value={x.sku}>T{x.torre} · {x.num_depto}{x.prototipo ? ' · ' + x.prototipo : ''} — {MXN(x.precio)}</option>)}
+              </select>
+            </div>
+          )}
+          {u && (
+            <div className="ap-preview">
+              <div><span>Precio</span><b>{MXN(u.precio)}</b></div>
+              <div><span>Apartado</span><b>{MXN(u.apartado)}</b></div>
+              <div className="acc"><span>Comisión ({d?.comision_broker != null ? Math.round(d.comision_broker * 100) + '%' : '—'})</span><b>{MXN(com)}</b></div>
+            </div>
+          )}
+          {!esSuper && <p className="ap-hint">Tu solicitud pasa a autorización del super-admin antes de descontar el inventario.</p>}
+          <div className="ap-actions">
+            <button className="btn mag sm" disabled={busy || !unit} onClick={async () => { const ok = await onApartar(unit, lead.id); if (ok) setOpen(false); }}>{esSuper ? 'Confirmar apartado' : 'Enviar solicitud'}</button>
+            <button className="btn ghost sm" onClick={() => setOpen(false)}>Cancelar</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }

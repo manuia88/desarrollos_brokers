@@ -73,6 +73,8 @@ export default function Buscar() {
         <nav className="nav">
           <a onClick={() => router.push('/portal')}>Catálogo</a>
           <a onClick={() => router.push('/crm')}>CRM</a>
+          <a onClick={() => router.push('/comisiones')}>Comisiones</a>
+          {me?.rol === 'super_admin' && <a onClick={() => router.push('/altas')}>Altas</a>}
           <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
           <button onClick={logout}>Salir</button>
         </nav>

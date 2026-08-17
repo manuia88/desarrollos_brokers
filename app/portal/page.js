@@ -65,6 +65,8 @@ export default function Portal() {
         <nav className="nav">
           <a onClick={() => router.push('/buscar')}>Buscar</a>
           <a onClick={() => router.push('/crm')}>CRM</a>
+          <a onClick={() => router.push('/comisiones')}>Comisiones</a>
+          {me?.rol === 'super_admin' && <a onClick={() => router.push('/altas')}>Altas</a>}
           {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
           <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
           <button onClick={logout}>Salir</button>
