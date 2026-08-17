@@ -15,37 +15,46 @@ async function autorizado(req) {
 }
 
 async function correr() {
-  const { leads, skipped, ok, status } = await fetchEBContactRequests(1);
-  if (skipped) return { skipped: 'EasyBroker no configurado' };
-  if (ok === false) return { error: 'EasyBroker respondió ' + status };
   const db = svc();
-  let org_id = process.env.DEFAULT_ORG_ID || null;
-  if (!org_id) { const { data: o } = await db.from('orgs').select('id').order('creado').limit(1).maybeSingle(); org_id = o?.id || null; }
-
   // Mapa external_id -> dev_sku (para ligar el lead a su desarrollo).
   const { data: pubs } = await db.from('publicaciones').select('external_id,dev_sku');
   const devDe = Object.fromEntries((pubs || []).filter(p => p.external_id).map(p => [String(p.external_id), p.dev_sku]));
 
-  let creados = 0;
-  for (const cr of leads) {
-    const extId = String(cr.id ?? cr.public_id ?? '');
-    if (!extId) continue;
-    const { data: ya } = await db.from('eventos').select('id').eq('tipo', 'eb_lead').eq('entidad_id', extId).maybeSingle();
-    if (ya) continue;
-    const propId = cr.property_id || cr.property?.id || cr.source_id || null;
-    const dev_sku = propId ? devDe[String(propId)] : null;
-    const { data: nl } = await db.from('leads').insert({
-      org_id,
-      nombre: cr.name || cr.contact?.name || 'Lead de EasyBroker',
-      telefono: cr.phone || cr.contact?.phone || null,
-      email: cr.email || cr.contact?.email || null,
-      dev_sku: dev_sku || null,
-      mensaje: cr.message || null,
-      etapa: 'Nuevo', fuente: 'EasyBroker', estatus: 'ok', consentimiento: true,
-    }).select('id').single();
-    if (nl) { creados++; try { await db.from('eventos').insert({ tipo: 'eb_lead', entidad: 'lead', entidad_id: extId, org_id, meta: { lead_id: nl.id, property: propId } }); } catch { /* noop */ } }
+  // Fuentes: cada conexión EB activa (por cuenta) + la env global (desarrollador).
+  const { data: conns } = await db.from('conexiones').select('*').eq('proveedor', 'easybroker').eq('activa', true);
+  const fuentes = (conns || []).map(c => ({ org_id: c.org_id, key: c.api_key, ambiente: c.ambiente, tag: 'c' + c.id }));
+  if (process.env.EASYBROKER_API_KEY) {
+    let og = process.env.DEFAULT_ORG_ID || null;
+    if (!og) { const { data: o } = await db.from('orgs').select('id').order('creado').limit(1).maybeSingle(); og = o?.id || null; }
+    if (og) fuentes.push({ org_id: og, key: process.env.EASYBROKER_API_KEY, ambiente: 'produccion', tag: 'env' });
   }
-  return { ok: true, revisados: leads.length, creados };
+  if (!fuentes.length) return { skipped: 'sin cuentas EB conectadas' };
+
+  let creados = 0, revisados = 0;
+  for (const f of fuentes) {
+    const { leads, skipped, ok } = await fetchEBContactRequests(1, { key: f.key, ambiente: f.ambiente });
+    if (skipped || ok === false) continue;
+    revisados += leads.length;
+    for (const cr of leads) {
+      const rawId = String(cr.id ?? cr.public_id ?? '');
+      if (!rawId) continue;
+      const extId = f.tag + ':' + rawId;    // evita choques entre cuentas
+      const { data: ya } = await db.from('eventos').select('id').eq('tipo', 'eb_lead').eq('entidad_id', extId).maybeSingle();
+      if (ya) continue;
+      const propId = cr.property_id || cr.property?.id || cr.source_id || null;
+      const dev_sku = propId ? devDe[String(propId)] : null;
+      const { data: nl } = await db.from('leads').insert({
+        org_id: f.org_id,
+        nombre: cr.name || cr.contact?.name || 'Lead de EasyBroker',
+        telefono: cr.phone || cr.contact?.phone || null,
+        email: cr.email || cr.contact?.email || null,
+        dev_sku: dev_sku || null, mensaje: cr.message || null,
+        etapa: 'Nuevo', fuente: 'EasyBroker', estatus: 'ok', consentimiento: true,
+      }).select('id').single();
+      if (nl) { creados++; try { await db.from('eventos').insert({ tipo: 'eb_lead', entidad: 'lead', entidad_id: extId, org_id: f.org_id, meta: { lead_id: nl.id, property: propId } }); } catch { /* noop */ } }
+    }
+  }
+  return { ok: true, fuentes: fuentes.length, revisados, creados };
 }
 
 export async function POST(req) {

@@ -62,8 +62,12 @@ export default function Captura() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
-      if (prof?.rol !== 'super_admin') { router.replace('/portal'); return; }
-      setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
+      // Super, o director/gerente de una org DESARROLLADOR (dueña de inventario).
+      let tipoOrg = null;
+      if (prof?.org_id) { const { data: o } = await supabase.from('orgs').select('tipo').eq('id', prof.org_id).maybeSingle(); tipoOrg = o?.tipo; }
+      const puede = prof?.rol === 'super_admin' || (tipoOrg === 'desarrollador' && ['director', 'gerente'].includes(prof?.rol));
+      if (!puede) { router.replace('/portal'); return; }
+      setMe({ id: session.user.id, email: session.user.email, tipoOrg, ...(prof || {}) });
       const { data: devs } = await supabase.from('desarrollos').select('sku,nombre,publicado').order('nombre');
       setLista(devs || []);
     })();
@@ -136,6 +140,7 @@ export default function Captura() {
     ['esq_enganche', 'esq_mensualidades', 'esq_escritura', 'comision_broker'].forEach(k => { if (row[k] != null && row[k] !== '') { let n = Number(String(row[k]).replace(/[^0-9.]/g, '')); if (n > 1) n = n / 100; row[k] = n; } });
     ['credito_ion', 'credito_hir', 'credito_yave', 'credito_bancario', 'depa_muestra', 'caseta_venta'].forEach(k => { if (typeof row[k] === 'boolean') row[k] = row[k] ? 'Sí' : 'No'; });
     if (publicarAhora != null) row.publicado = publicarAhora;
+    if (me.rol !== 'super_admin' && me.org_id) row.dev_org_id = me.org_id; // el desarrollo pertenece a este desarrollador
     const { error } = await supabase.from('desarrollos').upsert(row, { onConflict: 'sku' });
     setSaving(false);
     if (error) { setMsg({ t: 'err', m: 'No se pudo guardar: ' + error.message }); return; }

@@ -19,6 +19,7 @@ const LINKS = [
   ['/tablero', 'Tablero'],
   ['/metricas', 'Métricas'],
   ['/comisiones', 'Comisiones'],
+  ['/conexiones', 'Conexiones'],
   ['/academia', 'Academia'],
 ];
 const SUPER = [

@@ -75,7 +75,7 @@ export default function Publicador() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
-      if (prof?.rol !== 'super_admin') { router.replace('/portal'); return; }
+      if (!['super_admin', 'director', 'gerente', 'asesor', 'independiente'].includes(prof?.rol)) { router.replace('/portal'); return; }
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       setToken(session.access_token);
       const [{ data: d }, { data: u }] = await Promise.all([

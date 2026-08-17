@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
-import { mapEasyBroker, pushEasyBroker } from '../../../../lib/integraciones';
+import { mapEasyBroker, pushEasyBroker, elegirConexionEB } from '../../../../lib/integraciones';
 import { resolverReglas, ordenar } from '../../../../lib/publicador';
 
 export const runtime = 'nodejs';
@@ -12,6 +12,14 @@ const ahora = () => new Date().toISOString();
 // mode 'full' = baja lo vendido y sube el reemplazo (auto-relleno). 'takedown' = solo baja.
 async function reconciliarCampana(db, camp, mode) {
   const portal = camp.portal || 'easybroker';
+  // Credencial de la cuenta dueña de la campaña (org) o env global del desarrollador.
+  let cfg = null, cuenta = 'dev';
+  if (portal === 'easybroker' && camp.org_id) {
+    const { data: org } = await db.from('orgs').select('eb_modo').eq('id', camp.org_id).maybeSingle();
+    const { data: conns } = await db.from('conexiones').select('*').eq('org_id', camp.org_id);
+    const sel = elegirConexionEB(conns, { org_id: camp.org_id, asesor_id: null, eb_modo: 'org' });
+    if (sel) { cfg = { key: sel.key, ambiente: sel.ambiente }; cuenta = 'org:' + camp.org_id; }
+  }
   const { data: devs } = await db.from('desarrollos').select('*');
   const byId = Object.fromEntries((devs || []).map(d => [d.sku, d]));
   const { data: unitsAll } = await db.from('unidades').select('*');
@@ -31,7 +39,7 @@ async function reconciliarCampana(db, camp, mode) {
     if (desiredRefs.has(p.ref)) continue;
     const u = byUnit[p.ref];
     const st = u && /vend/i.test(u.estatus) ? 'sold' : (u && /apart|reserv/i.test(u.estatus) ? 'reserved' : 'not_published');
-    if (portal === 'easybroker' && p.external_id) { try { await pushEasyBroker({ status: st }, p.external_id); } catch { /* noop */ } }
+    if (portal === 'easybroker' && p.external_id) { try { await pushEasyBroker({ status: st }, p.external_id, cfg); } catch { /* noop */ } }
     await db.from('publicaciones').update({ estatus: 'retirado', meta: { ...(p.meta || {}), motivo: st }, actualizado: ahora() }).eq('id', p.id);
     bajados++;
   }
@@ -50,14 +58,14 @@ async function reconciliarCampana(db, camp, mode) {
         price: u.precio, bedrooms: u.rec || 0, bathrooms: Math.floor(u.banos || 0), parking: u.n_estac || 0,
         construction: u.m2_total || u.m2_hab || null, locationName: [d.colonia, d.alcaldia, d.estado].filter(Boolean).join(', '),
       });
-      let res = portal === 'easybroker' ? await pushEasyBroker(body, prev?.external_id).catch(e => ({ error: String(e?.message || e) })) : { skipped: true };
+      let res = portal === 'easybroker' ? await pushEasyBroker(body, prev?.external_id, cfg).catch(e => ({ error: String(e?.message || e) })) : { skipped: true };
       const estatus = res.skipped ? 'pendiente' : (res.ok ? (camp.status === 'published' ? 'publicado' : 'borrador') : 'error');
       await db.from('publicaciones').upsert({
-        org_id: camp.org_id, portal, ref: u.sku, dev_sku: u.dev_sku, campana_id: camp.id,
+        org_id: camp.org_id, portal, ref: u.sku, dev_sku: u.dev_sku, campana_id: camp.id, cuenta,
         external_id: res.external_id || prev?.external_id || null, estatus,
-        error: res.error || (res.skipped ? 'proveedor no configurado' : null),
+        error: res.error || (res.skipped ? 'sin conexión EB' : null),
         meta: { rec: u.rec, prototipo: u.prototipo, precio: u.precio }, actualizado: ahora(),
-      }, { onConflict: 'portal,ref' });
+      }, { onConflict: 'portal,ref,cuenta' });
       subidos++;
     }
   }
