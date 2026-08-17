@@ -6,8 +6,11 @@ import { supabase } from '../../../lib/supabase';
 import Cotizador from '../../../components/Cotizador';
 import UnitDrawer from '../../../components/UnitDrawer';
 import RegistroCliente from '../../../components/RegistroCliente';
+import MediosManager from '../../../components/MediosManager';
+import { listarMedios } from '../../../lib/medios';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
+const IMG_TIPOS = ['portada', 'render', 'foto', 'amenidad', 'plano', 'planta'];
 function meses(f){ if(!f) return null; const h=new Date(),x=new Date(f+'T12:00'); return Math.max(0,(x.getFullYear()-h.getFullYear())*12+x.getMonth()-h.getMonth()); }
 const fmesShort = f => f ? new Date(f+'T12:00').toLocaleDateString('es-MX',{month:'short',year:'2-digit'}) : '—';
 const m2 = v => (v==null||v==='') ? '—' : (Math.round(v*10)/10);
@@ -28,6 +31,8 @@ export default function Detalle() {
   const [unitSel, setUnitSel] = useState(null);   // unidad | null
   const [showReg, setShowReg] = useState(false);
   const [regUnidad, setRegUnidad] = useState(null);
+  const [medios, setMedios] = useState([]);
+  const [showMedios, setShowMedios] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -39,8 +44,12 @@ export default function Detalle() {
       setD(data || null);
       const { data: us } = await supabase.from('unidades').select('*').eq('dev_sku', sku).eq('estatus','Disponible').order('torre').order('num_depto');
       setUnits(us || []);
+      setMedios(await listarMedios(sku));
     })();
   }, [sku, router]);
+
+  const portada = useMemo(() => medios.find(x => x.tipo === 'portada') || medios.find(x => x.tipo === 'render') || medios.find(x => x.tipo === 'foto'), [medios]);
+  const galeria = useMemo(() => medios.filter(x => IMG_TIPOS.includes(x.tipo)), [medios]);
 
   const protos = useMemo(() => [...new Set(units.map(u=>u.prototipo).filter(Boolean))].sort(), [units]);
   const unitsF = useMemo(() => fProto ? units.filter(u=>u.prototipo===fProto) : units, [units, fProto]);
@@ -66,7 +75,9 @@ export default function Detalle() {
 
       <main className="wrap" style={{paddingBottom:'3rem'}}>
         {/* HERO */}
-        <div className="dcover" style={{background:'linear-gradient(135deg,hsl(330 45% 24%),hsl(348 55% 40%))'}}>
+        <div className="dcover" style={portada
+            ? {backgroundImage:`linear-gradient(180deg,rgba(10,10,12,.05),rgba(10,10,12,.55)),url(${portada.url})`,backgroundSize:'cover',backgroundPosition:'center'}
+            : {background:'linear-gradient(135deg,hsl(330 45% 24%),hsl(348 55% 40%))'}}>
           <span className="badge2">{d.etapa==='Entrega inmediata'?'Entrega inmediata':(m!=null?`Preventa · entrega en ${m} meses`:'Preventa')}</span>
         </div>
         <div className="dhead">
@@ -78,6 +89,7 @@ export default function Detalle() {
           <button className="btn lim" onClick={()=>abrirReg(null)}>Registrar cliente</button>
           {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
+          {me?.rol==='super_admin' && <button className="btn ghost" onClick={()=>setShowMedios(true)}>🖼️ Gestionar medios</button>}
         </div>
 
         {/* TABS */}
@@ -95,6 +107,20 @@ export default function Detalle() {
             <div className="sbox"><b>{Math.round(d.m2_min)}–{Math.round(d.m2_max)}</b><span>m² habitables</span></div>
             <div className="sbox"><b>{units.length}</b><span>Disponibles hoy</span></div>
           </div>
+
+          {galeria.length>0 ? (
+            <div className="sec"><h2>Galería</h2>
+              <div className="galeria">{galeria.map(mm=>(
+                <a key={mm.id} className="gal-item" href={mm.url} target="_blank" rel="noopener">
+                  <img src={mm.url} alt={mm.titulo||mm.tipo} loading="lazy" />
+                  <span className="gal-tag">{mm.titulo||mm.tipo}</span>
+                </a>))}</div>
+            </div>
+          ) : me?.rol==='super_admin' && (
+            <div className="sec"><h2>Galería</h2>
+              <p className="fnote" style={{marginTop:0}}>Aún no hay fotos ni renders. Usa <b>🖼️ Gestionar medios</b> arriba para subir portada, renders, fotos y planos.</p>
+            </div>
+          )}
 
           <div className="sec"><h2>Esquema de pago</h2>
             <div className="esq">
@@ -162,6 +188,11 @@ export default function Detalle() {
         {showReg && (
           <RegistroCliente me={me} dev={d} unidad={regUnidad}
             onClose={() => setShowReg(false)} onDone={() => {}} />
+        )}
+
+        {showMedios && (
+          <MediosManager dev={d} units={units}
+            onClose={() => setShowMedios(false)} onChange={setMedios} />
         )}
       </main>
     </>
