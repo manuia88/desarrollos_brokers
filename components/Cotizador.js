@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { esquemaPago, resumenCredito, BANCOS } from '../lib/finance';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
+const soloDig = s => String(s ?? '').replace(/[^0-9]/g, '');
+const money = s => { const d = soloDig(s); return d ? '$' + Number(d).toLocaleString('es-MX') : ''; };
 function mesesEntrega(fecha) {
   if (!fecha) return 0;
   const h = new Date(), f = new Date(fecha + 'T12:00');
@@ -26,7 +28,7 @@ export default function Cotizador({ dev, unidad, onClose }) {
   const [banco, setBanco] = useState(BANCOS[3].nombre); // BBVA por defecto
   const [tasa, setTasa] = useState(BANCOS[3].tasa.toFixed(2));
   const [plazo, setPlazo] = useState(20);
-  const [financiar, setFinanciar] = useState(Math.round(esq.saldoEscritura));
+  const [financiar, setFinanciar] = useState(String(Math.round(esq.saldoEscritura)));
 
   function cambiarBanco(nombre) {
     setBanco(nombre);
@@ -100,7 +102,7 @@ export default function Cotizador({ dev, unidad, onClose }) {
               <input type="number" step="1" value={plazo} onChange={e => setPlazo(e.target.value)} /></div>
           </div>
           <div className="dw-field"><label>Monto a financiar</label>
-            <input type="number" step="1000" value={financiar} onChange={e => setFinanciar(e.target.value)} /></div>
+            <input type="text" inputMode="numeric" value={money(financiar)} onChange={e => setFinanciar(soloDig(e.target.value))} /></div>
 
           <div className="cotiz-result">
             <span>Mensualidad estimada</span>
