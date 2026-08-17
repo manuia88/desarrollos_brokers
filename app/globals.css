@@ -374,4 +374,14 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .med-meta{display:flex;align-items:center;justify-content:space-between;gap:.3rem;padding:.3rem .45rem;font-size:.68rem;color:var(--sub);text-transform:capitalize}
 .med-del{background:none;border:none;color:#ff8fa3;cursor:pointer;font-size:.8rem;line-height:1;padding:.1rem .2rem}
 .med-del:hover{color:#ff5070}
+.med-item{position:relative}
+.med-actions{display:flex;align-items:center;justify-content:flex-end;gap:.15rem;padding:0 .3rem .3rem}
+.med-actions button{background:none;border:none;color:var(--sub);cursor:pointer;font-size:.85rem;line-height:1;padding:.15rem .3rem;border-radius:6px}
+.med-actions button:hover{color:var(--lime);background:rgba(255,255,255,.05)}
+.med-actions .med-del:hover{color:#ff5070}
+.med-group{margin-bottom:.9rem}
+.med-group-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);font-weight:800;margin:.2rem 0 .45rem}
+.med-or{text-align:center;color:var(--dim);font-size:.76rem;margin:.9rem 0 .6rem;position:relative}
+.med-url{display:flex;gap:.4rem}
+.med-url input{flex:1;padding:.55rem .7rem;border:1px solid var(--line);border-radius:9px;background:var(--panel2);color:var(--ink);font-size:.84rem;margin-bottom:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

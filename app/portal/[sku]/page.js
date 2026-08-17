@@ -49,7 +49,11 @@ export default function Detalle() {
   }, [sku, router]);
 
   const portada = useMemo(() => medios.find(x => x.tipo === 'portada') || medios.find(x => x.tipo === 'render') || medios.find(x => x.tipo === 'foto'), [medios]);
-  const galeria = useMemo(() => medios.filter(x => IMG_TIPOS.includes(x.tipo)), [medios]);
+  const galeria = useMemo(() => {
+    const pri = { portada: 0, render: 1, foto: 2, amenidad: 3, planta: 4, plano: 5 };
+    return medios.filter(x => IMG_TIPOS.includes(x.tipo)).slice()
+      .sort((a, b) => (pri[a.tipo] - pri[b.tipo]) || ((a.orden || 0) - (b.orden || 0)));
+  }, [medios]);
 
   const protos = useMemo(() => [...new Set(units.map(u=>u.prototipo).filter(Boolean))].sort(), [units]);
   const unitsF = useMemo(() => fProto ? units.filter(u=>u.prototipo===fProto) : units, [units, fProto]);
@@ -113,7 +117,7 @@ export default function Detalle() {
               <div className="galeria">{galeria.map(mm=>(
                 <a key={mm.id} className="gal-item" href={mm.url} target="_blank" rel="noopener">
                   <img src={mm.url} alt={mm.titulo||mm.tipo} loading="lazy" />
-                  <span className="gal-tag">{mm.titulo||mm.tipo}</span>
+                  <span className="gal-tag">{mm.area||mm.titulo||mm.tipo}</span>
                 </a>))}</div>
             </div>
           ) : me?.rol==='super_admin' && (
@@ -181,7 +185,7 @@ export default function Detalle() {
         </div>}
 
         {cotizar && <Cotizador dev={d} unidad={cotizar==='dev'?null:cotizar} onClose={()=>setCotizar(null)} />}
-        {unitSel && <UnitDrawer dev={d} unidad={unitSel} onClose={()=>setUnitSel(null)}
+        {unitSel && <UnitDrawer dev={d} unidad={unitSel} medios={medios} onClose={()=>setUnitSel(null)}
           onCotizar={(u)=>{ setUnitSel(null); setCotizar(u); }}
           onRegistrar={(u)=>abrirReg(u)} />}
 

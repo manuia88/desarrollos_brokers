@@ -17,8 +17,11 @@ const ESTADO = {
   vendido:    { l: 'Vendido',    c: '#ff8fa3', bg: 'rgba(255,80,110,.14)' },
 };
 
-export default function UnitDrawer({ dev, unidad: u, onClose, onCotizar, onRegistrar }) {
+export default function UnitDrawer({ dev, unidad: u, medios = [], onClose, onCotizar, onRegistrar }) {
   const meses = mesesEntrega(dev.fecha_entrega);
+  const medioDe = tipo => medios.find(x => x.tipo === tipo && (x.unidad_sku === u.sku || (x.prototipo && x.prototipo === u.prototipo)));
+  const planoUrl = medioDe('plano')?.url || u.plano_url;
+  const plantaUrl = medioDe('planta')?.url || u.planta_url;
   const esq = esquemaPago(u.precio || 0, {
     enganchePct: dev.esq_enganche || 0,
     obraPct: dev.esq_mensualidades || 0,
@@ -82,11 +85,11 @@ export default function UnitDrawer({ dev, unidad: u, onClose, onCotizar, onRegis
 
         <div className="dw-sec">
           <h3>Plano</h3>
-          {u.plano_url ? <img className="ud-img" src={u.plano_url} alt="Plano" /> : <div className="ud-ph">Plano próximamente</div>}
+          {planoUrl ? <a href={planoUrl} target="_blank" rel="noopener"><img className="ud-img" src={planoUrl} alt="Plano" /></a> : <div className="ud-ph">Plano próximamente</div>}
         </div>
         <div className="dw-sec">
           <h3>Planta ambientada</h3>
-          {u.planta_url ? <img className="ud-img" src={u.planta_url} alt="Planta ambientada" /> : <div className="ud-ph">Planta ambientada próximamente</div>}
+          {plantaUrl ? <a href={plantaUrl} target="_blank" rel="noopener"><img className="ud-img" src={plantaUrl} alt="Planta ambientada" /></a> : <div className="ud-ph">Planta ambientada próximamente</div>}
         </div>
 
         <div className="cotiz-actions">
