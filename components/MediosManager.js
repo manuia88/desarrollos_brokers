@@ -163,19 +163,28 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
           <p className="fnote" style={{ marginTop: 0 }}>El tipo, ambiente y prototipo de arriba se aplican tanto a la subida como a la URL.</p>
 
           <div className="med-or">o importa una carpeta completa de Google Drive</div>
+
+          {/* Paso 1: conectar Google Drive — banner visible con estado y CTA */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '.6rem', flexWrap: 'wrap', padding: '.7rem .8rem', borderRadius: 12, margin: '0 0 .6rem', border: '1px solid ' + (gmail ? 'rgba(198,255,58,.35)' : 'var(--mag)'), background: gmail ? 'rgba(198,255,58,.06)' : 'rgba(255,30,122,.08)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.15rem', minWidth: 0 }}>
+              <b style={{ fontSize: '.9rem', color: gmail ? 'var(--lime)' : 'var(--ink)' }}>
+                {sesion === undefined ? 'Verificando conexión…' : gmail ? '✓ Google Drive conectado' : '① Conecta tu Google Drive'}
+              </b>
+              <span className="fnote" style={{ margin: 0 }}>
+                {gmail ? `Cuenta: ${gmail} · si el import falla por permisos, reconecta.` : 'Necesario para poder importar carpetas de Drive.'}
+              </span>
+            </div>
+            <button className={'btn sm ' + (gmail ? 'ghost' : 'mag')} type="button" disabled={busy} onClick={conectarDrive} style={{ whiteSpace: 'nowrap' }}>
+              {gmail ? 'Reconectar' : 'Conectar Google Drive'}
+            </button>
+          </div>
+
+          {/* Paso 2: pegar el link de la carpeta e importar */}
           <div className="dw-field">
-            <div className="med-url"><input value={drive} onChange={e => setDrive(e.target.value)} placeholder="https://drive.google.com/drive/folders/…" />
+            <div className="med-url"><input value={drive} onChange={e => setDrive(e.target.value)} placeholder="② Pega aquí el link de la carpeta de Drive…" />
               <button className="btn lim sm" disabled={busy || !drive.trim()} onClick={importarDrive}>Importar</button></div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem', flexWrap: 'wrap', margin: '.1rem 0 .3rem' }}>
-            <button className="btn ghost sm" type="button" disabled={busy} onClick={conectarDrive}>{gmail ? 'Reconectar Google Drive' : 'Conectar Google Drive'}</button>
-            <span className="fnote" style={{ margin: 0 }}>
-              {sesion === undefined ? 'Verificando conexión…'
-                : gmail ? `Conectado como ${gmail}. Si el import falla por permisos, reconecta para dar acceso a Drive.`
-                  : 'Aún no conectas Google Drive — necesario para importar carpetas.'}
-            </span>
-          </div>
-          <p className="fnote" style={{ marginTop: 0 }}>Trae todas las imágenes de la carpeta (y subcarpetas) y las <b>re-hospeda</b> en tu portal. Si nombras las subcarpetas <i>Renders, Planos, Plantas, Amenidades, Brochure</i>, se clasifican solas; lo demás usa el tipo de arriba. Requiere tener conectado tu Google con permiso de Drive.</p>
+          <p className="fnote" style={{ marginTop: 0 }}>Trae todas las imágenes de la carpeta (y subcarpetas) y las <b>re-hospeda</b> en tu portal. Si nombras las subcarpetas <i>Renders, Planos, Plantas, Amenidades, Brochure</i>, se clasifican solas; lo demás usa el tipo de arriba. La cuenta de Google que conectes debe <b>tener acceso</b> a esa carpeta (ser suya o estar compartida con ella).</p>
         </div>
 
         <div className="dw-sec">
