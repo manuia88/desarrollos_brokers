@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import SuperBar from '../../components/SuperBar';
 import RegistroCliente from '../../components/RegistroCliente';
 import DocsCliente from '../../components/DocsCliente';
+import ChecklistEtapa from '../../components/ChecklistEtapa';
 import { getViewAs } from '../../lib/viewas';
 import { googleCalUrl, descargarIcs, crearEventoGoogle, cancelarEventoGoogle } from '../../lib/calendario';
 
@@ -96,7 +97,10 @@ export default function CRM() {
   const mover = (id, etapa) => patch(id, { etapa });
   const aprobar = id => patch(id, { estatus: 'ok' });
   const rechazar = id => patch(id, { estatus: 'duplicado' });
-  const reasignar = (id, asesor_id) => patch(id, { asesor_id });
+  const reasignar = async (id, asesor_id) => {
+    if (asesor_id) { await supabase.rpc('asignar_lead', { p_lead_id: id, p_asesor: asesor_id }); load(); }
+    else patch(id, { asesor_id: null });
+  };
 
   async function agendar(lead, { fecha, hora, modalidad, notas }) {
     if (!fecha) { alert('Falta la fecha'); return false; }
@@ -405,6 +409,8 @@ function LeadDrawer({ lead, devName, team, puedeGestionar, busy, nombreDe, apart
             ))}
           </div>
         </div>
+
+        <ChecklistEtapa lead={lead} />
 
         <div className="dw-sec">
           <h3>Datos del cliente</h3>

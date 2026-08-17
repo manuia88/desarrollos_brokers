@@ -13,6 +13,7 @@ export default function Tablero() {
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [data, setData] = useState(null);
+  const [org, setOrg] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -21,6 +22,7 @@ export default function Tablero() {
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       const meObj = { id: session.user.id, email: session.user.email, ...(prof || {}) };
       setMe(meObj);
+      if (meObj.org_id) { const { data: o } = await supabase.from('orgs').select('id,nombre,ruteo,sla_horas').eq('id', meObj.org_id).maybeSingle(); setOrg(o || null); }
       const [u, l, ci, ap, ev, d, pf] = await Promise.all([
         supabase.from('unidades').select('dev_sku,precio,estatus'),
         supabase.from('leads').select('id,etapa,estatus,dev_sku,creado,asesor_id'),
@@ -71,8 +73,15 @@ export default function Tablero() {
     return { totalU: u.length, disp: disp.length, vend: vend.length, apar: apar.length, valorDisp, porEtapa, leads: l.length, citasAct, apart: ap.length, comEst, topVistas, topInv, vistas: vistas.length, conv, ranking, absorcion };
   }, [data]);
 
+  async function guardarRuteo(campo, valor) {
+    if (!org) return;
+    const next = { ...org, [campo]: valor }; setOrg(next);
+    await supabase.from('orgs').update({ [campo]: valor }).eq('id', org.id);
+  }
+
   if (!k) return <div className="loading">Cargando tablero…</div>;
   const esSuper = me?.rol === 'super_admin';
+  const puedeRuteo = ['super_admin', 'director', 'gerente'].includes(me?.rol) && org;
   const maxEtapa = Math.max(1, ...k.porEtapa.map(x => x[1]));
   const maxV = k.topVistas[0]?.n || 1;
   const maxI = k.topInv[0]?.val || 1;
@@ -144,6 +153,31 @@ export default function Tablero() {
             <p className="fnote">% de unidades ya colocadas (apartadas o vendidas) sobre el total.</p>
           </section>
         </div>
+
+        {/* Ruteo de leads (SLA) */}
+        {puedeRuteo && (
+          <section className="sec" style={{ marginTop: '1rem' }}>
+            <h2>Ruteo de leads · {org.nombre}</h2>
+            <div className="ruteo">
+              <div>
+                <label className="lbl">Asignación</label>
+                <div className="crit-chips">
+                  <span className={'chip' + (org.ruteo !== 'round_robin' ? ' on' : '')} onClick={() => guardarRuteo('ruteo', 'manual')}>Manual</span>
+                  <span className={'chip' + (org.ruteo === 'round_robin' ? ' on' : '')} onClick={() => guardarRuteo('ruteo', 'round_robin')}>Round-robin automático</span>
+                </div>
+              </div>
+              {org.ruteo === 'round_robin' && (
+                <div>
+                  <label className="lbl">SLA: reasignar si nadie lo atiende en</label>
+                  <div className="crit-chips">
+                    {[4, 12, 24, 48].map(h => <span key={h} className={'chip' + ((org.sla_horas || 24) === h ? ' on' : '')} onClick={() => guardarRuteo('sla_horas', h)}>{h} h</span>)}
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="fnote">Con round-robin, los leads nuevos se reparten en orden entre el equipo; si uno pasa el SLA sin moverse de “Nuevo”, se reasigna solo y le avisamos al siguiente asesor.</p>
+          </section>
+        )}
 
         {/* Ranking del equipo (director / super) */}
         {(esSuper || me?.rol === 'director' || me?.rol === 'gerente') && (
