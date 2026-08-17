@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { googleCalUrl, descargarIcs } from '../lib/calendario';
+import { googleCalUrl, descargarIcs, crearEventoGoogle, calcomUrl } from '../lib/calendario';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const soloDig = s => String(s ?? '').replace(/[^0-9]/g, '');
@@ -59,22 +59,25 @@ export default function FichaPublica({ sku, asesor, unidad }) {
     if (!asesor) { setErr('Este enlace no trae asesor asignado.'); return; }
     if (modo === 'cita' && (!form.fecha || !form.hora)) { setErr('Elige fecha y hora para tu cita.'); return; }
     setSending(true);
-    let error;
+    let error, citaId;
     if (modo === 'cita') {
-      ({ error } = await supabase.rpc('agendar_cita_publica', {
+      const r = await supabase.rpc('agendar_cita_publica', {
         p_sku: sku, p_asesor: asesor, p_unidad: unidad || null,
         p_nombre: form.nombre.trim(), p_telefono: form.telefono.trim(), p_email: form.email.trim() || null,
         p_fecha: form.fecha, p_hora: form.hora, p_modalidad: form.modalidad, p_mensaje: form.mensaje.trim() || null,
-      }));
+      });
+      error = r.error; citaId = r.data;
     } else {
-      ({ error } = await supabase.rpc('registrar_lead_publico', {
+      const r = await supabase.rpc('registrar_lead_publico', {
         p_sku: sku, p_asesor: asesor, p_nombre: form.nombre.trim(), p_telefono: form.telefono.trim(),
         p_email: form.email.trim() || null, p_mensaje: form.mensaje.trim() || null, p_unidad: unidad || null,
-      }));
+      });
+      error = r.error;
     }
     setSending(false);
     if (error) { setErr(error.message); return; }
     if (modo === 'cita') {
+      if (citaId) crearEventoGoogle(citaId);
       const cal = {
         titulo: `Cita — ${dev.nombre}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`,
         fecha: form.fecha, hora: form.hora,
@@ -172,6 +175,14 @@ export default function FichaPublica({ sku, asesor, unidad }) {
             <div><b>{ase?.nombre || 'Tu asesor'}</b><span>{ase?.org_nombre || ''}</span></div>
             {waAse && <a className="btn lim sm" href={waAse} target="_blank" rel="noopener">WhatsApp</a>}
           </div>
+
+          {ase?.calcom && !done && (
+            <a className="btn mag block fp-calcom" target="_blank" rel="noopener"
+              href={calcomUrl(ase.calcom, { nombre: form.nombre, email: form.email, notas: `Interés: ${dev.nombre}${selUnit ? ' · T' + selUnit.torre + ' ' + selUnit.num_depto : ''}` })}>
+              📅 Reservar un horario disponible (en vivo)
+            </a>
+          )}
+          {ase?.calcom && !done && <div className="fp-or">o deja tus datos y {ase?.nombre || 'tu asesor'} te agenda</div>}
 
           {done ? (
             <div className="fp-done">

@@ -6,7 +6,7 @@ import SuperBar from '../../components/SuperBar';
 import RegistroCliente from '../../components/RegistroCliente';
 import DocsCliente from '../../components/DocsCliente';
 import { getViewAs } from '../../lib/viewas';
-import { googleCalUrl, descargarIcs } from '../../lib/calendario';
+import { googleCalUrl, descargarIcs, crearEventoGoogle } from '../../lib/calendario';
 
 const ETAPAS = ['Nuevo', 'Contactado', 'Cita', 'Apartado', 'Escriturado', 'Perdido'];
 const TERM = { Escriturado: 'win', Perdido: 'lost' };
@@ -101,13 +101,14 @@ export default function CRM() {
   async function agendar(lead, { fecha, hora, modalidad, notas }) {
     if (!fecha) { alert('Falta la fecha'); return false; }
     setBusy(true);
-    const { error } = await supabase.from('citas').insert({
+    const { data: nueva, error } = await supabase.from('citas').insert({
       org_id: lead.org_id, lead_id: lead.id, asesor_id: lead.asesor_id,
       nombre: lead.nombre, email: lead.email, telefono: lead.telefono,
-      dev_sku: lead.dev_sku, fecha, hora, modalidad, notas,
-    });
+      dev_sku: lead.dev_sku, fecha, hora, modalidad, notas, estatus: 'Solicitada',
+    }).select('id').single();
     setBusy(false);
     if (error) { alert('No se pudo agendar: ' + error.message); return false; }
+    if (nueva?.id) crearEventoGoogle(nueva.id);
     if (lead.etapa === 'Nuevo' || lead.etapa === 'Contactado') await mover(lead.id, 'Cita');
     return true;
   }

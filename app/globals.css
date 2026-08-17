@@ -474,4 +474,6 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .cita-cal{display:flex;gap:.3rem;flex:none}
 .cita-btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.25rem .5rem;cursor:pointer;font-size:.9rem;text-decoration:none}
 .cita-btn:hover{border-color:var(--mag-line)}
+.fp-calcom{margin-bottom:.5rem}
+.fp-or{text-align:center;color:var(--dim);font-size:.78rem;margin:.2rem 0 .8rem;position:relative}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
