@@ -182,7 +182,7 @@ export default function Detalle() {
           )}
 
           {galeria.length>0 ? (
-            <div className="galeria big">{galeria.slice(0,6).map(mm=>(
+            <div className="galeria big">{galeria.slice(0,5).map(mm=>(
               <a key={mm.id} className="gal-item" href={mm.url} target="_blank" rel="noopener">
                 <img src={mm.url} alt={etiquetaMedio(mm)} loading="lazy" />
                 <span className="gal-tag">{etiquetaMedio(mm)}</span>
