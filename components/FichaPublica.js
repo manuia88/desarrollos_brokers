@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { googleCalUrl, descargarIcs, crearEventoGoogle, calcomUrl } from '../lib/calendario';
+import { etiquetaMedio } from '../lib/medios';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const soloDig = s => String(s ?? '').replace(/[^0-9]/g, '');
@@ -137,8 +138,8 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           <section className="fp-sec"><h2>Galería</h2>
             <div className="fp-gal">{galeria.map((mm, i) => (
               <button key={i} className="fp-gal-i" onClick={() => setFoto(mm.url)}>
-                <img src={mm.url} alt={mm.area || mm.tipo} loading="lazy" />
-                <span>{mm.area || mm.titulo || mm.tipo}</span>
+                <img src={mm.url} alt={etiquetaMedio(mm)} loading="lazy" />
+                <span>{etiquetaMedio(mm)}</span>
               </button>))}</div>
           </section>
         )}

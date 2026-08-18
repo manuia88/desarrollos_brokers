@@ -5,19 +5,28 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const TIPOS = ['render', 'plano', 'planta', 'amenidad', 'foto', 'brochure', 'portada'];
-// Reconoce la taxonomía real de las carpetas (soporta prefijos numerados: "2. Planos", "6. Renders"…).
-function tipoDeNombre(nombre, fallback) {
+// Clasifica por nombre (de carpeta O de archivo). Devuelve null si no reconoce nada
+// (soporta prefijos numerados: "2. Planos", "6. Renders"…).
+function clasifica(nombre) {
   const s = (nombre || '').toLowerCase();
   if (/prototipo/.test(s)) return 'planta';                          // "3. Prototipos" = plantas por unidad
   if (/planta/.test(s)) return 'planta';                             // "4. Plantas"
   if (/plano/.test(s)) return 'plano';                               // "2. Planos"
   if (/render/.test(s)) return 'render';                             // "6. Renders"
-  if (/amenidad|amenit|alberca|\bgym\b|roof|lobby|terraza/.test(s)) return 'amenidad';
+  if (/amenidad|amenit|alberca|\bgym\b|gimnasio|roof|lobby|terraza|ludotec|coworking|sal[oó]n de/.test(s)) return 'amenidad';
   if (/brochure|folleto|dossier|ficha|memoria|acabado|mantenim/.test(s)) return 'brochure'; // 1/7/8/9
   if (/ubicaci|localizaci|mapa|entorno/.test(s)) return 'foto';      // "10. Ubicación"
   if (/fachada|portada/.test(s)) return 'render';
-  if (/foto/.test(s)) return 'foto';
-  return fallback;
+  if (/\bfoto/.test(s)) return 'foto';
+  return null;
+}
+// Detecta el AMBIENTE desde el nombre del archivo (para no marcar todo igual).
+// Si no hay pista clara (ej. "Captura de pantalla…"), devuelve null.
+const AMBIENTES = [['fachada', 'Fachada'], ['lobby', 'Lobby / acceso'], ['acceso', 'Lobby / acceso'], ['sala', 'Sala / comedor'], ['comedor', 'Sala / comedor'], ['cocina', 'Cocina'], ['rec[aá]mara princ', 'Recámara principal'], ['rec[aá]mara', 'Recámara principal'], ['recamara', 'Recámara principal'], ['ba[ñn]o', 'Baño'], ['estudio', 'Estudio'], ['balc[oó]n', 'Balcón / terraza'], ['terraza', 'Balcón / terraza'], ['roof', 'Roof garden'], ['alberca', 'Alberca'], ['gimnasio', 'Gym'], ['\\bgym\\b', 'Gym'], ['estacionamiento', 'Estacionamiento'], ['[aá]reas verdes', 'Áreas verdes'], ['jard[ií]n', 'Áreas verdes']];
+function pistaArea(nombre) {
+  const s = (nombre || '').toLowerCase();
+  for (const [re, v] of AMBIENTES) if (new RegExp(re).test(s)) return v;
+  return null;
 }
 // De "5d.png" / "8i-F ROOF GARDEN.png" saca el prototipo "AN1-5d" / "AN1-8i-F"
 // (en la base los prototipos son SKU-código, así la planta queda ligada a su unidad).
@@ -70,12 +79,12 @@ export async function POST(req) {
   for (const f of top.files) {
     if (f.mimeType === 'application/vnd.google-apps.folder') {
       const sub = await driveList(token, `'${f.id}' in parents and trashed=false`);
-      const t = tipoDeNombre(f.name, fallback);
+      const tCarpeta = clasifica(f.name);                            // categoría por el nombre de la subcarpeta
       const esProto = /prototipo/i.test(f.name);                     // etiquetar prototipo desde el nombre del archivo
       sub.files.filter(x => x.mimeType?.startsWith('image/') || x.mimeType === 'application/pdf')
-        .forEach(x => trabajos.push({ ...x, tipo: x.mimeType === 'application/pdf' ? 'brochure' : t, proto: esProto ? protoDeArchivo(x.name, dev_sku) : null }));
+        .forEach(x => trabajos.push({ ...x, tipo: x.mimeType === 'application/pdf' ? 'brochure' : (tCarpeta || clasifica(x.name) || fallback), area: pistaArea(x.name), proto: esProto ? protoDeArchivo(x.name, dev_sku) : null }));
     } else if (f.mimeType?.startsWith('image/') || f.mimeType === 'application/pdf') {
-      trabajos.push({ ...f, tipo: f.mimeType === 'application/pdf' ? 'brochure' : tipoDeNombre(f.name, fallback), proto: null });
+      trabajos.push({ ...f, tipo: f.mimeType === 'application/pdf' ? 'brochure' : (clasifica(f.name) || fallback), area: pistaArea(f.name), proto: null });
     }
   }
   // Dedup: no reimportar lo que ya está (por título/nombre en este desarrollo).
@@ -96,7 +105,8 @@ export async function POST(req) {
       if (up.error) { err++; continue; }
       const { data: pub } = db.storage.from('medios').getPublicUrl(path);
       const con_area = ['render', 'foto', 'amenidad', 'portada'].includes(it.tipo);
-      await db.from('media').insert({ dev_sku, tipo: it.tipo, area: con_area ? area : null, prototipo: it.proto || null, url: pub.publicUrl, titulo: (it.name || '').replace(/\.[^.]+$/, '') });
+      // Ambiente SOLO si el nombre del archivo lo sugiere (ya no se fuerza "Fachada" a todo).
+      await db.from('media').insert({ dev_sku, tipo: it.tipo, area: con_area ? (it.area || null) : null, prototipo: it.proto || null, url: pub.publicUrl, titulo: (it.name || '').replace(/\.[^.]+$/, '') });
       porTipo[it.tipo] = (porTipo[it.tipo] || 0) + 1; ok++;
     } catch { err++; }
   }

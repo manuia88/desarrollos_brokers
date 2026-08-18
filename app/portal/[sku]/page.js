@@ -8,7 +8,7 @@ import UnitDrawer from '../../../components/UnitDrawer';
 import RegistroCliente from '../../../components/RegistroCliente';
 import MediosManager from '../../../components/MediosManager';
 import ModelosView from '../../../components/ModelosView';
-import { listarMedios } from '../../../lib/medios';
+import { listarMedios, etiquetaMedio } from '../../../lib/medios';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const IMG_TIPOS = ['portada', 'render', 'foto', 'amenidad', 'plano', 'planta'];
@@ -184,8 +184,8 @@ export default function Detalle() {
           {galeria.length>0 ? (
             <div className="galeria big">{galeria.slice(0,6).map(mm=>(
               <a key={mm.id} className="gal-item" href={mm.url} target="_blank" rel="noopener">
-                <img src={mm.url} alt={mm.titulo||mm.tipo} loading="lazy" />
-                <span className="gal-tag">{mm.area||mm.titulo||mm.tipo}</span>
+                <img src={mm.url} alt={etiquetaMedio(mm)} loading="lazy" />
+                <span className="gal-tag">{etiquetaMedio(mm)}</span>
               </a>))}</div>
           ) : me?.rol==='super_admin' && (
             <div className="gal-empty">Aún no hay fotos ni renders. Usa <b>🖼️ Gestionar medios</b> arriba para subir portada, renders, fotos y planos.</div>

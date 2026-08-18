@@ -11,10 +11,13 @@ export async function GET(req) {
   const url = new URL(req.url);
   const token = url.searchParams.get('token');
   const uid = await userFromToken(token);
-  if (!uid) return NextResponse.json({ error: 'No autenticado.' }, { status: 401 });
+  if (!uid) return NextResponse.json({ error: 'No autenticado (token de sesión inválido o vencido). Vuelve a iniciar sesión e intenta de nuevo.' }, { status: 401 });
+
+  let db;
+  try { db = svc(); } catch (e) { return NextResponse.json({ error: String(e?.message || e) }, { status: 500 }); }
 
   const nonce = crypto.randomUUID();
-  await svc().from('google_tokens').upsert({ user_id: uid, state: nonce });
+  await db.from('google_tokens').upsert({ user_id: uid, state: nonce });
 
   const auth = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   auth.searchParams.set('client_id', G.clientId);

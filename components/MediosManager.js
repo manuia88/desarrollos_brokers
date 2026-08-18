@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  subirMedio, agregarPorUrl, listarMedios, borrarMedio, hacerPortada,
+  subirMedio, agregarPorUrl, listarMedios, borrarMedio, hacerPortada, actualizarMedio, etiquetaMedio,
   TIPOS_MEDIO, AREAS, TIPOS_CON_AREA, TIPOS_CON_PROTO,
 } from '../lib/medios';
 
@@ -106,6 +106,17 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
 
   async function portada(m) { setBusy(true); await hacerPortada(dev.sku, m.id); setBusy(false); await reload(); }
   async function eliminar(m) { setBusy(true); const { error } = await borrarMedio(m); setBusy(false); if (error) { setMsg({ t: 'err', m: error.message }); return; } await reload(); }
+  // Re-etiquetar: cambia la categoría de una imagen (útil cuando el import no adivinó bien).
+  async function recategorizar(m, nuevoTipo) {
+    if (!nuevoTipo || nuevoTipo === m.tipo) return;
+    setBusy(true);
+    await actualizarMedio(m.id, {
+      tipo: nuevoTipo,
+      area: TIPOS_CON_AREA.includes(nuevoTipo) ? (m.area || null) : null,
+      prototipo: TIPOS_CON_PROTO.includes(nuevoTipo) ? (m.prototipo || null) : null,
+    });
+    setBusy(false); await reload();
+  }
 
   return (
     <>
@@ -200,8 +211,15 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
                     <div className="med-grid">
                       {items.map(m => (
                         <div className="med-item" key={m.id}>
-                          <img src={m.url} alt={m.titulo || m.area || m.tipo} loading="lazy" />
-                          <div className="med-meta"><span>{m.area || m.prototipo || m.titulo || '—'}</span></div>
+                          <img src={m.url} alt={etiquetaMedio(m)} loading="lazy" />
+                          <div className="med-meta">
+                            <select value={m.tipo} disabled={busy} title="Cambiar categoría de esta imagen"
+                              onChange={e => recategorizar(m, e.target.value)}
+                              style={{ width: '100%', fontSize: '.72rem', padding: '3px 4px', background: 'var(--panel2)', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
+                              {TIPOS_MEDIO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                            <span style={{ display: 'block', marginTop: 2 }}>{etiquetaMedio(m)}</span>
+                          </div>
                           <div className="med-actions">
                             {tv !== 'portada' && <button title="Hacer portada" disabled={busy} onClick={() => portada(m)}>★</button>}
                             <button title="Borrar" className="med-del" disabled={busy} onClick={() => eliminar(m)}>✕</button>
