@@ -8,7 +8,7 @@ import UnitDrawer from '../../../components/UnitDrawer';
 import RegistroCliente from '../../../components/RegistroCliente';
 import MediosManager from '../../../components/MediosManager';
 import ModelosView from '../../../components/ModelosView';
-import { listarMedios, etiquetaMedio } from '../../../lib/medios';
+import { listarMedios, etiquetaMedio, etiquetaOpcional } from '../../../lib/medios';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const IMG_TIPOS = ['portada', 'render', 'foto', 'amenidad', 'plano', 'planta'];
@@ -69,6 +69,7 @@ export default function Detalle() {
   const [showShare, setShowShare] = useState(false);
   const [vistas, setVistas] = useState(null);
   const [copiado, setCopiado] = useState(false);
+  const [lb, setLb] = useState(null); // índice de la foto abierta en el visor (carrusel)
 
   useEffect(() => {
     (async () => {
@@ -93,6 +94,17 @@ export default function Detalle() {
     return medios.filter(x => IMG_TIPOS.includes(x.tipo)).slice()
       .sort((a, b) => (pri[a.tipo] - pri[b.tipo]) || ((a.orden || 0) - (b.orden || 0)));
   }, [medios]);
+  // Visor con teclado: ← → para navegar, Esc para cerrar.
+  useEffect(() => {
+    if (lb == null) return;
+    const onKey = e => {
+      if (e.key === 'Escape') setLb(null);
+      else if (e.key === 'ArrowRight') setLb(i => (i + 1) % galeria.length);
+      else if (e.key === 'ArrowLeft') setLb(i => (i - 1 + galeria.length) % galeria.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lb, galeria.length]);
 
   const recMatch = (u) => fRec === '' || (fRec === '3' ? u.rec >= 3 : String(u.rec) === fRec);
   const extMatch = (u) => !fExt || (u.balcon_m2 > 0 || u.terraza_m2 > 0 || u.roof_m2 > 0);
@@ -182,11 +194,12 @@ export default function Detalle() {
           )}
 
           {galeria.length>0 ? (
-            <div className="galeria big">{galeria.slice(0,5).map(mm=>(
-              <a key={mm.id} className="gal-item" href={mm.url} target="_blank" rel="noopener">
+            <div className="galeria big">{galeria.slice(0,5).map((mm,i)=>(
+              <button key={mm.id} className="gal-item" onClick={()=>setLb(i)} aria-label="Ver foto">
                 <img src={mm.url} alt={etiquetaMedio(mm)} loading="lazy" />
-                <span className="gal-tag">{etiquetaMedio(mm)}</span>
-              </a>))}</div>
+                {etiquetaOpcional(mm) && <span className="gal-tag">{etiquetaOpcional(mm)}</span>}
+                {i===4 && galeria.length>5 && <span className="gal-more">+{galeria.length-5}</span>}
+              </button>))}</div>
           ) : me?.rol==='super_admin' && (
             <div className="gal-empty">Aún no hay fotos ni renders. Usa <b>🖼️ Gestionar medios</b> arriba para subir portada, renders, fotos y planos.</div>
           )}
@@ -306,12 +319,16 @@ export default function Detalle() {
                 return (
                   <section className="fcard" key={titulo}>
                     <h3>{titulo} <span className="fcount">{filled}/{campos.length}</span></h3>
-                    <div className="kv2">{rows.map(([c,v])=>(
-                      <div className="kv2row" key={c}>
+                    <div className="kv2">{rows.map(([c,v])=>{
+                      const lista = /amenidad|lista/i.test(c) && typeof v==='string' && v.includes(',');
+                      return (
+                      <div className={'kv2row'+(lista?' kv2col':'')} key={c}>
                         <span>{c}</span>
-                        <b className={(v==null||v==='')?'kv-empty':''}>{(v!=null&&v!=='')?String(v):'—'}</b>
-                      </div>
-                    ))}</div>
+                        {lista
+                          ? <div className="kv-chips">{v.split(',').map((a,i)=><span key={i}>{a.trim()}</span>)}</div>
+                          : <b className={(v==null||v==='')?'kv-empty':''}>{(v!=null&&v!=='')?String(v):'—'}</b>}
+                      </div>);
+                    })}</div>
                   </section>
                 );
               })}
@@ -319,6 +336,18 @@ export default function Detalle() {
           </div>
           );
         })()}
+
+        {lb!=null && galeria[lb] && (
+          <div className="lbx" onClick={()=>setLb(null)}>
+            <button className="lbx-x" onClick={()=>setLb(null)} aria-label="Cerrar">✕</button>
+            {galeria.length>1 && <button className="lbx-nav prev" onClick={e=>{e.stopPropagation();setLb((lb-1+galeria.length)%galeria.length);}} aria-label="Anterior">‹</button>}
+            <figure className="lbx-fig" onClick={e=>e.stopPropagation()}>
+              <img src={galeria[lb].url} alt={etiquetaMedio(galeria[lb])} />
+              <figcaption>{etiquetaMedio(galeria[lb])} <span>· {lb+1} / {galeria.length}</span></figcaption>
+            </figure>
+            {galeria.length>1 && <button className="lbx-nav next" onClick={e=>{e.stopPropagation();setLb((lb+1)%galeria.length);}} aria-label="Siguiente">›</button>}
+          </div>
+        )}
 
         {cotizar && <Cotizador dev={d} unidad={cotizar==='dev'?null:cotizar} portadaUrl={portada?.url} onClose={()=>setCotizar(null)} />}
         {unitSel && <UnitDrawer dev={d} unidad={unitSel} medios={medios} asesorId={me?.id} onClose={()=>setUnitSel(null)}

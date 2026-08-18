@@ -22,9 +22,10 @@ function agrupar(units) {
 export default function ModelosView({ dev, units, medios = [], asesorId, onUnit }) {
   const [sel, setSel] = useState(null);
   const modelos = useMemo(() => agrupar(units), [units]);
-  const imgDe = proto =>
-    medios.find(x => (x.tipo === 'planta' || x.tipo === 'plano') && x.prototipo === proto) ||
-    medios.find(x => x.tipo === 'render' || x.tipo === 'foto' || x.tipo === 'portada');
+  // Solo imagen PROPIA del modelo (planta/plano/render con ese prototipo).
+  // Si no hay, no se repite la misma foto del desarrollo en todas las tarjetas.
+  const imgDe = proto => medios.find(x => x.prototipo === proto && ['planta', 'plano', 'render', 'foto'].includes(x.tipo)) || null;
+  const titulo = mm => mm.rec === 0 ? 'Loft' : `${mm.rec} recámara${mm.rec === 1 ? '' : 's'}`;
 
   if (!modelos.length) return <p className="fnote">Sin unidades que cumplan el filtro.</p>;
 
@@ -35,19 +36,20 @@ export default function ModelosView({ dev, units, medios = [], asesorId, onUnit 
           const img = imgDe(mm.proto);
           const ext = [mm.balcon > 0 && 'Balcón', mm.terraza > 0 && 'Terraza', mm.roof > 0 && 'Roof garden'].filter(Boolean);
           return (
-            <article className="mcard" key={mm.proto} onClick={() => setSel(mm)}>
-              <div className="mcard-img">{img ? <img src={img.url} alt={mm.proto} loading="lazy" /> : <div className="mcard-ph">🏙️</div>}
-                <span className="mcard-n">{mm.n} disp.</span></div>
+            <article className={'mcard' + (img ? '' : ' nophoto')} key={mm.proto} onClick={() => setSel(mm)}>
+              {img && <div className="mcard-img"><img src={img.url} alt={titulo(mm)} loading="lazy" /></div>}
               <div className="mcard-body">
-                <h4>{mm.proto}</h4>
+                <div className="mcard-hd">
+                  <h4>{titulo(mm)} · {m2(mm.m2_hab)} m²</h4>
+                  <span className="mcard-code" title="Clave del prototipo">{mm.proto}</span>
+                </div>
                 <div className="mcard-specs">
-                  <span>🛏 {mm.rec === 0 ? 'Loft' : (mm.rec ?? '—')}</span>
-                  <span>🛁 {mm.banos ?? '—'}</span>
-                  <span>🚗 {mm.n_estac || '—'}</span>
+                  <span>🛁 {mm.banos ?? '—'} baño{mm.banos === 1 ? '' : 's'}</span>
+                  <span>🚗 {mm.n_estac || '—'} estac.</span>
                   <span>📐 {m2(mm.m2_hab)} m²</span>
                 </div>
                 {ext.length > 0 && <div className="mcard-ext">{ext.map(e => <span key={e}>+ {e}</span>)}</div>}
-                <div className="mcard-price"><span>desde</span><b>{MXN(mm.desde)}</b></div>
+                <div className="mcard-price"><span>desde</span><b>{MXN(mm.desde)}</b><em className="mcard-disp">{mm.n} disp.</em></div>
               </div>
             </article>
           );
@@ -62,7 +64,7 @@ export default function ModelosView({ dev, units, medios = [], asesorId, onUnit 
             <div className="drawer-bg" onClick={() => setSel(null)} />
             <aside className="drawer" onClick={e => e.stopPropagation()}>
               <div className="dw-h">
-                <div><span className="dw-tag">Modelo</span><h2>{sel.proto}</h2>
+                <div><span className="dw-tag">Modelo · {sel.proto}</span><h2>{titulo(sel)} · {m2(sel.m2_hab)} m²</h2>
                   <div className="ud-sub">🛏 {sel.rec === 0 ? 'Loft' : sel.rec} · 🛁 {sel.banos} · 🚗 {sel.n_estac || '—'} · 📐 {m2(sel.m2_hab)} m² hab · {m2(sel.m2_total)} m² tot</div></div>
                 <button className="x" onClick={() => setSel(null)}>✕</button>
               </div>

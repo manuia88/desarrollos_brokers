@@ -117,6 +117,18 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
     });
     setBusy(false); await reload();
   }
+  // Reordena una imagen dentro de su grupo — persiste 'orden' (así se ven en la ficha).
+  async function mover(items, i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= items.length) return;
+    const arr = items.slice();
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    setBusy(true);
+    for (let k = 0; k < arr.length; k++) {
+      if ((arr[k].orden ?? -1) !== k) await actualizarMedio(arr[k].id, { orden: k });
+    }
+    setBusy(false); await reload();
+  }
 
   return (
     <>
@@ -200,6 +212,7 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
 
         <div className="dw-sec">
           <h3>Medios ({medios ? medios.length : 0})</h3>
+          {medios && medios.length > 0 && <p className="fnote" style={{ marginTop: 0 }}>Usa <b>← →</b> para ordenar cómo se ven, <b style={{ color: 'var(--lime)' }}>★</b> para elegir la portada, y el menú para cambiar su categoría.</p>}
           {medios == null ? <p className="fnote">Cargando…</p> :
             medios.length === 0 ? <p className="fnote">Aún no hay medios. Sube portada, renders, fotos y planos — aparecen en la ficha al instante.</p> :
               TIPOS_MEDIO.map(([tv, tl]) => {
@@ -209,20 +222,26 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
                   <div className="med-group" key={tv}>
                     <div className="med-group-h">{tl} · {items.length}</div>
                     <div className="med-grid">
-                      {items.map(m => (
+                      {items.map((m, i) => (
                         <div className="med-item" key={m.id}>
+                          {tv === 'portada' && <span className="med-flag">★ Portada</span>}
                           <img src={m.url} alt={etiquetaMedio(m)} loading="lazy" />
-                          <div className="med-meta">
+                          <div className="med-meta" style={{ display: 'block', padding: '.35rem .4rem' }}>
                             <select value={m.tipo} disabled={busy} title="Cambiar categoría de esta imagen"
                               onChange={e => recategorizar(m, e.target.value)}
-                              style={{ width: '100%', fontSize: '.72rem', padding: '3px 4px', background: 'var(--panel2)', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
+                              style={{ width: '100%', fontSize: '.72rem', padding: '3px 5px', background: 'var(--panel)', color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer' }}>
                               {TIPOS_MEDIO.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                             </select>
-                            <span style={{ display: 'block', marginTop: 2 }}>{etiquetaMedio(m)}</span>
                           </div>
-                          <div className="med-actions">
-                            {tv !== 'portada' && <button title="Hacer portada" disabled={busy} onClick={() => portada(m)}>★</button>}
-                            <button title="Borrar" className="med-del" disabled={busy} onClick={() => eliminar(m)}>✕</button>
+                          <div className="med-actions" style={{ justifyContent: 'space-between' }}>
+                            <span style={{ display: 'flex', gap: '.05rem' }}>
+                              <button title="Mover antes" disabled={busy || i === 0} onClick={() => mover(items, i, -1)}>←</button>
+                              <button title="Mover después" disabled={busy || i === items.length - 1} onClick={() => mover(items, i, 1)}>→</button>
+                            </span>
+                            <span style={{ display: 'flex', gap: '.05rem' }}>
+                              {tv !== 'portada' && <button title="Hacer portada" disabled={busy} onClick={() => portada(m)} style={{ color: 'var(--lime)', fontSize: '.95rem' }}>★</button>}
+                              <button title="Borrar" className="med-del" disabled={busy} onClick={() => eliminar(m)}>✕</button>
+                            </span>
                           </div>
                         </div>
                       ))}
