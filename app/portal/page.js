@@ -21,6 +21,7 @@ export default function Portal() {
   const [fPrecio, setFPrecio] = useState('');
   const [sort, setSort] = useState('precio');
   const [smart, setSmart] = useState('');
+  const [q, setQ] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -40,7 +41,9 @@ export default function Portal() {
 
   const rows = useMemo(() => {
     if (!devs) return [];
+    const t = q.trim().toLowerCase();
     let r = devs.filter(d =>
+      (!t || `${d.nombre || ''} ${d.colonia || ''} ${d.alcaldia || ''} ${d.desarrollador || ''} ${d.sku || ''}`.toLowerCase().includes(t)) &&
       (!fZona || d.alcaldia === fZona) &&
       (!fEtapa || d.etapa === fEtapa) &&
       (!fRec || (fRec === '3' ? d.rec_max >= 3 : (d.rec_min <= +fRec && d.rec_max >= +fRec))) &&
@@ -54,7 +57,7 @@ export default function Portal() {
     else if (sort === 'entrega') r = [...r].sort((a, b) => (a.fecha_entrega || '').localeCompare(b.fecha_entrega || ''));
     else r = [...r].sort((a, b) => a.precio_min - b.precio_min);
     return r;
-  }, [devs, fZona, fEtapa, fRec, fPrecio, sort, smart]);
+  }, [devs, q, fZona, fEtapa, fRec, fPrecio, sort, smart]);
 
   if (devs === null) return <div className="loading">Cargando portal…</div>;
 
@@ -76,6 +79,7 @@ export default function Portal() {
 
       <main className="wrap">
         <div className="filters">
+          <input className="buscador-dev" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Buscar por nombre de proyecto…" aria-label="Buscar desarrollo" />
           <select value={fZona} onChange={e => setFZona(e.target.value)}><option value="">Zona</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
           <select value={fEtapa} onChange={e => setFEtapa(e.target.value)}><option value="">Etapa</option><option>Entrega inmediata</option><option>Preventa</option></select>
           <select value={fRec} onChange={e => setFRec(e.target.value)}><option value="">Recámaras</option><option value="0">Loft</option><option value="1">1+</option><option value="2">2+</option><option value="3">3</option></select>

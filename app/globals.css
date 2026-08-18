@@ -65,6 +65,9 @@ button,input,select{font:inherit}
 /* filtros */
 .filters{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:1.4rem 0 .4rem}
 .filters select{appearance:none;padding:.55rem 2rem .55rem .85rem;border:1px solid var(--line);border-radius:99px;background:var(--panel);color:var(--ink);font-size:.86rem;cursor:pointer}
+.buscador-dev{flex:1 1 260px;min-width:220px;padding:.6rem .95rem;border:1px solid var(--line);border-radius:99px;background:var(--panel);color:var(--ink);font-size:.9rem;outline:none}
+.buscador-dev:focus{border-color:var(--mag);box-shadow:0 0 0 3px var(--mag-soft)}
+.buscador-dev::placeholder{color:var(--dim)}
 .chips{display:flex;gap:.4rem;flex-wrap:wrap;margin:.3rem 0 1rem}
 .chip{font-size:.8rem;padding:.4rem .8rem;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--sub);cursor:pointer;font-weight:600}
 .chip.on{background:var(--mag-soft);border-color:var(--mag-line);color:var(--mag)}
