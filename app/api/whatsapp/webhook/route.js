@@ -3,7 +3,7 @@ import { svc } from '../../../../lib/googleServer';
 import { resolverIA, llamarIA } from '../../../../lib/ia';
 import { enviarWhatsAppCloud, resolverWhatsAppOrg } from '../../../../lib/whatsapp';
 import { verificarFirmaMeta } from '../../../../lib/webhookseg';
-import { rateLimit, cuotaOrgIA } from '../../../../lib/ratelimit';
+import { rateLimit, cuotaIA } from '../../../../lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -78,7 +78,7 @@ async function procesar(body) {
     return;
   }
   // Tope diario de IA por inmobiliaria.
-  if (!(await cuotaOrgIA(db, orgId, IA_MAX_DIA))) {
+  if (!(await cuotaIA(db, 'org:' + orgId, IA_MAX_DIA))) {
     await enviarWhatsAppCloud(wa, from, 'Gracias por tu mensaje. En un momento te contacta un asesor. 🙂');
     return;
   }

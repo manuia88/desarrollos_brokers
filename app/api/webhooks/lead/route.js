@@ -8,16 +8,24 @@ export const dynamic = 'force-dynamic';
 // GoHighLevel o cualquier formulario. Requiere el header x-webhook-secret.
 async function crear(body) {
   const db = svc();
-  let org_id = body.org_id || process.env.DEFAULT_ORG_ID || null;
+  // La org NO se toma del body (evita inyección cross-org): se fija por config del servidor.
+  let org_id = process.env.DEFAULT_ORG_ID || null;
   if (!org_id) {
     const { data: o } = await db.from('orgs').select('id').order('creado').limit(1).maybeSingle();
     org_id = o?.id || null;
   }
   if (!org_id) return { error: 'sin organización destino (define DEFAULT_ORG_ID)' };
 
+  // Si viene asesor_id, debe pertenecer a esa org; si no, se ignora y se rutea round-robin.
+  let asesor_id = null;
+  if (body.asesor_id) {
+    const { data: a } = await db.from('profiles').select('id').eq('id', body.asesor_id).eq('org_id', org_id).maybeSingle();
+    asesor_id = a?.id || null;
+  }
+
   const row = {
     org_id,
-    asesor_id: body.asesor_id || null,
+    asesor_id,
     nombre: body.nombre || body.name || 'Lead',
     telefono: body.telefono || body.phone || null,
     email: body.email || null,
@@ -30,11 +38,11 @@ async function crear(body) {
     consentimiento: body.consentimiento ?? false,
   };
   const { data, error } = await db.from('leads').insert(row).select('id').single();
-  if (error) return { error: error.message };
+  if (error) return { error: 'no se pudo registrar el lead' };
   try { await db.from('eventos').insert({ tipo: 'lead_integracion', entidad: 'lead', entidad_id: String(data.id), org_id, meta: { fuente: row.fuente } }); } catch { /* noop */ }
-  if (body.asesor_id) {
-    // Vino con asesor explícito: respétalo y avísale.
-    try { await db.rpc('notificar', { p_user: body.asesor_id, p_tipo: 'lead_asignado', p_titulo: 'Nuevo lead de integración', p_cuerpo: `${row.nombre} entró por ${row.fuente}.`, p_link: '/crm' }); } catch { /* noop */ }
+  if (asesor_id) {
+    // Asesor validado de la org: respétalo y avísale.
+    try { await db.rpc('notificar', { p_user: asesor_id, p_tipo: 'lead_asignado', p_titulo: 'Nuevo lead de integración', p_cuerpo: `${row.nombre} entró por ${row.fuente}.`, p_link: '/crm' }); } catch { /* noop */ }
   } else {
     // #3 Sin asesor: reparte round-robin entre los asesores activos de la org.
     try { await db.rpc('rutear_lead', { p_lead_id: data.id }); } catch { /* noop */ }
@@ -53,5 +61,5 @@ export async function POST(req) {
   let body = {};
   try { body = await req.json(); } catch { /* body vacío */ }
   try { return NextResponse.json(await crear(body)); }
-  catch (e) { return NextResponse.json({ error: String(e?.message || e) }, { status: 200 }); }
+  catch { return NextResponse.json({ error: 'error procesando el webhook' }, { status: 200 }); }
 }

@@ -361,7 +361,7 @@ export default function Detalle() {
                   {s.rows.length>0 && <div className="kv2">{s.rows.map(([l,v])=>(
                     <div className="kv2row" key={l}><span>{l}</span><b>{v}</b></div>
                   ))}</div>}
-                  {s.maps && <><div className="fp-map"><iframe title="Mapa" src={mapsEmbed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div><a className="btn ghost sm devsec-maps" href={mapsUrl} target="_blank" rel="noopener">📍 Abrir en Google Maps · Cómo llegar</a></>}
+                  {s.maps && <><div className="fp-map"><iframe title="Mapa" src={mapsEmbed} loading="lazy" referrerPolicy="no-referrer" allowFullScreen /></div><a className="btn ghost sm devsec-maps" href={mapsUrl} target="_blank" rel="noopener">📍 Abrir en Google Maps · Cómo llegar</a></>}
                   {s.cta && <button className="btn mag sm devsec-cta" onClick={()=>setCotizar('dev')}>Abrir cotizador completo</button>}
                 </div>
               </details>

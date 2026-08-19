@@ -31,8 +31,11 @@ async function correr() {
     if (!start || start <= hoy) continue;
     for (const [tipo, offH] of OFFSETS) {
       if (hoy < start - offH * 3600 * 1000) continue;          // aún no toca
-      const { data: yaEnv } = await db.from('reminders_enviados').select('id').eq('cita_id', c.id).eq('tipo', tipo).maybeSingle();
-      if (yaEnv) continue;
+      // Reclamar el token ANTES de enviar: el índice único (cita_id,tipo) serializa el envío.
+      // Si otra ejecución concurrente ya lo insertó, este insert falla y no se envía doble.
+      const { data: claim, error: claimErr } = await db.from('reminders_enviados')
+        .insert({ cita_id: c.id, tipo, canal: 'whatsapp+email' }).select('id').maybeSingle();
+      if (claimErr || !claim) continue;   // ya reclamado por otra corrida (o carrera perdida)
 
       const { data: ase } = await db.from('profiles').select('nombre,telefono,email').eq('id', c.asesor_id).maybeSingle();
       const { data: dev } = await db.from('desarrollos').select('nombre').eq('sku', c.dev_sku).maybeSingle();
@@ -45,8 +48,6 @@ async function correr() {
       if (c.email) await sendEmail(c.email, `Recordatorio de tu cita — ${devN}`, `<p>${msgCli}</p>`);
       if (ase?.telefono) await sendWhatsApp(ase.telefono, msgBrk);
       if (ase?.email) await sendEmail(ase.email, `Recordatorio de cita — ${devN}`, `<p>${msgBrk}</p>`);
-
-      try { await db.from('reminders_enviados').insert({ cita_id: c.id, tipo, canal: 'whatsapp+email' }); } catch { /* carrera: ya enviado */ }
       enviados++;
     }
   }

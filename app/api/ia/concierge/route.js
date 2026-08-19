@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
 import { llamarIA, resolverIA, contextoDesarrollo } from '../../../../lib/ia';
-import { rateLimit, cuotaOrgIA, clientIp } from '../../../../lib/ratelimit';
+import { rateLimit, cuotaIA, clientIp } from '../../../../lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,8 +13,8 @@ export async function POST(req) {
   const { sku, pregunta, historial, asesor } = body;
   if (!pregunta || !sku) return NextResponse.json({ error: 'falta pregunta o sku' }, { status: 400 });
 
-  // Freno de abuso: por IP (ráfaga) — endpoint público, sin login.
-  if (!rateLimit('concierge:' + clientIp(req), 12, 60 * 1000)) {
+  // Freno de abuso: por IP y por asesor (el uuid es público) — endpoint público, sin login.
+  if (!rateLimit('concierge:' + clientIp(req), 12, 60 * 1000) || !rateLimit('concierge-ase:' + (asesor || 'x'), 30, 60 * 1000)) {
     return NextResponse.json({ answer: 'Vas muy rápido 🙂 Espera un momento e intenta de nuevo, o deja tus datos y tu asesor te contacta.' }, { status: 200 });
   }
 
@@ -27,8 +27,9 @@ export async function POST(req) {
   if (!ia) {
     return NextResponse.json({ answer: 'El asistente todavía no está activado. Deja tus datos abajo y tu asesor te responde cualquier duda al instante. 🙂', disabled: true });
   }
-  // Tope diario de IA por inmobiliaria.
-  if (!(await cuotaOrgIA(db, ia.orgId, IA_MAX_DIA))) {
+  // Tope diario de IA por org (o por asesor si no tiene org) — cierra el bypass de org nula.
+  const capKey = ia.orgId ? 'org:' + ia.orgId : 'ase:' + (asesor || 'anon');
+  if (!(await cuotaIA(db, capKey, IA_MAX_DIA))) {
     return NextResponse.json({ answer: 'Por hoy alcanzamos el límite del asistente. Deja tus datos y tu asesor te responde enseguida. 🙂', disabled: true });
   }
   // Solo desarrollos PUBLICADOS (nunca borradores ni de otra org).

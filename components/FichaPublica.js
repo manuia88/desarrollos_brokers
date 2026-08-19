@@ -120,6 +120,16 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
     })();
   }, [sku, asesor, cliente]);
 
+  // Quita el token de la tarjeta (?c=) de la URL visible tras usarlo, para que no viaje
+  // en el historial ni en el Referer de recursos externos (defensa del token de PII).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !cliente) return;
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has('c')) { u.searchParams.delete('c'); window.history.replaceState({}, '', u.pathname + u.search + u.hash); }
+    } catch { /* noop */ }
+  }, [cliente]);
+
   const dev = data?.dev;
   const unidades = data?.unidades || [];
   const medios = data?.medios || [];
@@ -350,7 +360,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           <details className="devsec"><summary><span className="devsec-ic">📍</span>Ubicación<span className="devsec-caret">⌄</span></summary>
             <div className="devsec-body">
               <p className="fp-dir">📍 {[dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', ')}</p>
-              <div className="fp-map"><iframe title="Mapa" src={mapsEmbed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div>
+              <div className="fp-map"><iframe title="Mapa" src={mapsEmbed} loading="lazy" referrerPolicy="no-referrer" allowFullScreen /></div>
               <a className="fp-maps-btn" href={mapsUrl} target="_blank" rel="noopener">📍 Ver en Google Maps · Cómo llegar</a>
             </div>
           </details>

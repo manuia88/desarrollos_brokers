@@ -69,6 +69,10 @@ export async function POST(req) {
   if (!dev_sku || !fid) return NextResponse.json({ error: 'Falta el desarrollo o la carpeta (pega el link de la carpeta de Drive).' }, { status: 400 });
 
   const db = svc();
+  // Autorización de propiedad: el desarrollo debe ser de tu org (o super). Cierra el IDOR cross-org.
+  const { data: dueno } = await db.from('desarrollos').select('dev_org_id').eq('sku', dev_sku).maybeSingle();
+  if (!dueno) return NextResponse.json({ error: 'desarrollo no encontrado' }, { status: 404 });
+  if (p.rol !== 'super_admin' && dueno.dev_org_id !== p.org_id) return NextResponse.json({ error: 'este desarrollo no es de tu inmobiliaria' }, { status: 403 });
   const token = await googleAccessToken(db, p.uid);
   if (!token) return NextResponse.json({ error: 'Conecta tu Google con permiso de Drive (Agenda → Conectar Google) y vuelve a intentar.' }, { status: 200 });
 
@@ -98,7 +102,11 @@ export async function POST(req) {
     try {
       const dl = await fetch(`https://www.googleapis.com/drive/v3/files/${it.id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: 'Bearer ' + token } });
       if (!dl.ok) { err++; continue; }
+      // Cap de tamaño por archivo (15 MB) para evitar abuso de storage/egress/memoria.
+      const largo = Number(dl.headers.get('content-length') || 0);
+      if (largo && largo > 15 * 1024 * 1024) { err++; continue; }
       const buf = Buffer.from(await dl.arrayBuffer());
+      if (buf.length > 15 * 1024 * 1024) { err++; continue; }
       const safe = (it.name || 'img').replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${dev_sku}/${it.tipo}-${Date.now()}-${Math.floor(Math.random() * 1e6)}-${safe}`;
       const up = await db.storage.from('medios').upload(path, buf, { contentType: it.mimeType, upsert: false });
