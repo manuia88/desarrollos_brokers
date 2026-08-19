@@ -93,6 +93,12 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const [cotRec, setCotRec] = useState(null);    // recámaras elegidas para cotizar
   const [cotPlazo, setCotPlazo] = useState(20);
   const [ocupados, setOcupados] = useState([]);  // horarios ya tomados del asesor
+  const [clienteInfo, setClienteInfo] = useState(null); // si el link trae un cliente ya registrado
+  // Concierge IA
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chat, setChat] = useState([]);
+  const [chatIn, setChatIn] = useState('');
+  const [chatBusy, setChatBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -102,6 +108,11 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
       if (asesor) {
         const { data: oc } = await supabase.rpc('horarios_asesor', { p_asesor: asesor });
         setOcupados(oc || []);
+        if (cliente) {
+          const { data: ci } = await supabase.rpc('cliente_card_publica', { p_card: Number(cliente), p_asesor: asesor });
+          const hit = Array.isArray(ci) ? ci[0] : ci;
+          if (hit?.nombre) { setClienteInfo(hit); setForm(f => ({ ...f, nombre: hit.nombre, telefono: hit.telefono || '', email: hit.email || '', consent: true })); }
+        }
       }
     })();
   }, [sku, asesor, cliente]);
@@ -122,6 +133,22 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const agenda = useMemo(() => construirAgenda(ocupados), [ocupados]);
   const slotsDelDia = useMemo(() => agenda.find(a => a.fecha === form.fecha)?.slots || [], [agenda, form.fecha]);
   const modeloImg = proto => medios.find(x => x.prototipo === proto && ['planta', 'plano', 'render', 'foto'].includes(x.tipo));
+
+  async function enviarChat(e) {
+    if (e) e.preventDefault();
+    const q = chatIn.trim();
+    if (!q || chatBusy) return;
+    const nuevo = [...chat, { role: 'user', content: q }];
+    setChat(nuevo); setChatIn(''); setChatBusy(true);
+    try {
+      const r = await fetch('/api/ia/concierge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sku, pregunta: q, historial: chat }) });
+      const j = await r.json();
+      setChat([...nuevo, { role: 'assistant', content: j.answer || 'No pude responder ahorita, pero tu asesor te ayuda enseguida.' }]);
+    } catch {
+      setChat([...nuevo, { role: 'assistant', content: 'No pude responder ahorita. Deja tus datos abajo y tu asesor te ayuda.' }]);
+    }
+    setChatBusy(false);
+  }
 
   if (data === undefined) return <div className="loading">Cargando ficha…</div>;
   if (!dev) return <div className="loading">Esta ficha no está disponible.</div>;
@@ -355,7 +382,8 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
             </div>
           ) : (
             <form className="fp-form" onSubmit={enviar}>
-              <div className="fp-form-h">📅 Agenda tu visita con {ase?.nombre || 'tu asesor'}</div>
+              <div className="fp-form-h">📅 {clienteInfo ? `Hola ${String(clienteInfo.nombre).split(' ')[0]}, agenda tu visita` : 'Agenda tu visita'} con {ase?.nombre || 'tu asesor'}</div>
+              {clienteInfo && <div className="fp-como">Agendando como <b>{clienteInfo.nombre}</b></div>}
               {err && <div className="msg err">{err}</div>}
               {agenda.length > 0 ? (
                 <div className="fp-agenda">
@@ -388,12 +416,14 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
                   </select>
                 </div>
               )}
-              <input placeholder="Nombre *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
-              <input placeholder="Teléfono / WhatsApp *" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
-              <input placeholder="Correo" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+              {!clienteInfo && <>
+                <input placeholder="Nombre *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
+                <input placeholder="Teléfono / WhatsApp *" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
+                <input placeholder="Correo" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+              </>}
               <textarea placeholder="¿Algo que quieras comentar? (opcional)" value={form.mensaje} onChange={e => setForm({ ...form, mensaje: e.target.value })} />
-              <label className="fp-consent"><input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} />
-                <span>Autorizo que me contacten sobre este desarrollo conforme al aviso de privacidad.</span></label>
+              {!clienteInfo && <label className="fp-consent"><input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} />
+                <span>Autorizo que me contacten sobre este desarrollo conforme al aviso de privacidad.</span></label>}
               <button className="btn mag block" disabled={sending}>{sending ? 'Enviando…' : 'Agendar mi visita'}</button>
             </form>
           )}
@@ -403,6 +433,23 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
       </div>
 
       {foto && <div className="fp-viewer" onClick={() => setFoto(null)}><img src={foto} alt="" /><button className="fp-viewer-x">✕</button></div>}
+
+      {/* Concierge IA */}
+      {!chatOpen && <button className="fp-chat-fab" onClick={() => setChatOpen(true)}>💬 Pregúntame</button>}
+      {chatOpen && (
+        <div className="fp-chat">
+          <div className="fp-chat-h"><b>💬 Asistente · {dev.nombre}</b><button onClick={() => setChatOpen(false)} aria-label="Cerrar">✕</button></div>
+          <div className="fp-chat-body">
+            {chat.length === 0 && <div className="fp-chat-hint">Pregúntame lo que quieras: precios, créditos, cuánto pagarías al mes, qué hay cerca, cuándo entregan…</div>}
+            {chat.map((m, i) => <div key={i} className={'fp-chat-msg ' + m.role}>{m.content}</div>)}
+            {chatBusy && <div className="fp-chat-msg assistant fp-chat-typing">Escribiendo…</div>}
+          </div>
+          <form className="fp-chat-in" onSubmit={enviarChat}>
+            <input value={chatIn} onChange={e => setChatIn(e.target.value)} placeholder="Escribe tu pregunta…" />
+            <button className="btn mag sm" disabled={chatBusy || !chatIn.trim()}>➤</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

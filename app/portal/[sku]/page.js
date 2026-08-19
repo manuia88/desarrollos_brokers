@@ -8,6 +8,7 @@ import UnitDrawer from '../../../components/UnitDrawer';
 import RegistroCliente from '../../../components/RegistroCliente';
 import MediosManager from '../../../components/MediosManager';
 import ModelosView from '../../../components/ModelosView';
+import LocalizadorView from '../../../components/LocalizadorView';
 import { listarMedios, etiquetaMedio, etiquetaOpcional } from '../../../lib/medios';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
@@ -346,6 +347,7 @@ export default function Detalle() {
           <div className="uvbar">
             <div className="vtoggle" role="tablist">
               <button className={'vt'+(vistaUni==='modelo'?' on':'')} onClick={()=>setVistaUni('modelo')}>🏠 Por modelo</button>
+              <button className={'vt'+(vistaUni==='mapa'?' on':'')} onClick={()=>setVistaUni('mapa')}>🗺️ Ubicación</button>
               <button className={'vt'+(vistaUni==='unidad'?' on':'')} onClick={()=>setVistaUni('unidad')}>📋 Por unidad</button>
             </div>
             <div className="uvspacer" />
@@ -362,6 +364,8 @@ export default function Detalle() {
 
           {vistaUni==='modelo'
             ? <ModelosView dev={d} units={uFilt} medios={medios} asesorId={me?.id} onUnit={(u)=>setUnitSel(u)} />
+            : vistaUni==='mapa'
+            ? <LocalizadorView units={uFilt} onUnit={(u)=>setUnitSel(u)} />
             : (uFilt.length===0
                 ? <p className="fnote">Ninguna unidad cumple con el filtro. Ajusta las recámaras o quita “Con exterior”.</p>
                 : <div className="utbl-wrap"><table className="utbl utbl2"><thead><tr>
@@ -388,9 +392,9 @@ export default function Detalle() {
                       </tr>
                     ))}
                   </tbody></table></div>)}
-          <p className="fnote">{vistaUni==='modelo'
+          {vistaUni!=='mapa' && <p className="fnote">{vistaUni==='modelo'
             ? 'Toca un modelo para ver sus unidades disponibles, compartir una en específico o abrir su plano y plan de pago.'
-            : 'Toca cualquier fila para ver plano, planta ambientada, estacionamiento y plan de pago de esa unidad.'}</p>
+            : 'Toca cualquier fila para ver plano, planta ambientada, estacionamiento y plan de pago de esa unidad.'}</p>}
         </>}
 
         {lb!=null && galeria[lb] && (

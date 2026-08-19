@@ -493,6 +493,36 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .fp-amen-i{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.32rem .7rem}
 .fp-amen-i i{font-style:normal}
 .fp-form-h{font-weight:800;font-size:1rem;margin-bottom:.2rem}
+.fp-como{font-size:.82rem;color:var(--sub);background:var(--lime-soft);border:1px solid rgba(198,255,58,.3);border-radius:8px;padding:.35rem .6rem;margin-bottom:.3rem}
+.fp-como b{color:var(--ink)}
+/* Concierge IA (chat flotante en la ficha del cliente) */
+.fp-chat-fab{position:fixed;right:16px;bottom:16px;z-index:40;background:var(--mag);color:#fff;border:none;border-radius:99px;padding:.7rem 1.1rem;font-weight:800;font-size:.9rem;cursor:pointer;box-shadow:0 8px 24px rgba(255,30,122,.4)}
+.fp-chat{position:fixed;right:12px;bottom:12px;z-index:41;width:min(380px,calc(100vw - 24px));height:min(560px,80vh);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.5)}
+.fp-chat-h{display:flex;align-items:center;justify-content:space-between;padding:.7rem .9rem;background:var(--panel2);border-bottom:1px solid var(--line);font-size:.9rem}
+.fp-chat-h button{background:none;border:none;color:var(--sub);font-size:1rem;cursor:pointer}
+.fp-chat-body{flex:1;overflow-y:auto;padding:.8rem;display:flex;flex-direction:column;gap:.5rem}
+.fp-chat-hint{color:var(--sub);font-size:.85rem;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;line-height:1.45}
+.fp-chat-msg{max-width:85%;padding:.55rem .75rem;border-radius:13px;font-size:.87rem;line-height:1.45;white-space:pre-wrap}
+.fp-chat-msg.user{align-self:flex-end;background:var(--mag-soft);border:1px solid var(--mag-line);color:var(--ink)}
+.fp-chat-msg.assistant{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.fp-chat-typing{color:var(--sub);font-style:italic}
+.fp-chat-in{display:flex;gap:.4rem;padding:.6rem;border-top:1px solid var(--line)}
+.fp-chat-in input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem;color:var(--ink);font-size:.9rem}
+.fp-chat-in input:focus{outline:none;border-color:var(--mag)}
+/* Copiloto del broker */
+.cop-chat{display:flex;flex-direction:column;height:min(64vh,560px);background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:.6rem}
+.cop-body{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.6rem}
+.cop-ej{display:flex;flex-direction:column;gap:.5rem;align-items:flex-start}
+.cop-ej-lbl{color:var(--sub);font-size:.82rem}
+.cop-ej button{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:.6rem .8rem;color:var(--ink);font-size:.88rem;cursor:pointer;max-width:100%}
+.cop-ej button:hover{border-color:var(--mag-line)}
+.cop-msg{max-width:80%;padding:.6rem .85rem;border-radius:13px;font-size:.9rem;line-height:1.5;white-space:pre-wrap}
+.cop-msg.user{align-self:flex-end;background:var(--mag-soft);border:1px solid var(--mag-line)}
+.cop-msg.assistant{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+.cop-typing{color:var(--sub);font-style:italic}
+.cop-in{display:flex;gap:.5rem;padding:.7rem;border-top:1px solid var(--line)}
+.cop-in input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:.7rem .85rem;color:var(--ink);font-size:.95rem}
+.cop-in input:focus{outline:none;border-color:var(--mag)}
 /* Agenda inteligente (horarios libres del asesor) */
 .fp-agenda{display:flex;flex-direction:column;gap:.5rem}
 .fp-agenda-lbl{font-size:.78rem;color:var(--sub);font-weight:600}
@@ -614,6 +644,52 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .vt{background:none;border:none;color:var(--sub);font-weight:700;font-size:.85rem;padding:.4rem .8rem;border-radius:8px;cursor:pointer}
 .vt.on{background:var(--mag-soft);color:var(--mag)}
 .uvspacer{flex:1 1 auto}
+/* Localizador: planta general torre × nivel */
+.loc{margin-top:.4rem}
+.loc-legend{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem}
+.loc-leg{display:inline-flex;align-items:center;gap:.35rem;font-size:.76rem;color:var(--sub);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.2rem .6rem}
+.loc-leg i{width:11px;height:11px;border-radius:3px;flex:none}
+.loc-grid-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.loc-grid{border-collapse:collapse;width:100%;font-size:.8rem}
+.loc-grid th{background:var(--panel2);color:var(--sub);font-weight:700;font-size:.72rem;padding:.5rem .6rem;text-align:center;white-space:nowrap;position:sticky;border-bottom:1px solid var(--line)}
+.loc-grid thead th{top:0;z-index:2}
+.loc-corner{left:0;z-index:3}
+.loc-niv{position:sticky;left:0;background:var(--panel2);z-index:1;text-align:center;border-right:1px solid var(--line);font-variant-numeric:tabular-nums}
+.loc-cell{padding:.3rem;border-bottom:1px solid var(--line);border-right:1px solid var(--line);vertical-align:top;min-width:70px}
+.loc-cell:empty::after{content:'·';color:var(--dim)}
+.loc-u{display:inline-block;margin:.12rem;padding:.3rem .5rem;border:1px solid;border-radius:8px;font-weight:700;font-size:.78rem;cursor:pointer;font-variant-numeric:tabular-nums;line-height:1}
+.loc-u:hover{filter:brightness(1.25)}
+/* Motor Oferta-Demanda */
+.mtr-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin:1rem 0 1.4rem}
+.mtr-kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.8rem .9rem}
+.mtr-kpi span{display:block;color:var(--sub);font-size:.72rem;margin-bottom:.25rem}
+.mtr-kpi b{font-size:1.5rem;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.mtr-kpi.lime{background:var(--lime-soft);border-color:rgba(198,255,58,.3)}.mtr-kpi.lime b{color:var(--lime)}
+.mtr-kpi.amber{background:rgba(255,190,60,.1);border-color:rgba(255,190,60,.3)}.mtr-kpi.amber b{color:#ffcf7a}
+.mtr-sec{margin:1.6rem 0}
+.mtr-sec>h2{font-size:1.05rem;margin-bottom:.6rem}
+.mtr-unmet{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.6rem}
+.mtr-unmet-card{display:flex;align-items:center;gap:.8rem;background:var(--panel);border:1px solid rgba(255,80,110,.25);border-left:3px solid #ff5b6e;border-radius:11px;padding:.7rem .85rem}
+.mtr-unmet-n{font-size:1.5rem;font-weight:800;color:#ff8fa3;font-variant-numeric:tabular-nums;min-width:34px;text-align:center}
+.mtr-unmet-card b{display:block;font-size:.92rem}
+.mtr-unmet-card span{color:var(--sub);font-size:.78rem}
+.mtr-grid{border-collapse:collapse;width:100%;font-size:.82rem}
+.mtr-grid th{background:var(--panel2);color:var(--sub);font-weight:700;font-size:.74rem;padding:.5rem .7rem;text-align:center;white-space:nowrap}
+.mtr-z{text-align:left!important;position:sticky;left:0;background:var(--panel2);z-index:1}
+.mtr-cell{text-align:center;padding:.5rem .6rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;min-width:70px}
+.mtr-cell b{font-weight:800}.mtr-cell i{color:var(--dim);font-style:normal;margin:0 .1rem}.mtr-cell span{color:var(--sub)}
+.mtr-cell.falta{background:rgba(255,80,110,.16)}.mtr-cell.falta b{color:#ff8fa3}
+.mtr-cell.sobra{background:rgba(255,190,60,.12)}.mtr-cell.sobra span{color:#ffcf7a;font-weight:700}
+.mtr-cell.ok{background:rgba(198,255,58,.08)}
+.mtr-tbl{border-collapse:collapse;width:100%;font-size:.84rem}
+.mtr-tbl th{background:var(--panel2);color:var(--sub);font-weight:700;font-size:.74rem;padding:.55rem .7rem;text-align:left}
+.mtr-tbl td{padding:.55rem .7rem;border-bottom:1px solid var(--line)}
+.mtr-tbl tr:hover td{background:var(--panel2)}
+.mtr-tbl .tr{text-align:right}
+.mtr-hs{display:inline-block;min-width:34px;text-align:center;font-weight:800;border-radius:7px;padding:.15rem .4rem;font-variant-numeric:tabular-nums}
+.mtr-hs.hi{color:var(--lime);background:var(--lime-soft)}
+.mtr-hs.mid{color:#ffcf7a;background:rgba(255,190,60,.12)}
+.mtr-hs.lo{color:#ff8fa3;background:rgba(255,80,110,.14)}
 .uchips{display:flex;gap:.4rem;flex-wrap:wrap}
 .uchip{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;padding:.4rem .75rem;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--sub);cursor:pointer}
 .uchip em{font-style:normal;font-size:.72rem;color:var(--dim);background:var(--panel2);border-radius:99px;padding:.05rem .4rem;font-variant-numeric:tabular-nums}
