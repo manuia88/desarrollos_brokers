@@ -54,10 +54,10 @@ async function correr() {
 }
 
 function autorizado(req) {
-  // Vercel Cron invoca con este header; lo aceptamos siempre.
-  if (req.headers.get('x-vercel-cron')) return true;
+  // Fail-closed: exige CRON_SECRET. Vercel Cron manda "Authorization: Bearer <CRON_SECRET>"
+  // automáticamente cuando la variable está configurada. No se confía en x-vercel-cron solo.
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // si no se configuró, se permite (recomendado configurarlo)
+  if (!secret) return false;
   const auth = req.headers.get('authorization');
   return req.headers.get('x-cron-secret') === secret || auth === `Bearer ${secret}`;
 }
@@ -65,10 +65,10 @@ function autorizado(req) {
 export async function POST(req) {
   if (!autorizado(req)) return NextResponse.json({ error: 'no autorizado' }, { status: 401 });
   try { return NextResponse.json(await correr()); }
-  catch (e) { return NextResponse.json({ error: String(e?.message || e) }, { status: 200 }); }
+  catch { return NextResponse.json({ error: 'error al ejecutar recordatorios' }, { status: 200 }); }
 }
 export async function GET(req) {
   if (!autorizado(req)) return NextResponse.json({ error: 'no autorizado' }, { status: 401 });
   try { return NextResponse.json(await correr()); }
-  catch (e) { return NextResponse.json({ error: String(e?.message || e) }, { status: 200 }); }
+  catch { return NextResponse.json({ error: 'error al ejecutar recordatorios' }, { status: 200 }); }
 }

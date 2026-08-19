@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
 import { fetchMetaLead } from '../../../../lib/integraciones';
+import { verificarFirmaMeta } from '../../../../lib/webhookseg';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,8 +20,13 @@ export async function GET(req) {
 
 // Recepción de leads (leadgen) de Facebook / Instagram.
 export async function POST(req) {
+  const raw = await req.text();
+  const secret = process.env.META_APP_SECRET;
+  const sig = req.headers.get('x-hub-signature-256');
+  // Fail-closed: sin firma válida no se procesa (se responde 200 para no filtrar).
+  if (!secret || !verificarFirmaMeta(raw, sig, secret)) return NextResponse.json({ ok: true });
   let body = {};
-  try { body = await req.json(); } catch { /* noop */ }
+  try { body = JSON.parse(raw); } catch { /* noop */ }
   const db = svc();
   let creados = 0;
   try {
@@ -40,6 +46,6 @@ export async function POST(req) {
         if (data) { creados++; try { await db.from('eventos').insert({ tipo: 'lead_integracion', entidad: 'lead', entidad_id: String(data.id), org_id, meta: { fuente: 'Meta Lead Ads' } }); } catch { /* noop */ } }
       }
     }
-  } catch (e) { return NextResponse.json({ error: String(e?.message || e) }, { status: 200 }); }
+  } catch { return NextResponse.json({ error: 'error procesando webhook' }, { status: 200 }); }
   return NextResponse.json({ ok: true, creados });
 }

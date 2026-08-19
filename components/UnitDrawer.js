@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { esquemaPago } from '../lib/finance';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
@@ -20,6 +20,11 @@ const ESTADO = {
 
 export default function UnitDrawer({ dev, unidad: u, medios = [], asesorId = null, onClose, onCotizar, onRegistrar }) {
   const [copiado, setCopiado] = useState(false);
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   const shareLink = (typeof window !== 'undefined' && asesorId) ? `${window.location.origin}/f/${dev.sku}?a=${asesorId}&u=${u.sku}` : '';
   const waShare = shareLink ? 'https://wa.me/?text=' + encodeURIComponent(`Te comparto el depa T${u.torre} ${u.num_depto} de ${dev.nombre}: ${shareLink}`) : '';
   function copiar() { if (navigator.clipboard && shareLink) { navigator.clipboard.writeText(shareLink); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } }
@@ -40,7 +45,7 @@ export default function UnitDrawer({ dev, unidad: u, medios = [], asesorId = nul
   return (
     <>
       <div className="drawer-bg" onClick={onClose} />
-      <aside className="drawer" onClick={e => e.stopPropagation()}>
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Detalle de unidad" onClick={e => e.stopPropagation()}>
         <div className="dw-h">
           <div>
             <span className="ud-estado" style={{ color: est.c, background: est.bg }}>{est.l}</span>

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { svc, googleConfigured, citaDateTime, masterUserId, createGoogleEvent } from '../../../../lib/googleServer';
+import { svc, userFromToken, googleConfigured, citaDateTime, masterUserId, createGoogleEvent } from '../../../../lib/googleServer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+const VENTANA_MS = 30 * 60 * 1000; // el flujo público solo crea el evento poco después de agendar
 
 // Crea la cita en el calendario MAESTRO (super-admin con Google conectado);
 // si no hay maestro, en el del asesor. Invita al cliente y al broker, con
@@ -16,6 +17,20 @@ export async function POST(req) {
     const db = svc();
     const { data: cita } = await db.from('citas').select('*').eq('id', cita_id).maybeSingle();
     if (!cita) return NextResponse.json({ error: 'cita no encontrada' }, { status: 404 });
+
+    // Autorización: si viene autenticado, exige pertenencia; si no (ficha pública),
+    // solo permite la ventana inmediata a la creación de la cita y una sola vez.
+    const uid = await userFromToken((req.headers.get('authorization') || '').replace(/^Bearer\s+/i, ''));
+    if (uid) {
+      const { data: prof } = await db.from('profiles').select('org_id,rol').eq('id', uid).maybeSingle();
+      const owns = cita.asesor_id === uid || (prof?.org_id && cita.org_id === prof.org_id) || prof?.rol === 'super_admin';
+      if (!owns) return NextResponse.json({ error: 'sin permiso' }, { status: 403 });
+    } else {
+      if (cita.google_event_id) return NextResponse.json({ skipped: 'ya-tiene-evento' });
+      const edad = Date.now() - new Date(cita.creado).getTime();
+      if (!(edad >= 0 && edad < VENTANA_MS)) return NextResponse.json({ skipped: 'fuera-de-ventana' });
+      if (!['Solicitada', 'Confirmada'].includes(cita.estatus)) return NextResponse.json({ skipped: 'estatus' });
+    }
 
     const master = await masterUserId(db);
     const host = master || cita.asesor_id;
@@ -42,7 +57,7 @@ export async function POST(req) {
     const eventId = await createGoogleEvent(db, host, eventBody);
     if (eventId) await db.from('citas').update({ google_event_id: eventId, google_event_host: host }).eq('id', cita.id);
     return NextResponse.json({ ok: !!eventId, master: !!master });
-  } catch (e) {
-    return NextResponse.json({ error: String(e?.message || e) }, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: 'no se pudo crear el evento' }, { status: 200 });
   }
 }

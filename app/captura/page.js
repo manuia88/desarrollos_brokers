@@ -140,13 +140,17 @@ export default function Captura() {
     // normaliza numéricos/porcentajes
     ['precio_min', 'precio_max', 'apartado', 'unidades_totales', 'm2_min', 'm2_max', 'rec_min', 'rec_max', 'banos_min', 'banos_max', 'estac_min', 'estac_max'].forEach(k => { if (row[k] != null && row[k] !== '') row[k] = Number(String(row[k]).replace(/[^0-9.]/g, '')) || null; });
     ['esq_enganche', 'esq_mensualidades', 'esq_escritura', 'comision_broker'].forEach(k => { if (row[k] != null && row[k] !== '') { let n = Number(String(row[k]).replace(/[^0-9.]/g, '')); if (n > 1) n = n / 100; row[k] = n; } });
+    // Aviso (no bloqueante) si el esquema de pago no suma 100%.
+    const esqSuma = ['esq_enganche', 'esq_mensualidades', 'esq_escritura'].reduce((s, k) => s + (Number(row[k]) || 0), 0);
+    const esqCompleto = ['esq_enganche', 'esq_mensualidades', 'esq_escritura'].every(k => row[k] != null && row[k] !== '');
+    const avisoEsq = (esqCompleto && Math.abs(esqSuma - 1) > 0.01) ? ` ⚠ Ojo: el esquema de pago suma ${Math.round(esqSuma * 100)}%, no 100%.` : '';
     ['credito_ion', 'credito_hir', 'credito_yave', 'credito_bancario', 'depa_muestra', 'caseta_venta'].forEach(k => { if (typeof row[k] === 'boolean') row[k] = row[k] ? 'Sí' : 'No'; });
     if (publicarAhora != null) row.publicado = publicarAhora;
     if (me.rol !== 'super_admin' && me.org_id) row.dev_org_id = me.org_id; // el desarrollo pertenece a este desarrollador
     const { error } = await supabase.from('desarrollos').upsert(row, { onConflict: 'sku' });
     setSaving(false);
     if (error) { setMsg({ t: 'err', m: 'No se pudo guardar: ' + error.message }); return; }
-    setMsg({ t: 'ok', m: nuevo ? '✓ Desarrollo creado.' : '✓ Cambios guardados.' });
+    setMsg({ t: avisoEsq ? 'err' : 'ok', m: (nuevo ? '✓ Desarrollo creado.' : '✓ Cambios guardados.') + avisoEsq });
     try { await supabase.from('eventos').insert({ tipo: 'dev_editado', entidad: 'desarrollo', entidad_id: row.sku, actor: me.id, org_id: me.org_id, meta: { accion: nuevo ? 'crear' : 'editar', publicado: row.publicado ?? d.publicado } }); } catch { /* noop */ }
     setD(o => ({ ...o, _existente: true, publicado: publicarAhora != null ? publicarAhora : o.publicado }));
     const { data: devs } = await supabase.from('desarrollos').select('sku,nombre,publicado').order('nombre');

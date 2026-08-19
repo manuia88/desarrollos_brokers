@@ -52,12 +52,12 @@ export default function Clientes() {
     router.push('/buscar?' + q.toString());
   }
   async function archivar(id) { await archivarCard(id); recargar(); setSel(null); }
-  function linkCliente(devSku, cardId) {
-    return (typeof window !== 'undefined') ? `${window.location.origin}/f/${devSku}?a=${me?.id}&c=${cardId}` : '';
+  function linkCliente(devSku, cardToken) {
+    return (typeof window !== 'undefined') ? `${window.location.origin}/f/${devSku}?a=${me?.id}&c=${cardToken}` : '';
   }
   function waCliente(card, devSku, devNombre) {
     const tel = String(card.telefono || '').replace(/[^0-9]/g, '');
-    const link = linkCliente(devSku, card.id);
+    const link = linkCliente(devSku, card.token);
     const txt = encodeURIComponent(`Hola ${card.nombre?.split(' ')[0] || ''}, te comparto ${devNombre} que encaja con lo que buscas: ${link}`);
     return tel ? `https://wa.me/52${tel.length === 10 ? tel : tel.replace(/^52/, '')}?text=${txt}` : `https://wa.me/?text=${txt}`;
   }

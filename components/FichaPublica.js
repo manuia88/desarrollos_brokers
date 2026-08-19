@@ -107,12 +107,12 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
     (async () => {
       const { data: d } = await supabase.rpc('ficha_publica', { p_sku: sku, p_asesor: asesor || null });
       setData(d || null);
-      supabase.rpc('registrar_vista', { p_sku: sku, p_asesor: asesor || null, p_client: cliente ? Number(cliente) : null });
+      supabase.rpc('registrar_vista', { p_sku: sku, p_asesor: asesor || null, p_client: null });
       if (asesor) {
         const { data: oc } = await supabase.rpc('horarios_asesor', { p_asesor: asesor });
         setOcupados(oc || []);
         if (cliente) {
-          const { data: ci } = await supabase.rpc('cliente_card_publica', { p_card: Number(cliente), p_asesor: asesor });
+          const { data: ci } = await supabase.rpc('cliente_card_publica', { p_token: String(cliente), p_asesor: asesor });
           const hit = Array.isArray(ci) ? ci[0] : ci;
           if (hit?.nombre) { setClienteInfo(hit); setForm(f => ({ ...f, nombre: hit.nombre, telefono: hit.telefono || '', email: hit.email || '', consent: true })); }
         }
@@ -418,25 +418,25 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
                       ))}
                     </div>
                   </>}
-                  <select className="fp-modalidad" value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
+                  <select className="fp-modalidad" aria-label="Modalidad de la cita" value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
                     <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
                   </select>
                 </div>
               ) : (
                 <div className="fp-cita-row">
-                  <input type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
-                  <input type="time" value={form.hora} onChange={e => setForm({ ...form, hora: e.target.value })} />
-                  <select value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
+                  <input type="date" aria-label="Fecha de la cita" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
+                  <input type="time" aria-label="Hora de la cita" value={form.hora} onChange={e => setForm({ ...form, hora: e.target.value })} />
+                  <select aria-label="Modalidad de la cita" value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
                     <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
                   </select>
                 </div>
               )}
               {!clienteInfo && <>
-                <input placeholder="Nombre *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
-                <input placeholder="Teléfono / WhatsApp *" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
-                <input placeholder="Correo" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                <input aria-label="Nombre" placeholder="Nombre *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
+                <input aria-label="Teléfono o WhatsApp" placeholder="Teléfono / WhatsApp *" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
+                <input aria-label="Correo" placeholder="Correo" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
               </>}
-              <textarea placeholder="¿Algo que quieras comentar? (opcional)" value={form.mensaje} onChange={e => setForm({ ...form, mensaje: e.target.value })} />
+              <textarea aria-label="Comentario" placeholder="¿Algo que quieras comentar? (opcional)" value={form.mensaje} onChange={e => setForm({ ...form, mensaje: e.target.value })} />
               {!clienteInfo && <label className="fp-consent"><input type="checkbox" checked={form.consent} onChange={e => setForm({ ...form, consent: e.target.checked })} />
                 <span>Autorizo que me contacten sobre este desarrollo conforme al aviso de privacidad.</span></label>}
               <button className="btn mag block" disabled={sending}>{sending ? 'Enviando…' : 'Agendar mi visita'}</button>
@@ -447,7 +447,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
         <footer className="fp-foot">Ficha compartida vía <b>Quiero Casa</b> · Información referencial, sujeta a disponibilidad.</footer>
       </div>
 
-      {foto && <div className="fp-viewer" onClick={() => setFoto(null)}><img src={foto} alt="" /><button className="fp-viewer-x">✕</button></div>}
+      {foto && <div className="fp-viewer" onClick={() => setFoto(null)}><img src={foto} alt="Foto del desarrollo" /><button className="fp-viewer-x" aria-label="Cerrar imagen">✕</button></div>}
 
       {/* Concierge IA */}
       {!chatOpen && <button className="fp-chat-fab" onClick={() => setChatOpen(true)}>💬 Pregúntame</button>}
@@ -460,8 +460,8 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
             {chatBusy && <div className="fp-chat-msg assistant fp-chat-typing">Escribiendo…</div>}
           </div>
           <form className="fp-chat-in" onSubmit={enviarChat}>
-            <input value={chatIn} onChange={e => setChatIn(e.target.value)} placeholder="Escribe tu pregunta…" />
-            <button className="btn mag sm" disabled={chatBusy || !chatIn.trim()}>➤</button>
+            <input aria-label="Escribe tu pregunta" value={chatIn} onChange={e => setChatIn(e.target.value)} placeholder="Escribe tu pregunta…" />
+            <button className="btn mag sm" aria-label="Enviar pregunta" disabled={chatBusy || !chatIn.trim()}>➤</button>
           </form>
         </div>
       )}

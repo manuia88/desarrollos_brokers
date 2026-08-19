@@ -58,6 +58,11 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
       setBrand({ id: user.id, nombre: prof?.nombre, telefono: prof?.telefono, org_nombre: org?.nombre, org_logo: org?.logo_url });
     })();
   }, []);
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   function payload() {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -94,7 +99,7 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
   return (
     <>
       <div className="drawer-bg" onClick={onClose} />
-      <aside className="drawer" onClick={e => e.stopPropagation()}>
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Cotizador" onClick={e => e.stopPropagation()}>
         <div className="dw-h">
           <div>
             <span className="dw-tag">Cotizador</span>
@@ -114,6 +119,9 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
           <div className="pay-row"><span>Mensualidades en obra <em>{meses ? meses + ' meses' : 'entrega inmediata'}</em></span><b>{MXN(esq.mensualidadObra)}{meses ? '/mes' : ''}</b></div>
           <div className="pay-row"><span>Escrituración <em>{Math.round((dev.esq_escritura || 0) * 100)}%</em></span><b>{MXN(esq.saldoEscritura)}</b></div>
           <div className="pay-total"><span>Suma</span><b>{MXN(esq.enganche + esq.montoObra + esq.saldoEscritura)}</b></div>
+          {!esq.consistente && esq.sumaPct > 0 && (
+            <p className="fnote" style={{ color: '#FFC451', marginTop: '.4rem' }}>⚠ El esquema suma {Math.round(esq.sumaPct * 100)}%, no 100%. Revisa enganche/mensualidades/escritura en la captura del desarrollo.</p>
+          )}
         </section>
 
         {/* ── 2 · Crédito hipotecario ── */}

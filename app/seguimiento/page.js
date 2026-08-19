@@ -93,6 +93,12 @@ export default function Seguimiento() {
     } catch { setBrief({ titulo: cita.nombre || 'Cliente', texto: 'No se pudo generar el briefing.', busy: false }); }
   }
 
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') { setRed(null); setBrief(null); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   if (!me) return <div className="loading">Cargando…</div>;
 
   return (
@@ -172,7 +178,7 @@ export default function Seguimiento() {
       {red && (
         <>
           <div className="drawer-bg" onClick={() => setRed(null)} />
-          <aside className="drawer" onClick={e => e.stopPropagation()}>
+          <aside className="drawer" role="dialog" aria-modal="true" aria-label="Redactar WhatsApp" onClick={e => e.stopPropagation()}>
             <div className="dw-h"><div><span className="dw-tag">WhatsApp con IA</span><h2>{red.lead.nombre || 'Cliente'}</h2></div><button className="x" onClick={() => setRed(null)}>✕</button></div>
             {red.busy ? <div className="loading">Redactando el mensaje…</div> : red.err ? (
               <div className="msg err">{red.err}{/Conecta/.test(red.err) && <> <a onClick={() => router.push('/conexiones')} style={{ cursor: 'pointer', textDecoration: 'underline' }}>Ir a Conexiones</a></>}</div>
@@ -195,7 +201,7 @@ export default function Seguimiento() {
       {brief && (
         <>
           <div className="drawer-bg" onClick={() => setBrief(null)} />
-          <aside className="drawer" onClick={e => e.stopPropagation()}>
+          <aside className="drawer" role="dialog" aria-modal="true" aria-label="Briefing pre-cita" onClick={e => e.stopPropagation()}>
             <div className="dw-h"><div><span className="dw-tag">Briefing pre-cita</span><h2>{brief.titulo}</h2></div><button className="x" onClick={() => setBrief(null)}>✕</button></div>
             {brief.busy ? <div className="loading">Preparando tu briefing…</div> : (
               <>

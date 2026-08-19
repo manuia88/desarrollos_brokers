@@ -1,6 +1,6 @@
 :root{
   --bg:#0A0A0C; --panel:#141419; --panel2:#1B1B22; --line:#2A2A33;
-  --ink:#F5F5F7; --sub:#9A9AA7; --dim:#6E6E7A;
+  --ink:#F5F5F7; --sub:#9A9AA7; --dim:#8C8C99;
   --mag:#FF1E7A; --mag-soft:rgba(255,30,122,.14); --mag-line:rgba(255,30,122,.4);
   --lime:#C6FF3A; --lime-soft:rgba(198,255,58,.12); --lime-ink:#0A0A0C;
   --r:16px; --ease:cubic-bezier(.22,1,.36,1);
@@ -1211,3 +1211,14 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .kpi-fuente b{display:block;font-size:1.3rem;color:var(--lime)}
 .kpi-fuente span{font-size:.76rem;color:var(--sub);text-transform:capitalize}
 .mtr-factor{font-size:.78rem;color:var(--sub);white-space:nowrap}
+
+/* ===== Accesibilidad WCAG AA (v5) ===== */
+:where(button,a,[role="button"],input,select,textarea):focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:6px}
+.fp-chat-in input:focus{outline:2px solid var(--mag);outline-offset:1px}
+.sg-brief{overflow-wrap:anywhere;word-break:break-word}
+.drawer{overflow-wrap:anywhere}
+@media (max-width:640px){
+  .btn.sm{min-height:40px}
+  .drawer .x{min-width:40px;min-height:40px}
+  .fp-horas .chip,.fp-pago-rec .chip,.fp-cotiz-plazo .chip{min-height:40px;display:inline-flex;align-items:center}
+}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { validarEB } from '../../../../lib/integraciones';
 import { validarIA } from '../../../../lib/ia';
-import { cifrar } from '../../../../lib/cripto';
+import { cifrar, cifradoActivo } from '../../../../lib/cripto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,6 +29,9 @@ export async function POST(req) {
     : (b.ambiente === 'staging' ? 'staging' : 'produccion');
   const api_key = (b.api_key || '').trim();
   if (!api_key) return NextResponse.json({ error: 'falta la API key' }, { status: 400 });
+  // Fail-closed: en producción no se guardan credenciales sin cifrado configurado.
+  if (!cifradoActivo() && process.env.NODE_ENV === 'production')
+    return NextResponse.json({ error: 'El cifrado de credenciales no está configurado (falta CONEXIONES_KEY). Pide al administrador que la configure antes de conectar llaves.' }, { status: 200 });
   if (!p.org_id && p.rol !== 'super_admin') return NextResponse.json({ error: 'tu usuario no tiene inmobiliaria' }, { status: 400 });
 
   // Permisos: scope 'org' solo director/super/independiente; scope 'asesor' el propio asesor.
@@ -52,7 +55,7 @@ export async function POST(req) {
     org_id, scope, asesor_id, proveedor, ambiente, api_key: cifrar(api_key), cuota,
     etiqueta: b.etiqueta || null, activa: true, valida, ultimo_check: new Date().toISOString(), actualizado: new Date().toISOString(),
   }, { onConflict: 'org_id,proveedor,scope,asesor_id' });
-  if (error) return NextResponse.json({ error: error.message }, { status: 200 });
+  if (error) return NextResponse.json({ error: 'no se pudo guardar la conexión' }, { status: 200 });
   return NextResponse.json({ ok: true, valida });
 }
 
