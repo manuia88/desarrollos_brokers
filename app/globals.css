@@ -1133,3 +1133,81 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .mat-img{position:relative;padding:0;border:1px solid var(--line);cursor:pointer;background:var(--panel2)}
 .mat-dl{position:absolute;bottom:4px;right:4px;background:rgba(10,10,12,.7);color:#fff;border-radius:6px;font-size:.7rem;padding:.05rem .3rem;opacity:0;transition:opacity .15s}
 .mat-img:hover .mat-dl{opacity:1}
+
+/* ===== Upgrades: mapa embebido, alternativas, seguimiento, KPIs (v4) ===== */
+.fp-map{border-radius:12px;overflow:hidden;border:1px solid var(--line);margin:.5rem 0;height:220px;background:var(--panel2)}
+.fp-map iframe{width:100%;height:100%;border:0;display:block;filter:saturate(.9)}
+.fp-cotiz-banco{display:flex;align-items:center;gap:.6rem;margin:.5rem 0}
+.fp-cotiz-banco span{font-size:.82rem;color:var(--sub);min-width:44px}
+.fp-cotiz-banco select{flex:1;padding:.5rem .7rem;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);font-size:.88rem}
+
+/* Alternativas parecidas (ficha del broker) */
+.alt-sec{margin-top:1.6rem;border-top:1px solid var(--line);padding-top:1.2rem}
+.alt-sec h3{margin:0 0 .8rem;font-size:1.05rem}
+.alt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.8rem}
+.alt-card{display:flex;flex-direction:column;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .18s,transform .18s;padding:0}
+.alt-card:hover{border-color:var(--mag-line);transform:translateY(-2px)}
+.alt-thumb{height:96px;background-size:cover;background-position:center;background-color:var(--panel2);display:grid;place-items:center;font-size:1.6rem}
+.alt-body{padding:.65rem .75rem;display:flex;flex-direction:column;gap:.2rem}
+.alt-body b{font-size:.92rem;line-height:1.2}
+.alt-loc{font-size:.76rem;color:var(--sub)}
+.alt-precio{font-size:.82rem;color:var(--lime);font-weight:700}
+.alt-razones{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
+.alt-razones span{font-size:.68rem;background:var(--mag-soft);color:var(--mag);border:1px solid var(--mag-line);border-radius:99px;padding:.1rem .5rem}
+
+/* Seguimiento */
+.sg-citas{margin:.4rem 0 1.2rem}
+.sg-citas h2{font-size:1.05rem;margin:0 0 .6rem}
+.sg-citas-row{display:flex;gap:.7rem;overflow-x:auto;padding-bottom:.4rem}
+.sg-cita{flex:0 0 auto;display:flex;align-items:center;gap:.7rem;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.6rem .8rem;min-width:260px}
+.sg-cita-fecha{text-align:center;background:var(--mag-soft);border:1px solid var(--mag-line);border-radius:9px;padding:.3rem .5rem;min-width:52px}
+.sg-cita-fecha b{display:block;font-size:.8rem;color:var(--mag)}
+.sg-cita-fecha span{font-size:.72rem;color:var(--sub)}
+.sg-cita-info{flex:1;min-width:0}
+.sg-cita-info b{display:block;font-size:.9rem}
+.sg-cita-info span{font-size:.75rem;color:var(--sub)}
+.sg-filtros{display:flex;flex-wrap:wrap;gap:.5rem;margin:.4rem 0 1rem}
+.sg-fchip{font-size:.82rem;padding:.42rem .85rem;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--sub);cursor:pointer;font-weight:600}
+.sg-fchip.on{background:var(--mag-soft);border-color:var(--mag-line);color:var(--mag)}
+.sg-list{display:flex;flex-direction:column;gap:.7rem}
+.sg-card{display:flex;gap:.9rem;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:.85rem 1rem;align-items:flex-start}
+.sg-score{flex:none;width:56px;text-align:center;border-radius:11px;padding:.45rem 0;background:var(--panel2);border:1px solid var(--line)}
+.sg-score b{display:block;font-size:1.25rem;line-height:1}
+.sg-score span{font-size:.9rem}
+.sg-score.t-cal{background:rgba(255,89,64,.14);border-color:rgba(255,89,64,.4)}
+.sg-score.t-cal b{color:#ff8a5c}
+.sg-score.t-tib{background:rgba(255,176,32,.12);border-color:rgba(255,176,32,.35)}
+.sg-score.t-tib b{color:#ffc451}
+.sg-score.t-fri{background:rgba(78,163,255,.12);border-color:rgba(78,163,255,.35)}
+.sg-score.t-fri b{color:#7fbcff}
+.sg-main{flex:1;min-width:0}
+.sg-h{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+.sg-h b{font-size:1rem}
+.sg-temp{font-size:.7rem;font-weight:700;border-radius:99px;padding:.1rem .5rem}
+.sg-temp.t-cal{background:rgba(255,89,64,.14);color:#ff8a5c}
+.sg-temp.t-tib{background:rgba(255,176,32,.12);color:#ffc451}
+.sg-temp.t-fri{background:rgba(78,163,255,.12);color:#7fbcff}
+.sg-dias{font-size:.72rem;color:var(--dim)}
+.sg-dias.alerta{color:#ff8a5c;font-weight:700}
+.sg-meta{display:flex;flex-wrap:wrap;gap:.4rem .9rem;margin:.35rem 0;font-size:.8rem;color:var(--sub)}
+.sg-etapa{background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.05rem .5rem;color:var(--ink)}
+.sg-accion{font-size:.85rem;color:var(--lime)}
+.sg-factores{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.4rem}
+.sg-factores span{font-size:.68rem;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.1rem .5rem;color:var(--sub)}
+.sg-acts{display:flex;flex-direction:column;gap:.4rem;flex:none}
+.sg-red-txt{width:100%;padding:.8rem;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--ink);font-size:.95rem;line-height:1.55;resize:vertical}
+.sg-brief{white-space:pre-wrap;font-family:inherit;font-size:.9rem;line-height:1.6;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:1rem;color:var(--ink);margin:0}
+
+/* KPIs / tablero ejecutivo */
+.kpi-periodo{display:flex;gap:.4rem;flex-wrap:wrap}
+.kpi-funnel{display:flex;flex-direction:column;gap:.6rem;margin-top:.4rem}
+.kpi-fstep{display:flex;flex-direction:column;gap:.25rem}
+.kpi-fbar{background:linear-gradient(90deg,var(--mag),#FF5CA8);border-radius:8px;min-height:30px;display:flex;align-items:center;padding:0 .7rem;transition:width .4s var(--ease)}
+.kpi-fbar b{color:#fff;font-size:.95rem}
+.kpi-flbl{font-size:.82rem;color:var(--sub)}
+.kpi-flbl span{color:var(--dim)}
+.kpi-fuentes{display:flex;flex-wrap:wrap;gap:.7rem}
+.kpi-fuente{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.7rem 1rem;text-align:center;min-width:90px}
+.kpi-fuente b{display:block;font-size:1.3rem;color:var(--lime)}
+.kpi-fuente span{font-size:.76rem;color:var(--sub);text-transform:capitalize}
+.mtr-factor{font-size:.78rem;color:var(--sub);white-space:nowrap}

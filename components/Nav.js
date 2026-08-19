@@ -10,6 +10,7 @@ const LINKS = [
   ['/portal', 'Catálogo'],
   ['/buscar', 'Buscar'],
   ['/copiloto', 'Copiloto'],
+  ['/seguimiento', 'Seguimiento'],
   ['/comparar', 'Comparar'],
   ['/precalifica', 'Precalifica'],
   ['/clientes', 'Clientes'],
@@ -24,6 +25,7 @@ const LINKS = [
   ['/academia', 'Academia'],
 ];
 const SUPER = [
+  ['/kpis', 'KPIs'],
   ['/motor', 'Motor'],
   ['/captura', 'Captura'],
   ['/fichas', 'Cargar fichas'],

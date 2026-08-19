@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
-import { llamarIA, llamarIADoc, resolverIA } from '../../../../lib/ia';
+import { llamarIA, leerPdfVision, resolverIA } from '../../../../lib/ia';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,10 +51,8 @@ export async function POST(req) {
   } catch (e) {
     return NextResponse.json({ error: 'pdf', mensaje: 'No pude leer el PDF: ' + (e?.message || 'error') }, { status: 200 });
   }
+  // Si casi no hay texto, es un escaneo/imagen: se lee con visión (Anthropic u OpenAI).
   const escaneado = texto.length < 40;
-  if (escaneado && ia.proveedor !== 'anthropic') {
-    return NextResponse.json({ error: 'sin_texto', mensaje: 'El PDF parece un escaneo/imagen. Para leerlo con visión conecta una llave de Anthropic (Claude) en Conexiones.' }, { status: 200 });
-  }
 
   const system = `Eres un asistente que extrae datos de fichas técnicas inmobiliarias en México. Del documento que te doy, extrae SOLO los campos de la lista y devuelve EXCLUSIVAMENTE un objeto JSON válido (sin explicaciones, sin markdown). Reglas:
 - Usa EXACTAMENTE los nombres de campo de la lista como llaves.
@@ -68,8 +66,8 @@ CAMPOS: ${CAMPOS.join(' | ')}`;
   let raw = '';
   try {
     if (escaneado) {
-      // PDF escaneado: se manda nativo a Claude (visión).
-      raw = await llamarIADoc({ apiKey: ia.apiKey, system, pregunta: 'Extrae del PDF los campos indicados y devuelve solo el JSON.', pdfBase64, maxTokens: 1500 });
+      // PDF escaneado: se manda nativo al modelo con visión (Anthropic u OpenAI).
+      raw = await leerPdfVision({ proveedor: ia.proveedor, apiKey: ia.apiKey, system, pregunta: 'Extrae del PDF los campos indicados y devuelve solo el JSON.', pdfBase64, maxTokens: 1500 });
     } else {
       const prompt = `DOCUMENTO:\n${texto.slice(0, 12000)}\n\nDevuelve el JSON con los campos encontrados.`;
       raw = await llamarIA({ proveedor: ia.proveedor, apiKey: ia.apiKey, system, mensajes: [{ role: 'user', content: prompt }], maxTokens: 1500 });

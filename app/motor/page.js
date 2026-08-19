@@ -70,24 +70,33 @@ export default function Motor() {
       .filter(row => row.totDe > 0 || row.cells.some(c => c.of > 0))
       .sort((a, b) => b.totDe - a.totDe);
 
-    // Salud de desarrollos
+    // Salud de desarrollos — heurístico multifactor y explicable.
     const salud = devs.map(d => {
       const us = units.filter(u => u.dev_sku === d.sku);
       const disp = us.length;
-      const vendPct = (() => { const f = d.ficha || {}; const v = f['% vendido']; if (v) return parseInt(String(v)) || null; const tot = d.unidades_totales, ven = parseInt(String(f['Unidades vendidas'] || '')) || null; return (tot && ven != null) ? Math.round(ven / tot * 100) : null; })();
+      const f = d.ficha || {};
+      const total = d.unidades_totales || (parseInt(String(f['Unidades totales'] || '')) || null);
+      const vendPct = (() => { const v = f['% vendido']; if (v) return parseInt(String(v)) || null; const ven = parseInt(String(f['Unidades vendidas'] || '')) || null; return (total && ven != null) ? Math.round(ven / total * 100) : null; })();
+      // Absorción: % colocado (de total o, si no hay total, usa % vendido de la ficha).
+      const absorb = (total && total > 0) ? Math.round((1 - disp / total) * 100) : vendPct;
       const pm2 = us.filter(u => u.m2_hab).map(u => u.precio / u.m2_hab);
       const pm2Med = median(pm2);
       const zMed = medZona[d.alcaldia];
       const precioVs = (pm2Med && zMed) ? Math.round((pm2Med / zMed - 1) * 100) : null; // % vs mediana zona
       const demMatch = demanda.filter(x => (!x.zona || x.zona === d.alcaldia) && x.rec != null && us.some(u => u.rec === x.rec && (!x.presMax || u.precio <= x.presMax))).length;
-      // Health score heurístico 0-100
-      let hs = 50;
-      if (vendPct != null) hs += (vendPct - 50) * 0.3;             // momentum de venta
-      if (precioVs != null) hs += Math.max(-20, Math.min(20, -precioVs)); // barato vs zona = mejor
-      hs += Math.min(25, demMatch * 3);                            // demanda que le calza
-      if (disp === 0) hs = Math.min(hs, 40);
+      const presion = disp > 0 ? demMatch / disp : (demMatch > 0 ? 2 : 0); // demanda por unidad disponible
+
+      let hs = 50; const factores = [];
+      const push = (k, v, pts) => { hs += pts; factores.push({ k, v, pts }); };
+      if (absorb != null) push('Absorción', absorb + '% colocado', Math.max(-18, Math.min(20, Math.round((absorb - 45) * 0.35))));
+      if (precioVs != null) push('Precio vs zona', (precioVs > 0 ? '+' : '') + precioVs + '%', Math.max(-18, Math.min(18, -precioVs)));
+      push('Demanda que calza', demMatch + ' señal' + (demMatch === 1 ? '' : 'es'), Math.min(22, Math.round(presion * 8) + Math.min(10, demMatch * 2)));
+      if (disp === 0) { hs = Math.min(hs, 38); factores.push({ k: 'Inventario', v: 'agotado', pts: 0 }); }
+      else if (demMatch === 0 && disp > 8) push('Inventario sin demanda', disp + ' disp.', -8);
       hs = Math.max(0, Math.min(100, Math.round(hs)));
-      return { sku: d.sku, nombre: d.nombre, zona: d.alcaldia, disp, vendPct, precioVs, demMatch, hs };
+      factores.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts));
+      const top = factores[0];
+      return { sku: d.sku, nombre: d.nombre, zona: d.alcaldia, disp, vendPct, absorb, precioVs, demMatch, hs, factores, top };
     }).sort((a, b) => a.hs - b.hs); // los que más necesitan atención primero
 
     const valorInv = units.reduce((s, u) => s + (u.precio || 0), 0);
@@ -160,16 +169,18 @@ export default function Motor() {
           <h2>Salud de desarrollos <span className="fnote" style={{ fontWeight: 400 }}>(los que más necesitan atención primero)</span></h2>
           <div className="loc-grid-wrap">
             <table className="mtr-tbl">
-              <thead><tr><th>Desarrollo</th><th>Zona</th><th className="tr">Disp.</th><th className="tr">% vendido</th><th className="tr">$/m² vs zona</th><th className="tr">Demanda</th><th className="tr">Salud</th></tr></thead>
+              <thead><tr><th>Desarrollo</th><th>Zona</th><th className="tr">Disp.</th><th className="tr">Absorción</th><th className="tr">$/m² vs zona</th><th className="tr">Demanda</th><th>Factor clave</th><th className="tr">Salud</th></tr></thead>
               <tbody>
                 {salud.map(s => (
                   <tr key={s.sku} onClick={() => router.push('/portal/' + s.sku)} style={{ cursor: 'pointer' }}>
                     <td><b>{s.nombre}</b></td><td>{s.zona || '—'}</td>
                     <td className="tr">{s.disp}</td>
-                    <td className="tr">{s.vendPct != null ? s.vendPct + '%' : '—'}</td>
+                    <td className="tr">{s.absorb != null ? s.absorb + '%' : '—'}</td>
                     <td className="tr">{s.precioVs != null ? (s.precioVs > 0 ? '+' : '') + s.precioVs + '%' : '—'}</td>
                     <td className="tr">{s.demMatch}</td>
-                    <td className="tr"><span className={'mtr-hs ' + (s.hs >= 66 ? 'hi' : s.hs >= 40 ? 'mid' : 'lo')}>{s.hs}</span></td>
+                    <td className="mtr-factor">{s.top ? `${s.top.pts > 0 ? '▲' : s.top.pts < 0 ? '▼' : '•'} ${s.top.k}` : '—'}</td>
+                    <td className="tr"><span className={'mtr-hs ' + (s.hs >= 66 ? 'hi' : s.hs >= 40 ? 'mid' : 'lo')}
+                      title={s.factores.map(f => `${f.k}: ${f.v} (${f.pts > 0 ? '+' : ''}${f.pts})`).join('  ·  ')}>{s.hs}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -177,7 +188,7 @@ export default function Motor() {
           </div>
         </section>
 
-        <p className="fnote">Demanda = leads + búsquedas guardadas (client cards). Cálculo analítico sobre tu inventario en vivo; el score de salud es un heurístico (momentum de venta, precio vs zona y demanda que calza).</p>
+        <p className="fnote">Demanda = leads + búsquedas guardadas (client cards). Cálculo analítico sobre tu inventario en vivo; el score de salud pondera absorción (ritmo de colocación), precio vs mediana de su zona y presión de demanda por unidad disponible. Pasa el cursor sobre el número de salud para ver el desglose de factores.</p>
       </main>
     </>
   );

@@ -9,6 +9,8 @@ import RegistroCliente from '../../../components/RegistroCliente';
 import MediosManager from '../../../components/MediosManager';
 import ModelosView from '../../../components/ModelosView';
 import LocalizadorView from '../../../components/LocalizadorView';
+import { similares } from '../../../lib/similares';
+import { generarBrochure } from '../../../lib/propuesta';
 import { listarMedios, etiquetaMedio, etiquetaOpcional } from '../../../lib/medios';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
@@ -65,6 +67,9 @@ export default function Detalle() {
   const [vistas, setVistas] = useState(null);
   const [copiado, setCopiado] = useState(false);
   const [lb, setLb] = useState(null); // índice de la foto abierta en el visor (carrusel)
+  const [allDevs, setAllDevs] = useState([]);   // catálogo para "alternativas parecidas"
+  const [brand, setBrand] = useState(null);     // marca del asesor para el brochure
+  const [genBro, setGenBro] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -80,6 +85,16 @@ export default function Detalle() {
       const { count } = await supabase.from('eventos').select('id', { count: 'exact', head: true })
         .eq('tipo', 'vista_ficha').eq('entidad_id', sku).eq('actor', session.user.id);
       setVistas(count || 0);
+      // Catálogo para alternativas parecidas.
+      const { data: todos } = await supabase.from('desarrollos')
+        .select('sku,nombre,alcaldia,estado,colonia,precio_min,precio_max,rec_min,rec_max,etapa,amenidades,portada,publicado')
+        .eq('publicado', true);
+      setAllDevs(todos || []);
+      // Marca del asesor para el brochure (logo, contacto, org).
+      const { data: prof2 } = await supabase.from('profiles').select('nombre,telefono,org_id').eq('id', session.user.id).maybeSingle();
+      let org = null;
+      if (prof2?.org_id) { const { data: o } = await supabase.from('orgs').select('nombre,logo_url').eq('id', prof2.org_id).maybeSingle(); org = o; }
+      setBrand({ id: session.user.id, nombre: prof2?.nombre, telefono: prof2?.telefono, org_nombre: org?.nombre, org_logo: org?.logo_url });
     })();
   }, [sku, router]);
 
@@ -121,7 +136,19 @@ export default function Detalle() {
       .sort((a, b) => a.desde - b.desde);
   }, [units]);
 
+  const alternativas = useMemo(() => (d && allDevs.length) ? similares(d, allDevs, 4) : [], [d, allDevs]);
+
   function abrirReg(unidad) { setRegUnidad(unidad||null); setUnitSel(null); setShowReg(true); }
+
+  async function descargarBrochure() {
+    if (!d) return;
+    setGenBro(true);
+    try {
+      const link = (typeof window !== 'undefined' ? window.location.origin : '') + '/f/' + sku + (me?.id ? '?a=' + me.id : '');
+      await generarBrochure({ dev: d, units, medios, asesor: brand || {}, link });
+    } catch (e) { alert('No se pudo generar el brochure: ' + (e?.message || 'error')); }
+    setGenBro(false);
+  }
 
   if (d === undefined) return <div className="loading">Cargando…</div>;
   if (d === null) return <div className="loading">No encontrado. <Link href="/portal">Volver</Link></div>;
@@ -161,6 +188,7 @@ export default function Detalle() {
             📲 Enviar al cliente
           </a>
           <button className="btn ghost" onClick={()=>setShowShare(true)}>🔗 Compartir ficha{vistas>0?` · 👁 ${vistas}`:''}</button>
+          <button className="btn ghost" onClick={descargarBrochure} disabled={genBro}>{genBro?'Generando…':'⬇ Brochure'}</button>
           {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
           {me?.rol==='super_admin' && <button className="btn ghost" onClick={()=>setShowMedios(true)}>🖼️ Gestionar medios</button>}
@@ -181,6 +209,7 @@ export default function Detalle() {
           const dirTxt = gv('Dirección') || d.direccion;
           const mapsQ = encodeURIComponent([dirTxt, d.colonia, d.alcaldia, d.estado].filter(Boolean).join(', '));
           const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + mapsQ;
+          const mapsEmbed = 'https://www.google.com/maps?q=' + mapsQ + '&output=embed';
           const docs = medios.filter(x => !IMG_TIPOS.includes(x.tipo));
 
           const exteriores = [['Balcón','🌿 Balcón'],['Terraza','☀️ Terraza'],['Roof garden privado','🏙️ Roof garden privado'],['Bodega','📦 Bodega'],['Cuarto de servicio','🧹 Cuarto de servicio']].filter(([k])=>si(F[k])).map(([,l])=>l);
@@ -332,12 +361,32 @@ export default function Detalle() {
                   {s.rows.length>0 && <div className="kv2">{s.rows.map(([l,v])=>(
                     <div className="kv2row" key={l}><span>{l}</span><b>{v}</b></div>
                   ))}</div>}
-                  {s.maps && <a className="btn ghost sm devsec-maps" href={mapsUrl} target="_blank" rel="noopener">📍 Abrir en Google Maps · Cómo llegar</a>}
+                  {s.maps && <><div className="fp-map"><iframe title="Mapa" src={mapsEmbed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div><a className="btn ghost sm devsec-maps" href={mapsUrl} target="_blank" rel="noopener">📍 Abrir en Google Maps · Cómo llegar</a></>}
                   {s.cta && <button className="btn mag sm devsec-cta" onClick={()=>setCotizar('dev')}>Abrir cotizador completo</button>}
                 </div>
               </details>
             ))}
           </div>
+
+          {/* Alternativas parecidas para tu cliente */}
+          {alternativas.length>0 && (
+            <div className="alt-sec">
+              <h3>Alternativas para tu cliente <span className="fnote" style={{fontWeight:400}}>si este no le cuadra</span></h3>
+              <div className="alt-grid">
+                {alternativas.map(({dev:a,razones})=>(
+                  <button className="alt-card" key={a.sku} onClick={()=>router.push('/portal/'+a.sku)}>
+                    <div className="alt-thumb" style={a.portada?{backgroundImage:`url(${a.portada})`}:undefined}>{!a.portada&&<span>🏢</span>}</div>
+                    <div className="alt-body">
+                      <b>{a.nombre}</b>
+                      <span className="alt-loc">📍 {[a.colonia,a.alcaldia].filter(Boolean).join(', ')||a.estado}</span>
+                      <span className="alt-precio">desde {MXN(a.precio_min)}</span>
+                      <div className="alt-razones">{razones.map(r=><span key={r}>{r}</span>)}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           </>);
         })()}
 

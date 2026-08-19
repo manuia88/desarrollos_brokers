@@ -219,11 +219,6 @@ export default function CargarFichas() {
           </div>
         )}
 
-        {/* IA / PDF */}
-        <div className="fcard imp-ia">
-          <h3 style={{ marginTop: 0 }}>Extracción con IA <span className="imp-soon">próximamente</span></h3>
-          <p className="fnote" style={{ margin: 0 }}>Para documentos libres del desarrollador (PDF, listas de precios, brochures sin la estructura de columnas), la IA leerá el documento y llenará la ficha automáticamente. Se activa en cuanto conectemos la API de IA en Vercel (con topes de gasto). Para el Excel estructurado, la carga de arriba es más confiable y no tiene costo.</p>
-        </div>
       </main>
     </>
   );

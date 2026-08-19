@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { googleCalUrl, descargarIcs, crearEventoGoogle, calcomUrl } from '../lib/calendario';
 import { etiquetaMedio } from '../lib/medios';
-import { mensualidadCredito, TASAS_DEFAULT } from '../lib/finance';
+import { mensualidadCredito, TASAS_DEFAULT, BANCOS } from '../lib/finance';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const soloDig = s => String(s ?? '').replace(/[^0-9]/g, '');
@@ -28,8 +28,10 @@ function agruparPorRec(units) {
 }
 const tituloRec = r => r === 0 ? 'Loft' : `${r} recámara${r === 1 ? '' : 's'}`;
 
-// Esquema de pago BASE para la ficha del cliente (se ajustará por desarrollo después).
+// Esquema de pago por defecto (fallback) si el desarrollo no lo define.
 const ESQUEMA_BASE = { firma: 0.15, obra: 0.10, escritura: 0.75 };
+// Bancos para el estimador de crédito del cliente (sin fondos Infonavit/FOVISSSTE, que van aparte).
+const BANCOS_CLIENTE = BANCOS.filter(b => !['Infonavit', 'FOVISSSTE'].includes(b.nombre));
 
 // Agenda inteligente: horarios de atención y días a ofrecer.
 const HORARIOS = ['10:00', '11:00', '12:00', '13:00', '16:00', '17:00', '18:00'];
@@ -92,6 +94,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   // Cotizador del cliente
   const [cotRec, setCotRec] = useState(null);    // recámaras elegidas para cotizar
   const [cotPlazo, setCotPlazo] = useState(20);
+  const [cotBanco, setCotBanco] = useState('BBVA'); // banco para el estimador de crédito
   const [ocupados, setOcupados] = useState([]);  // horarios ya tomados del asesor
   const [clienteInfo, setClienteInfo] = useState(null); // si el link trae un cliente ya registrado
   // Concierge IA
@@ -157,17 +160,23 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const amen = (dev.amenidades || '').split(',').map(s => s.trim()).filter(Boolean);
   const creds = [['ION', dev.credito_ion], ['HIR', dev.credito_hir], ['Yave', dev.credito_yave], ['Bancario', dev.credito_bancario]].filter(([l, v]) => v && /s/i.test(v));
   const engMonto = dev.esq_enganche ? dev.precio_min * dev.esq_enganche : null;
-  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', '));
+  const mapsQuery = encodeURIComponent([dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', '));
+  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + mapsQuery;
+  const mapsEmbed = 'https://www.google.com/maps?q=' + mapsQuery + '&output=embed';
   const siTxt = v => v && /^\s*s[íi]/i.test(String(v));
   const exteriores = [['balcon', '🌿 Balcón'], ['terraza', '☀️ Terraza'], ['roof', '🏙️ Roof garden'], ['bodega', '📦 Bodega']].filter(([k]) => siTxt(dev[k])).map(([, l]) => l);
-  // Forma de pago (esquema BASE) + crédito bancario sobre el monto a escriturar.
-  const cotTasa = TASAS_DEFAULT.Bancario;                 // ~11.5% referencia
+  // Forma de pago: esquema REAL del desarrollo (con fallback) + crédito con banco elegible.
+  const pFirma = dev.esq_enganche || ESQUEMA_BASE.firma;
+  const pObra = dev.esq_mensualidades || ESQUEMA_BASE.obra;
+  const pEscritura = dev.esq_escritura || ESQUEMA_BASE.escritura;
+  const bancoSel = BANCOS_CLIENTE.find(b => b.nombre === cotBanco) || BANCOS_CLIENTE.find(b => b.nombre === 'BBVA') || BANCOS_CLIENTE[0];
+  const cotTasa = (bancoSel?.tasa ?? 11.5) / 100;
   const cRec = selUnit ? (selUnit.rec ?? 0) : (cotRec ?? grupos[0]?.rec ?? 0);
   const cBase = selUnit ? selUnit.precio : (grupos.find(g => g.rec === cRec)?.desde ?? dev.precio_min ?? 0);
   const cApartado = dev.apartado || 10000;
-  const cFirma = Math.round(cBase * ESQUEMA_BASE.firma);
-  const cObra = Math.round(cBase * ESQUEMA_BASE.obra);
-  const cEscritura = Math.round(cBase * ESQUEMA_BASE.escritura);
+  const cFirma = Math.round(cBase * pFirma);
+  const cObra = Math.round(cBase * pObra);
+  const cEscritura = Math.round(cBase * pEscritura);
   const cMensualidad = mensualidadCredito(cEscritura, cotTasa, cotPlazo);
   const cIngreso = cMensualidad ? Math.round(cMensualidad / 0.30) : null;
   const telDig = ase?.telefono ? soloDig(ase.telefono) : '';
@@ -300,23 +309,28 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           <div className="fp-pago-base">Sobre {selUnit ? 'esta unidad' : `${tituloRec(cRec)} desde`} <b>{MXN(cBase)}</b></div>
           <div className="fp-pago-rows">
             <div className="fp-pago-row"><span>Apartado</span><b>{MXN(cApartado)}</b></div>
-            <div className="fp-pago-row"><span>Firma de contrato</span><i>15%</i><b>{MXN(cFirma)}</b></div>
-            <div className="fp-pago-row"><span>Mensualidades en obra</span><i>10%</i><b>{MXN(cObra)}</b></div>
-            <div className="fp-pago-row esc"><span>Monto a escriturar</span><i>75%</i><b>{MXN(cEscritura)}</b></div>
+            <div className="fp-pago-row"><span>Firma de contrato</span><i>{Math.round(pFirma * 100)}%</i><b>{MXN(cFirma)}</b></div>
+            <div className="fp-pago-row"><span>Mensualidades en obra</span><i>{Math.round(pObra * 100)}%</i><b>{MXN(cObra)}</b></div>
+            <div className="fp-pago-row esc"><span>Monto a escriturar</span><i>{Math.round(pEscritura * 100)}%</i><b>{MXN(cEscritura)}</b></div>
           </div>
         </section>
 
         {/* Crédito bancario sobre el monto a escriturar */}
         <section className="fp-sec fp-credito">
           <h2>Crédito bancario</h2>
-          <p className="fnote" style={{ marginTop: 0 }}>Se financia el monto a escriturar ({MXN(cEscritura)}) con el banco. Elige el plazo:</p>
+          <p className="fnote" style={{ marginTop: 0 }}>Se financia el monto a escriturar ({MXN(cEscritura)}) con el banco. Elige banco y plazo:</p>
+          <div className="fp-cotiz-banco"><span>Banco</span>
+            <select value={cotBanco} onChange={e => setCotBanco(e.target.value)}>
+              {BANCOS_CLIENTE.map(b => <option key={b.nombre} value={b.nombre}>{b.nombre} · {b.tasa.toFixed(2)}%</option>)}
+            </select>
+          </div>
           <div className="fp-cotiz-plazo"><span>Plazo</span>
             {[5, 10, 15, 20].map(p => <button type="button" key={p} className={'chip' + (cotPlazo === p ? ' on' : '')} onClick={() => setCotPlazo(p)}>{p} años</button>)}
           </div>
           <div className="cotiz-result">
             <span>Mensualidad estimada</span>
             <b>{MXN(cMensualidad)}</b>
-            <small>{(cotTasa * 100).toFixed(1)}% anual · {cotPlazo} años</small>
+            <small>{bancoSel?.nombre || 'Banco'} · {(cotTasa * 100).toFixed(2)}% anual · {cotPlazo} años</small>
           </div>
           {cIngreso && <div className="cotiz-ingreso"><span>Ingreso sugerido para calificar</span><b>{MXN(cIngreso)}/mes</b><small>si el pago es ≤ 30% del ingreso</small></div>}
           <p className="fnote">Cálculo referencial. {ase?.nombre || 'Tu asesor'} arma la cotización formal con tu crédito.</p>
@@ -336,6 +350,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           <details className="devsec"><summary><span className="devsec-ic">📍</span>Ubicación<span className="devsec-caret">⌄</span></summary>
             <div className="devsec-body">
               <p className="fp-dir">📍 {[dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', ')}</p>
+              <div className="fp-map"><iframe title="Mapa" src={mapsEmbed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div>
               <a className="fp-maps-btn" href={mapsUrl} target="_blank" rel="noopener">📍 Ver en Google Maps · Cómo llegar</a>
             </div>
           </details>
