@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { googleCalUrl, descargarIcs, crearEventoGoogle, calcomUrl } from '../lib/calendario';
 import { etiquetaMedio } from '../lib/medios';
+import { mensualidadCredito, TASAS_DEFAULT } from '../lib/finance';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 const soloDig = s => String(s ?? '').replace(/[^0-9]/g, '');
@@ -30,6 +31,10 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(null);
   const [err, setErr] = useState(null);
+  // Cotizador del cliente
+  const [cotBase, setCotBase] = useState(null);  // precio base elegido
+  const [cotEng, setCotEng] = useState(null);    // % de enganche
+  const [cotPlazo, setCotPlazo] = useState(20);
 
   useEffect(() => {
     (async () => {
@@ -62,6 +67,16 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const creds = [['ION', dev.credito_ion], ['HIR', dev.credito_hir], ['Yave', dev.credito_yave], ['Bancario', dev.credito_bancario]].filter(([l, v]) => v && /s/i.test(v));
   const engMonto = dev.esq_enganche ? dev.precio_min * dev.esq_enganche : null;
   const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', '));
+  const siTxt = v => v && /^\s*s[íi]/i.test(String(v));
+  const exteriores = [['balcon', '🌿 Balcón'], ['terraza', '☀️ Terraza'], ['roof', '🏙️ Roof garden'], ['bodega', '📦 Bodega']].filter(([k]) => siTxt(dev[k])).map(([, l]) => l);
+  // Cotizador: base, enganche y plazo con defaults del desarrollo.
+  const cotTasa = TASAS_DEFAULT.Bancario;                 // ~11.5% referencia
+  const cBase = cotBase ?? (selUnit ? selUnit.precio : dev.precio_min) ?? 0;
+  const cEng = cotEng ?? Math.max(10, Math.round((dev.esq_enganche || 0.2) * 100));
+  const cEngMonto = Math.round(cBase * cEng / 100);
+  const cFinanciar = Math.max(0, cBase - cEngMonto);
+  const cMensualidad = mensualidadCredito(cFinanciar, cotTasa, cotPlazo);
+  const cIngreso = cMensualidad ? Math.round(cMensualidad / 0.30) : null;
   const telDig = ase?.telefono ? soloDig(ase.telefono) : '';
   const waAse = telDig ? 'https://wa.me/' + (telDig.length === 10 ? '52' : '') + telDig + '?text=' + encodeURIComponent(`Hola ${ase?.nombre || ''}, me interesa ${dev.nombre}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`) : null;
   const planoUrl = unitMedio('plano')?.url;
@@ -159,22 +174,70 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           </section>
         )}
 
-        <section className="fp-sec"><h2>Esquema de pago</h2>
-          <div className="fp-esq">
-            <div><span>Apartado</span><b>{MXN(dev.apartado)}</b></div>
-            <div><span>Enganche</span><b>{Math.round((dev.esq_enganche || 0) * 100)}%{engMonto ? ` · ${MXN(engMonto)}` : ''}</b></div>
-            <div><span>Mensualidades en obra</span><b>{Math.round((dev.esq_mensualidades || 0) * 100)}%</b></div>
-            <div><span>Contra escritura</span><b>{Math.round((dev.esq_escritura || 0) * 100)}%</b></div>
+        {/* Cotizador para el cliente */}
+        <section className="fp-sec fp-cotiz">
+          <h2>Estima tu mensualidad</h2>
+          {!selUnit && modelos.length > 1 && (
+            <div className="fp-cotiz-models">
+              {modelos.map(mm => <button type="button" key={mm.proto} className={'chip' + (cBase === mm.desde ? ' on' : '')} onClick={() => setCotBase(mm.desde)}>{tituloModelo(mm)} · {MXN(mm.desde)}</button>)}
+            </div>
+          )}
+          <div className="fp-cotiz-lbl"><span>Enganche</span><b>{cEng}% · {MXN(cEngMonto)}</b></div>
+          <input className="fp-range" type="range" min="10" max="50" step="5" value={cEng} onChange={e => setCotEng(+e.target.value)} />
+          <div className="fp-cotiz-plazo">
+            <span>Plazo</span>
+            {[15, 20].map(p => <button type="button" key={p} className={'chip' + (cotPlazo === p ? ' on' : '')} onClick={() => setCotPlazo(p)}>{p} años</button>)}
           </div>
+          <div className="cotiz-result">
+            <span>Mensualidad estimada</span>
+            <b>{MXN(cMensualidad)}</b>
+            <small>financiando {MXN(cFinanciar)} a {(cotTasa * 100).toFixed(1)}% · {cotPlazo} años</small>
+          </div>
+          {cIngreso && <div className="cotiz-ingreso"><span>Ingreso sugerido para calificar</span><b>{MXN(cIngreso)}/mes</b><small>si el pago es ≤ 30% del ingreso</small></div>}
+          <p className="fnote">Cálculo referencial. {ase?.nombre || 'Tu asesor'} te arma la cotización formal con tu crédito.</p>
         </section>
 
-        <section className="fp-sec"><h2>Ubicación</h2>
-          <p className="fp-dir">📍 {[dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', ')}</p>
-          <a className="btn ghost sm" href={mapsUrl} target="_blank" rel="noopener">Ver en Google Maps · Cómo llegar</a>
-        </section>
-
-        {amen.length > 0 && <section className="fp-sec"><h2>Amenidades</h2><div className="chips2">{amen.map((a, i) => <span className="chip2" key={i}>{a}</span>)}</div></section>}
-        {creds.length > 0 && <section className="fp-sec"><h2>Créditos aceptados</h2><div className="chips2">{creds.map(([l]) => <span className="chip2 on" key={l}>{l}</span>)}</div></section>}
+        {/* Info curada para el cliente, en acordeón */}
+        <div className="devsecs fp-acc">
+          <details className="devsec" open><summary><span className="devsec-ic">💳</span>Esquema de pago<span className="devsec-caret">⌄</span></summary>
+            <div className="devsec-body"><div className="fp-esq">
+              <div><span>Apartado</span><b>{MXN(dev.apartado)}</b></div>
+              <div><span>Enganche</span><b>{Math.round((dev.esq_enganche || 0) * 100)}%{engMonto ? ` · ${MXN(engMonto)}` : ''}</b></div>
+              <div><span>Mensualidades en obra</span><b>{Math.round((dev.esq_mensualidades || 0) * 100)}%</b></div>
+              <div><span>Contra escritura</span><b>{Math.round((dev.esq_escritura || 0) * 100)}%</b></div>
+            </div></div>
+          </details>
+          <details className="devsec" open><summary><span className="devsec-ic">🏠</span>Qué incluye tu depa<span className="devsec-caret">⌄</span></summary>
+            <div className="devsec-body">
+              {exteriores.length > 0 && <div className="dchips">{exteriores.map(e => <span key={e}>{e}</span>)}</div>}
+              <div className="kv2">
+                <div className="kv2row"><span>Recámaras</span><b>{dev.rec_min === 0 ? 'Loft' : dev.rec_min}{dev.rec_min !== dev.rec_max ? `–${dev.rec_max}` : ''}</b></div>
+                <div className="kv2row"><span>Baños</span><b>{dev.banos_min}{dev.banos_min !== dev.banos_max ? `–${dev.banos_max}` : ''}</b></div>
+                <div className="kv2row"><span>Estacionamientos</span><b>{dev.estac_min}{dev.estac_min !== dev.estac_max ? `–${dev.estac_max}` : ''}</b></div>
+                <div className="kv2row"><span>m² habitables</span><b>{Math.round(dev.m2_min)}{Math.round(dev.m2_min) !== Math.round(dev.m2_max) ? `–${Math.round(dev.m2_max)}` : ''} m²</b></div>
+              </div>
+            </div>
+          </details>
+          <details className="devsec"><summary><span className="devsec-ic">📍</span>Ubicación<span className="devsec-caret">⌄</span></summary>
+            <div className="devsec-body">
+              <p className="fp-dir">📍 {[dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', ')}</p>
+              <a className="btn ghost sm" href={mapsUrl} target="_blank" rel="noopener">Ver en Google Maps · Cómo llegar</a>
+            </div>
+          </details>
+          {amen.length > 0 && <details className="devsec"><summary><span className="devsec-ic">✨</span>Amenidades<span className="devsec-caret">⌄</span></summary>
+            <div className="devsec-body"><div className="chips2">{amen.map((a, i) => <span className="chip2" key={i}>{a}</span>)}</div></div>
+          </details>}
+          {creds.length > 0 && <details className="devsec"><summary><span className="devsec-ic">🏦</span>Créditos que puedes usar<span className="devsec-caret">⌄</span></summary>
+            <div className="devsec-body"><div className="chips2">{creds.map(([l]) => <span className="chip2 on" key={l}>{l}</span>)}</div></div>
+          </details>}
+          <details className="devsec"><summary><span className="devsec-ic">🏗️</span>Entrega<span className="devsec-caret">⌄</span></summary>
+            <div className="devsec-body"><div className="kv2">
+              <div className="kv2row"><span>Etapa</span><b>{dev.etapa || '—'}</b></div>
+              {dev.fecha_entrega && <div className="kv2row"><span>Entrega estimada</span><b>{new Date(dev.fecha_entrega + 'T12:00').toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}</b></div>}
+              {m != null && <div className="kv2row"><span>Faltan</span><b>{m} meses</b></div>}
+            </div></div>
+          </details>
+        </div>
 
         {!selUnit && modelos.length > 0 && (
           <section className="fp-sec"><h2>Modelos disponibles</h2>

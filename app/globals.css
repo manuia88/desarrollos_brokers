@@ -464,6 +464,14 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .fp-model-price b{font-size:1.25rem;font-variant-numeric:tabular-nums}
 .fp-model-disp{font-size:.72rem;font-weight:700;color:var(--lime);background:var(--lime-soft);border:1px solid rgba(198,255,58,.3);border-radius:99px;padding:.1rem .5rem;align-self:flex-start;margin-top:.15rem}
 .fp-dir{color:var(--sub);font-size:.9rem;margin:.1rem 0 .7rem}
+/* Cotizador del cliente */
+.fp-cotiz-models{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.8rem}
+.fp-cotiz-lbl{display:flex;justify-content:space-between;align-items:baseline;font-size:.85rem;color:var(--sub);margin-bottom:.3rem}
+.fp-cotiz-lbl b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fp-range{width:100%;accent-color:var(--mag);margin:.1rem 0 .9rem}
+.fp-cotiz-plazo{display:flex;align-items:center;gap:.4rem;margin-bottom:.9rem}
+.fp-cotiz-plazo>span{font-size:.85rem;color:var(--sub);margin-right:.2rem}
+.fp-acc{margin-top:.2rem}
 .fp-esq{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
 .fp-esq>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem}
 .fp-esq span{display:block;color:var(--sub);font-size:.72rem}
