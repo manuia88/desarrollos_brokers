@@ -44,10 +44,17 @@ async function correr() {
       const msgCli = `Hola ${c.nombre || ''}, te recordamos tu cita para ${devN} el ${cuando}.${ase?.nombre ? ' Te atiende ' + ase.nombre + (ase.telefono ? ' (' + ase.telefono + ')' : '') + '.' : ''}`;
       const msgBrk = `Recordatorio: cita con ${c.nombre || 'cliente'}${c.telefono ? ' (' + c.telefono + ')' : ''} para ${devN} el ${cuando}.`;
 
-      if (c.telefono) await sendWhatsApp(c.telefono, msgCli);
-      if (c.email) await sendEmail(c.email, `Recordatorio de tu cita — ${devN}`, `<p>${msgCli}</p>`);
-      if (ase?.telefono) await sendWhatsApp(ase.telefono, msgBrk);
-      if (ase?.email) await sendEmail(ase.email, `Recordatorio de cita — ${devN}`, `<p>${msgBrk}</p>`);
+      const res = [];
+      if (c.telefono) res.push(await sendWhatsApp(c.telefono, msgCli));
+      if (c.email) res.push(await sendEmail(c.email, `Recordatorio de tu cita — ${devN}`, `<p>${msgCli}</p>`));
+      if (ase?.telefono) res.push(await sendWhatsApp(ase.telefono, msgBrk));
+      if (ase?.email) res.push(await sendEmail(ase.email, `Recordatorio de cita — ${devN}`, `<p>${msgBrk}</p>`));
+      // Si había a quién enviar pero TODO falló (proveedor caído), libera el reclamo para reintentar
+      // en la próxima corrida en vez de perder el recordatorio para siempre.
+      if (res.length > 0 && !res.some(Boolean)) {
+        try { await db.from('reminders_enviados').delete().eq('id', claim.id); } catch { /* noop */ }
+        continue;
+      }
       enviados++;
     }
   }

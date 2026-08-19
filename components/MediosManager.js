@@ -45,7 +45,10 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
   async function conectarDrive() {
     const s = await checarSesion();
     if (!s) { iniciarSesion(); return; }
-    window.location.href = '/api/google/connect?token=' + encodeURIComponent(s.access_token);
+    // El token va en el header (no en la URL); el servidor devuelve un nonce de un solo uso.
+    const r = await fetch('/api/google/connect', { method: 'POST', headers: { authorization: 'Bearer ' + s.access_token } });
+    const j = await r.json().catch(() => ({}));
+    if (j.n) window.location.href = '/api/google/connect?n=' + j.n;
   }
 
   const meta = () => ({

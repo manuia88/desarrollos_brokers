@@ -68,7 +68,12 @@ export default function Marca() {
   }
   async function conectarGoogle() {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session) window.location.href = '/api/google/connect?token=' + encodeURIComponent(session.access_token);
+    if (!session) return;
+    // El token va en el header (no en la URL); el servidor devuelve un nonce de un solo uso.
+    const r = await fetch('/api/google/connect', { method: 'POST', headers: { authorization: 'Bearer ' + session.access_token } });
+    const j = await r.json().catch(() => ({}));
+    if (j.n) window.location.href = '/api/google/connect?n=' + j.n;
+    else setMsg({ t: 'err', m: 'No se pudo iniciar la conexión con Google.' });
   }
   async function desconectarGoogle() {
     const { data: { session } } = await supabase.auth.getSession();
