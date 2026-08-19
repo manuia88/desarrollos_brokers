@@ -472,6 +472,27 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .fp-cotiz-plazo{display:flex;align-items:center;gap:.4rem;margin-bottom:.9rem}
 .fp-cotiz-plazo>span{font-size:.85rem;color:var(--sub);margin-right:.2rem}
 .fp-acc{margin-top:.2rem}
+/* Forma de pago del cliente (filas claras, sin encimar) */
+.fp-pago-rec{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;margin-bottom:.7rem}
+.fp-pago-rec>span{font-size:.85rem;color:var(--sub);margin-right:.2rem}
+.fp-pago-base{font-size:.9rem;color:var(--sub);margin-bottom:.6rem}
+.fp-pago-base b{color:var(--ink);font-variant-numeric:tabular-nums}
+.fp-pago-rows{display:flex;flex-direction:column;gap:.4rem}
+.fp-pago-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.6rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem}
+.fp-pago-row>span{color:var(--sub);font-size:.86rem}
+.fp-pago-row>i{font-style:normal;font-size:.72rem;font-weight:700;color:var(--mag);background:var(--mag-soft);border:1px solid var(--mag-line);border-radius:99px;padding:.1rem .5rem}
+.fp-pago-row>b{font-variant-numeric:tabular-nums;font-size:1rem;text-align:right;min-width:92px}
+.fp-pago-row.esc{background:var(--lime-soft);border-color:rgba(198,255,58,.3)}
+.fp-pago-row.esc>b{color:var(--lime)}
+.fp-pago-row.esc>i{color:var(--lime);background:rgba(198,255,58,.1);border-color:rgba(198,255,58,.3)}
+/* Botón de mapa con color (no se pierde) */
+.fp-maps-btn{display:inline-flex;align-items:center;gap:.4rem;background:#1a73e8;color:#fff;font-weight:700;font-size:.85rem;padding:.55rem .9rem;border-radius:10px;text-decoration:none;border:none}
+.fp-maps-btn:hover{background:#155ec4}
+/* Amenidades con emoji */
+.fp-amen{display:flex;flex-wrap:wrap;gap:.45rem}
+.fp-amen-i{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.32rem .7rem}
+.fp-amen-i i{font-style:normal}
+.fp-form-h{font-weight:800;font-size:1rem;margin-bottom:.2rem}
 .fp-esq{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
 .fp-esq>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem}
 .fp-esq span{display:block;color:var(--sub);font-size:.72rem}

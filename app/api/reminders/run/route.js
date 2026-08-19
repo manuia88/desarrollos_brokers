@@ -54,9 +54,12 @@ async function correr() {
 }
 
 function autorizado(req) {
+  // Vercel Cron invoca con este header; lo aceptamos siempre.
+  if (req.headers.get('x-vercel-cron')) return true;
   const secret = process.env.CRON_SECRET;
   if (!secret) return true; // si no se configuró, se permite (recomendado configurarlo)
-  return req.headers.get('x-cron-secret') === secret;
+  const auth = req.headers.get('authorization');
+  return req.headers.get('x-cron-secret') === secret || auth === `Bearer ${secret}`;
 }
 
 export async function POST(req) {
