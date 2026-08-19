@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
-import { llamarIA, resolverIA } from '../../../../lib/ia';
+import { llamarIA, llamarIADoc, resolverIA } from '../../../../lib/ia';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,8 +51,9 @@ export async function POST(req) {
   } catch (e) {
     return NextResponse.json({ error: 'pdf', mensaje: 'No pude leer el PDF: ' + (e?.message || 'error') }, { status: 200 });
   }
-  if (texto.length < 40) {
-    return NextResponse.json({ error: 'sin_texto', mensaje: 'El PDF no tiene texto seleccionable (¿es un escaneo/imagen?). Por ahora el autollenado funciona con PDFs de texto.' }, { status: 200 });
+  const escaneado = texto.length < 40;
+  if (escaneado && ia.proveedor !== 'anthropic') {
+    return NextResponse.json({ error: 'sin_texto', mensaje: 'El PDF parece un escaneo/imagen. Para leerlo con visión conecta una llave de Anthropic (Claude) en Conexiones.' }, { status: 200 });
   }
 
   const system = `Eres un asistente que extrae datos de fichas técnicas inmobiliarias en México. Del documento que te doy, extrae SOLO los campos de la lista y devuelve EXCLUSIVAMENTE un objeto JSON válido (sin explicaciones, sin markdown). Reglas:
@@ -64,11 +65,15 @@ export async function POST(req) {
 
 CAMPOS: ${CAMPOS.join(' | ')}`;
 
-  const prompt = `DOCUMENTO:\n${texto.slice(0, 12000)}\n\nDevuelve el JSON con los campos encontrados.`;
-
   let raw = '';
   try {
-    raw = await llamarIA({ proveedor: ia.proveedor, apiKey: ia.apiKey, system, mensajes: [{ role: 'user', content: prompt }], maxTokens: 1500 });
+    if (escaneado) {
+      // PDF escaneado: se manda nativo a Claude (visión).
+      raw = await llamarIADoc({ apiKey: ia.apiKey, system, pregunta: 'Extrae del PDF los campos indicados y devuelve solo el JSON.', pdfBase64, maxTokens: 1500 });
+    } else {
+      const prompt = `DOCUMENTO:\n${texto.slice(0, 12000)}\n\nDevuelve el JSON con los campos encontrados.`;
+      raw = await llamarIA({ proveedor: ia.proveedor, apiKey: ia.apiKey, system, mensajes: [{ role: 'user', content: prompt }], maxTokens: 1500 });
+    }
   } catch (e) {
     return NextResponse.json({ error: 'ia', mensaje: 'La IA no pudo procesar: ' + (e?.message || 'error') }, { status: 200 });
   }

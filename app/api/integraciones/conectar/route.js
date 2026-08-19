@@ -21,9 +21,11 @@ export async function POST(req) {
   let b = {}; try { b = await req.json(); } catch { /* noop */ }
   const proveedor = b.proveedor || 'easybroker';
   const scope = b.scope === 'asesor' ? 'asesor' : 'org';
-  // Para IA, "ambiente" guarda el proveedor del LLM (anthropic/openai).
+  // Para IA, "ambiente" guarda el proveedor del LLM; para WhatsApp, el canal.
   const ambiente = proveedor === 'ia'
     ? (b.ambiente === 'openai' ? 'openai' : 'anthropic')
+    : proveedor === 'whatsapp'
+    ? 'cloud'
     : (b.ambiente === 'staging' ? 'staging' : 'produccion');
   const api_key = (b.api_key || '').trim();
   if (!api_key) return NextResponse.json({ error: 'falta la API key' }, { status: 400 });

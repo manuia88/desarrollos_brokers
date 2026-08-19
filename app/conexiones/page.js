@@ -16,6 +16,8 @@ export default function Conexiones() {
   const [msg, setMsg] = useState(null);
   const [iaForm, setIaForm] = useState({ proveedor: 'anthropic', api_key: '' });
   const [iaMsg, setIaMsg] = useState(null);
+  const [waForm, setWaForm] = useState({ phone_id: '', token: '' });
+  const [waMsg, setWaMsg] = useState(null);
 
   const esDirectivo = me && ['director', 'gerente', 'independiente', 'super_admin'].includes(me.rol);
   const scope = me && me.rol === 'asesor' ? 'asesor' : 'org';
@@ -64,6 +66,18 @@ export default function Conexiones() {
       if (j.error) setIaMsg({ t: 'err', m: j.error });
       else { setIaMsg({ t: 'ok', m: j.valida ? '✓ Llave de IA conectada y validada. El concierge y el copiloto ya usan tu cuenta.' : '⚠ Guardada, pero no validó — revisa que la llave sea correcta.' }); setIaForm(f => ({ ...f, api_key: '' })); cargar(); }
     } catch (e) { setIaMsg({ t: 'err', m: String(e?.message || e) }); }
+  }
+  async function conectarWA() {
+    setWaMsg({ t: 'load' });
+    try {
+      const r = await fetch('/api/integraciones/conectar', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proveedor: 'whatsapp', scope: 'org', api_key: waForm.token, etiqueta: waForm.phone_id }),
+      });
+      const j = await r.json();
+      if (j.error) setWaMsg({ t: 'err', m: j.error });
+      else { setWaMsg({ t: 'ok', m: '✓ WhatsApp conectado. Configura la URL del webhook en Meta (abajo) para prender el agente.' }); setWaForm({ phone_id: '', token: '' }); cargar(); }
+    } catch (e) { setWaMsg({ t: 'err', m: String(e?.message || e) }); }
   }
 
   if (!me) return <div className="loading">Cargando…</div>;
@@ -131,13 +145,32 @@ export default function Conexiones() {
           </section>
         )}
 
+        {/* Agente de WhatsApp (BYOK, nivel inmobiliaria) */}
+        {esDirectivo && me.rol !== 'super_admin' && (
+          <section className="sec">
+            <h2>Agente de WhatsApp <span className="fnote" style={{ fontWeight: 400 }}>· opcional, tu número y tu cuenta</span></h2>
+            <p className="fnote" style={{ marginTop: 0 }}>Conecta tu número de <b>WhatsApp Business (Cloud API de Meta)</b> para que un agente de IA atienda a tus clientes, responda dudas con tu inventario y escale al asesor. Necesita tu llave de IA conectada arriba.</p>
+            <label className="lbl">Phone Number ID (de Meta)</label>
+            <input className="inp" value={waForm.phone_id} onChange={e => setWaForm(f => ({ ...f, phone_id: e.target.value }))} placeholder="Ej. 123456789012345" />
+            <label className="lbl">Access Token</label>
+            <input className="inp" type="password" value={waForm.token} onChange={e => setWaForm(f => ({ ...f, token: e.target.value }))} placeholder="Token permanente de la app de WhatsApp" />
+            <button className="btn mag block" style={{ marginTop: '.8rem' }} disabled={!waForm.phone_id || !waForm.token || waMsg?.t === 'load'} onClick={conectarWA}>{waMsg?.t === 'load' ? 'Guardando…' : 'Conectar WhatsApp'}</button>
+            {waMsg && waMsg.t !== 'load' && <div className={'cap-msg ' + (waMsg.t === 'ok' ? 'ok' : 'err')} style={{ marginTop: '.7rem' }}>{waMsg.m}</div>}
+            <div className="cap-msg" style={{ background: 'var(--panel2)', border: '1px solid var(--line)', color: 'var(--sub)', marginTop: '.7rem' }}>
+              En Meta → WhatsApp → Configuration → Webhook, usa:<br />
+              <b>Callback URL:</b> <code>{typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook</code><br />
+              <b>Verify Token:</b> <code>quierocasa</code> · Suscríbete al campo <code>messages</code>.
+            </div>
+          </section>
+        )}
+
         {/* Conexiones actuales */}
         {conns.length > 0 && (
           <section className="sec">
             <h2>Cuentas conectadas</h2>
             {conns.map(c => (
               <div className="camp" key={c.id}>
-                <div className="camp-main"><b>{c.proveedor === 'ia' ? 'Asistente IA' : c.proveedor} · {c.scope === 'org' ? 'inmobiliaria' : 'asesor'}</b>
+                <div className="camp-main"><b>{c.proveedor === 'ia' ? 'Asistente IA' : c.proveedor === 'whatsapp' ? 'Agente WhatsApp' : c.proveedor} · {c.scope === 'org' ? 'inmobiliaria' : 'asesor'}</b>
                   <span className="camp-sub">{c.ambiente}{c.etiqueta ? ' · ' + c.etiqueta : ''}{c.proveedor !== 'ia' && c.cuota ? ' · tope ' + c.cuota + ' anuncios' : ''} · {c.valida ? '✓ validada' : '⚠ sin validar'}</span></div>
                 <button className="regla-x" onClick={() => desconectar(c.id)}>✕</button>
               </div>
