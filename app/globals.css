@@ -221,6 +221,10 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .cotiz-result span{display:block;color:var(--sub);font-size:.76rem}
 .cotiz-result b{display:block;font-size:1.9rem;color:var(--lime);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:.1rem 0}
 .cotiz-result small{color:var(--sub);font-size:.74rem}
+.cotiz-ingreso{display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;margin-top:.5rem;flex-wrap:wrap}
+.cotiz-ingreso span{color:var(--sub);font-size:.82rem}
+.cotiz-ingreso b{font-size:1.05rem;font-variant-numeric:tabular-nums;margin-left:auto}
+.cotiz-ingreso small{flex-basis:100%;color:var(--dim);font-size:.72rem}
 .cotiz-actions{display:flex;flex-direction:column;gap:.5rem;margin-top:1rem}
 .cotiz-mini{background:var(--mag-soft);border:1px solid var(--mag-line);color:var(--mag);font-weight:700;font-size:.72rem;padding:.28rem .6rem;border-radius:7px;cursor:pointer;white-space:nowrap}
 .cotiz-mini:hover{background:var(--mag);color:#fff}
@@ -249,6 +253,13 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .ud-grid>div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.55rem .6rem}
 .ud-grid span{display:block;color:var(--sub);font-size:.7rem}
 .ud-grid b{font-size:.95rem;font-variant-numeric:tabular-nums}
+.ud-grid .ud-total{background:var(--lime-soft);border-color:rgba(198,255,58,.3)}
+.ud-grid .ud-total b{color:var(--lime)}
+.ud-elev{margin-top:.5rem;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:.1rem .6rem}
+.ud-elev>summary{cursor:pointer;font-size:.8rem;color:var(--sub);padding:.4rem 0;list-style:none}
+.ud-elev>summary::-webkit-details-marker{display:none}
+.ud-elev>summary::before{content:'ⓘ ';color:var(--mag)}
+.ud-elev p{font-size:.82rem;color:var(--sub);line-height:1.4;padding:0 0 .5rem}
 .ud-img{width:100%;border-radius:12px;border:1px solid var(--line);display:block}
 .ud-ph{background:var(--panel2);border:1px dashed var(--line);border-radius:12px;padding:2rem 1rem;text-align:center;color:var(--dim);font-size:.85rem}
 .cotiz-block{border-top:1px solid var(--line);padding:1rem 0}
@@ -306,6 +317,19 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .rc-chips{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.6rem}
 .rc-consent{display:flex;gap:.6rem;align-items:flex-start;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:.75rem .85rem;margin:.6rem 0 1rem;font-size:.82rem;color:var(--sub);cursor:pointer;line-height:1.45}
 .rc-consent input{margin-top:.15rem;width:16px;height:16px;flex:none;accent-color:var(--mag)}
+/* Registro: presupuesto exacto + ayudas */
+.rc-money{display:flex;align-items:center;gap:.4rem;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:.2rem .7rem}
+.rc-money:focus-within{border-color:var(--mag);box-shadow:0 0 0 3px var(--mag-soft)}
+.rc-money-sign{color:var(--lime);font-weight:800;font-size:1.25rem}
+.rc-money input{flex:1;background:none;border:none;color:var(--ink);font-size:1.4rem;font-weight:800;font-variant-numeric:tabular-nums;padding:.45rem 0;letter-spacing:.01em}
+.rc-money input:focus{outline:none}
+.rc-money-cur{color:var(--dim);font-size:.75rem;font-weight:700}
+.rc-quick{margin-top:.55rem}
+.rc-quick .chip{font-variant-numeric:tabular-nums}
+.chip.chip-clear{color:var(--dim);border-style:dashed}
+.rc-hint{font-size:.78rem;color:var(--sub);line-height:1.45;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--mag);border-radius:8px;padding:.5rem .7rem;margin:.1rem 0 .4rem}
+.rc-opt{font-size:.66rem;font-weight:700;color:var(--dim);text-transform:none;letter-spacing:0;background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.08rem .5rem;margin-left:.4rem;vertical-align:middle}
+.crit-nota{align-self:center;font-size:.72rem;color:var(--dim);font-style:italic;margin-left:.2rem}
 /* ===== Apartados y comisiones ===== */
 .mtile.com{border-color:rgba(198,255,58,.25);background:linear-gradient(180deg,var(--lime-soft),transparent)}
 .mtile.com b{color:var(--lime)}
@@ -593,6 +617,55 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .cred-card{margin-bottom:.9rem;background:linear-gradient(135deg,var(--lime-soft),rgba(198,255,58,.02));border-color:rgba(198,255,58,.28)}
 .cred-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.4rem}
 .cred-ok{font-size:.83rem;color:var(--lime);background:rgba(198,255,58,.08);border:1px solid rgba(198,255,58,.22);border-radius:9px;padding:.4rem .6rem}
+/* El desarrollo: secciones en acordeón */
+.devsecs{display:flex;flex-direction:column;gap:.6rem;margin-top:.4rem}
+.devsec{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.devsec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:.6rem;padding:.95rem 1.1rem;font-weight:800;font-size:.98rem;color:var(--ink);user-select:none}
+.devsec>summary::-webkit-details-marker{display:none}
+.devsec-ic{font-size:1.05rem;flex:none}
+.devsec-caret{margin-left:auto;color:var(--dim);transition:transform .18s;font-size:1.1rem}
+.devsec[open]>summary .devsec-caret{transform:rotate(180deg)}
+.devsec[open]>summary{border-bottom:1px solid var(--line)}
+.devsec-body{padding:.9rem 1.1rem 1.1rem}
+.devsec-maps{display:inline-flex;margin-top:.85rem}
+.devsec-cta{margin-top:.85rem}
+.dchips{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.7rem}
+.dchips span{font-size:.82rem;font-weight:600;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.32rem .7rem}
+/* Material descargable */
+.dl-row{display:flex;flex-wrap:wrap;gap:.5rem;margin:.2rem 0 1rem}
+.dl-btn{font-size:.85rem;font-weight:700;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:.5rem .8rem;text-decoration:none}
+.dl-btn:hover{border-color:var(--mag-line)}
+@media(max-width:640px){.devsec>summary{padding:.85rem .9rem;font-size:.94rem}.devsec-body{padding:.8rem .9rem 1rem}}
+/* Cargar fichas (super-admin) */
+.upload-box{display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center;background:var(--panel2);border:1.5px dashed var(--line);border-radius:14px;padding:1.6rem 1rem;cursor:pointer}
+.upload-box:hover{border-color:var(--mag-line)}
+.upload-ic{font-size:1.9rem}
+.upload-hint{color:var(--dim);font-size:.78rem;max-width:420px}
+.imp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.6rem;margin-bottom:1rem}
+.imp-stats>div{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:.7rem .8rem}
+.imp-stats span{display:block;color:var(--sub);font-size:.72rem}
+.imp-stats b{font-size:1.4rem;font-variant-numeric:tabular-nums}
+.imp-stats .lime{background:var(--lime-soft);border-color:rgba(198,255,58,.3)}.imp-stats .lime b{color:var(--lime)}
+.imp-stats .amber{background:rgba(255,190,60,.1);border-color:rgba(255,190,60,.3)}.imp-stats .amber b{color:#ffcf7a}
+.imp-stats .off{opacity:.75}
+.imp-list{display:flex;flex-direction:column;gap:.4rem}
+.imp-row{background:var(--panel2);border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.imp-row.fuera{opacity:.6}
+.imp-head{width:100%;display:flex;align-items:center;justify-content:space-between;gap:.6rem;background:none;border:none;color:var(--ink);cursor:pointer;padding:.7rem .85rem;text-align:left;font:inherit}
+.imp-sku{font-size:.68rem;color:var(--sub);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:.1rem .4rem;margin-left:.3rem}
+.imp-badge{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:var(--sub);white-space:nowrap}
+.imp-badge em{font-style:normal;font-weight:700;border-radius:99px;padding:.15rem .5rem}
+.imp-badge em.n{color:var(--lime);background:var(--lime-soft)}
+.imp-badge em.c{color:#ffcf7a;background:rgba(255,190,60,.12)}
+.imp-badge.off{color:#ff8fa3}
+.imp-detalle{border-top:1px solid var(--line);padding:.6rem .85rem;display:flex;flex-direction:column;gap:.35rem}
+.imp-campo{display:flex;justify-content:space-between;gap:1rem;font-size:.82rem;flex-wrap:wrap}
+.imp-k{color:var(--sub)}
+.imp-nuevo{color:var(--lime);font-weight:600;text-align:right}
+.imp-cambio{font-weight:600;text-align:right}
+.imp-cambio s{color:var(--dim);font-weight:400}
+.imp-ia{background:linear-gradient(180deg,var(--mag-soft),transparent);border-color:var(--mag-line)}
+.imp-soon{font-size:.66rem;font-weight:700;color:var(--mag);background:var(--mag-soft);border:1px solid var(--mag-line);border-radius:99px;padding:.1rem .5rem;vertical-align:middle;margin-left:.4rem}
 
 /* Modelo: tarjeta con el código en chico y sin repetir la misma foto */
 .mcard-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.15rem}

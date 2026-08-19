@@ -6,49 +6,59 @@ import { supabase } from '../lib/supabase';
 // - Broker normal: usa crear_lead (dedup anti-fraude + auditoría).
 // - Super-admin: elige la inmobiliaria en el mismo formulario (sin "Ver como")
 //   e inserta directo. Si captura fecha/hora, además crea la cita.
+// Rediseño mobile-first: todos los datos del cliente, presupuesto EXACTO,
+// formas de pago reales, recámaras/baños/estacionamientos y exteriores.
 
 const FORMAS = [
-  'Por definir', 'Contado', 'Crédito hipotecario bancario', 'Crédito Infonavit',
-  'Crédito FOVISSSTE', 'Cofinavit', 'Mixto (crédito + recursos propios)',
+  ['Por definir', 'Por definir', ''],
+  ['Recursos propios', 'Recursos propios', 'Pago de contado o con ahorro, sin crédito.'],
+  ['Crédito bancario', 'Crédito bancario', 'Hipoteca con banco (BBVA, Santander, HSBC, Scotia…). Tasa fija, plazo hasta 20 años.'],
+  ['Crédito Infonavit', 'Crédito Infonavit', 'Productos comunes: Crédito Tradicional, Cofinavit (Infonavit + banco), Unamos Créditos y Apoyo Infonavit.'],
+  ['FOVISSSTE', 'FOVISSSTE', 'Para trabajadores del Estado. Productos: Tradicional, FOVISSSTE-Banco (cofinanciado), Respalda-2 y Pensionados.'],
+  ['Mixto', 'Mixto', 'Combina crédito (bancario/Infonavit/FOVISSSTE) con recursos propios para el enganche.'],
 ];
 const URGENCIAS = [
-  ['', 'Sin definir'], ['Inmediata', 'Inmediata (menos de 1 mes)'],
-  ['1-3 meses', '1 a 3 meses'], ['3-6 meses', '3 a 6 meses'], ['Explorando', 'Solo explorando'],
+  ['', 'Sin definir'], ['Inmediata', 'Menos de 1 mes'],
+  ['1-3 meses', '1 a 3 meses'], ['3-6 meses', '3 a 6 meses'], ['Explorando', 'Explorando'],
 ];
-const PRESUP = [
-  ['', 'Sin definir'], ['2500000', 'Hasta $2.5M'], ['3500000', 'Hasta $3.5M'],
-  ['4500000', 'Hasta $4.5M'], ['6000000', 'Hasta $6M'], ['9000000', 'Hasta $9M'], ['9000001', 'Más de $9M'],
-];
-const RECS = [['', '—'], ['1', '1'], ['2', '2'], ['3', '3+']];
+const REC_OPTS = [['', '—'], ['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3+']];
+const BANO_OPTS = [['', '—'], ['1', '1'], ['2', '2'], ['3', '3+']];
+const ESTAC_OPTS = [['', '—'], ['0', '0'], ['1', '1'], ['2', '2'], ['3', '3+']];
+const PRESUP_QUICK = [2500000, 3000000, 3500000, 4500000, 6000000];
+
+const soloDigitos = s => (s || '').replace(/[^0-9]/g, '');
+const fmtMiles = s => { const d = soloDigitos(s); return d ? Number(d).toLocaleString('es-MX') : ''; };
+const MXNc = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 
 export default function RegistroCliente({ me, dev = null, unidad = null, onClose, onDone }) {
   const isSuper = me?.rol === 'super_admin';
   const [devs, setDevs] = useState(dev ? [dev] : null);
   const [orgs, setOrgs] = useState([]);
   const [people, setPeople] = useState([]);
-  const [showCita, setShowCita] = useState(!!unidad ? false : false);
   const [sending, setSending] = useState(false);
   const [res, setRes] = useState(null);
   const [dup, setDup] = useState(null);
 
-  async function checkDup() {
-    const tel = f.telefono.trim(), mail = f.email.trim();
-    if (tel.replace(/[^0-9]/g, '').length < 10 && !mail) { setDup(null); return; }
-    const { data } = await supabase.rpc('cliente_registrado', { p_telefono: tel || null, p_email: mail || null });
-    const hit = Array.isArray(data) ? data[0] : data;
-    setDup(hit || null);
-  }
-
   const [f, setF] = useState({
     nombre: '', telefono: '', email: '',
     dev_sku: dev ? dev.sku : '', unidad_sku: unidad ? unidad.sku : '',
-    rec_interes: unidad ? String(unidad.rec ?? '') : '', presupuesto: '', forma_pago: 'Por definir',
+    rec_interes: unidad ? String(unidad.rec ?? '') : '', banos_interes: '', estac_interes: '',
+    balcon: false, terraza: false, roof: false,
+    presupuesto: '', forma_pago: 'Por definir',
     urgencia: '', zona_interes: '', mensaje: '',
     org_id: '', asesor_id: '',
     cita_fecha: '', cita_hora: '', cita_modalidad: 'Presencial',
     consent: false,
   });
   const set = (k, v) => setF(s => ({ ...s, [k]: v }));
+
+  async function checkDup() {
+    const tel = f.telefono.trim(), mail = f.email.trim();
+    if (soloDigitos(tel).length < 10 && !mail) { setDup(null); return; }
+    const { data } = await supabase.rpc('cliente_registrado', { p_telefono: tel || null, p_email: mail || null });
+    const hit = Array.isArray(data) ? data[0] : data;
+    setDup(hit || null);
+  }
 
   useEffect(() => {
     (async () => {
@@ -64,7 +74,7 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
       if (isSuper) {
         const o = out[i]?.data || []; setOrgs(o); i++;
         setPeople(out[i]?.data || []);
-        if (o.length === 1) set('org_id', o[0].id);   // una sola inmobiliaria => preseleccionada
+        if (o.length === 1) set('org_id', o[0].id);
       }
     })();
   }, []);
@@ -79,6 +89,17 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
     [people, f.org_id]
   );
 
+  const presupNum = useMemo(() => { const d = soloDigitos(f.presupuesto); return d ? Number(d) : null; }, [f.presupuesto]);
+  const formaInfo = FORMAS.find(x => x[0] === f.forma_pago)?.[2] || '';
+
+  const prefs = () => ({
+    banos: f.banos_interes || null,
+    estac: f.estac_interes || null,
+    presupuesto_max: presupNum || null,
+    presupuesto_min: null,
+    balcon: !!f.balcon, terraza: !!f.terraza, roof: !!f.roof,
+  });
+
   async function crearCita(lead_id, org_id, asesor_id) {
     if (!f.cita_fecha) return;
     await supabase.from('citas').insert({
@@ -92,8 +113,10 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
   async function submit(e) {
     e.preventDefault();
     if (!f.nombre.trim() || !f.telefono.trim()) { setRes({ t: 'err', m: 'Nombre y teléfono son obligatorios.' }); return; }
+    if (soloDigitos(f.telefono).length < 10) { setRes({ t: 'err', m: 'El teléfono debe tener 10 dígitos.' }); return; }
     if (!f.consent) { setRes({ t: 'err', m: 'Marca la casilla de autorización de contacto para poder registrar al cliente.' }); return; }
     const rec = f.rec_interes ? parseInt(f.rec_interes, 10) : null;
+    const p = prefs();
 
     setSending(true);
     try {
@@ -103,8 +126,11 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
           org_id: f.org_id, asesor_id: f.asesor_id || null,
           nombre: f.nombre.trim(), email: f.email.trim() || null, telefono: f.telefono.trim(),
           dev_sku: f.dev_sku || null, unidad_sku: f.unidad_sku || null, mensaje: f.mensaje.trim() || null,
-          presupuesto: f.presupuesto || null, etapa: 'Nuevo', fuente: 'Portal', estatus: 'ok',
+          presupuesto: presupNum ? String(presupNum) : null, etapa: 'Nuevo', fuente: 'Portal', estatus: 'ok',
           forma_pago: f.forma_pago, urgencia: f.urgencia || null, rec_interes: rec,
+          banos_interes: p.banos, estac_interes: p.estac,
+          presupuesto_min: p.presupuesto_min, presupuesto_max: p.presupuesto_max,
+          quiere_balcon: p.balcon, quiere_terraza: p.terraza, quiere_roof: p.roof, preferencias: p,
           zona_interes: f.zona_interes || null, consentimiento: true,
         }).select('id').single();
         if (error) { setRes({ t: 'err', m: error.message }); setSending(false); return; }
@@ -115,9 +141,9 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
         const { data, error } = await supabase.rpc('crear_lead', {
           p_nombre: f.nombre.trim(), p_email: f.email.trim() || null, p_telefono: f.telefono.trim(),
           p_dev_sku: f.dev_sku || null, p_unidad_sku: f.unidad_sku || null, p_mensaje: f.mensaje.trim() || null,
-          p_presupuesto: f.presupuesto || null, p_fuente: 'Portal',
+          p_presupuesto: presupNum ? String(presupNum) : null, p_fuente: 'Portal',
           p_forma_pago: f.forma_pago, p_urgencia: f.urgencia || null, p_rec_interes: rec,
-          p_zona_interes: f.zona_interes || null, p_consentimiento: true,
+          p_zona_interes: f.zona_interes || null, p_consentimiento: true, p_prefs: p,
         });
         if (error) {
           const m = error.message.includes('organiz') ? 'Tu usuario no tiene inmobiliaria asignada; pide a tu director que te agregue.' : error.message;
@@ -136,7 +162,8 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
     setRes({ t: 'ok', m: msg });
     setF(s => ({
       ...s, nombre: '', telefono: '', email: '', mensaje: '', presupuesto: '',
-      forma_pago: 'Por definir', urgencia: '', rec_interes: '', zona_interes: '',
+      forma_pago: 'Por definir', urgencia: '', rec_interes: '', banos_interes: '', estac_interes: '',
+      balcon: false, terraza: false, roof: false, zona_interes: '',
       cita_fecha: '', cita_hora: '', consent: false,
     }));
     if (onDone) onDone();
@@ -192,18 +219,44 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
 
           {/* Contacto */}
           <section className="rc-sec">
-            <h4>Contacto</h4>
+            <h4>Datos del cliente</h4>
             <div className="dw-field"><label>Nombre completo *</label>
-              <input value={f.nombre} onChange={e => set('nombre', e.target.value)} placeholder="Nombre y apellidos" /></div>
+              <input value={f.nombre} onChange={e => set('nombre', e.target.value)} placeholder="Nombre y apellidos" autoComplete="name" /></div>
             <div className="dw-row">
               <div className="dw-field"><label>Teléfono / WhatsApp *</label>
-                <input value={f.telefono} onChange={e => set('telefono', e.target.value)} onBlur={checkDup} placeholder="55 1234 5678" /></div>
+                <input type="tel" inputMode="numeric" value={f.telefono} onChange={e => set('telefono', e.target.value)} onBlur={checkDup} placeholder="55 1234 5678" autoComplete="tel" /></div>
               <div className="dw-field"><label>Correo</label>
-                <input type="email" value={f.email} onChange={e => set('email', e.target.value)} onBlur={checkDup} placeholder="cliente@correo.com" /></div>
+                <input type="email" value={f.email} onChange={e => set('email', e.target.value)} onBlur={checkDup} placeholder="cliente@correo.com" autoComplete="email" /></div>
             </div>
           </section>
 
-          {/* Qué busca */}
+          {/* Presupuesto exacto */}
+          <section className="rc-sec">
+            <h4>Presupuesto del cliente</h4>
+            <div className="dw-field">
+              <label>Presupuesto exacto</label>
+              <div className="rc-money">
+                <span className="rc-money-sign">$</span>
+                <input inputMode="numeric" value={fmtMiles(f.presupuesto)} onChange={e => set('presupuesto', soloDigitos(e.target.value))} placeholder="3,450,000" />
+                <span className="rc-money-cur">MXN</span>
+              </div>
+              <div className="rc-chips rc-quick">
+                {PRESUP_QUICK.map(v => <span key={v} className={'chip' + (presupNum === v ? ' on' : '')} onClick={() => set('presupuesto', String(v))}>{MXNc(v)}</span>)}
+                {presupNum ? <span className="chip chip-clear" onClick={() => set('presupuesto', '')}>Borrar</span> : null}
+              </div>
+            </div>
+          </section>
+
+          {/* Forma de pago */}
+          <section className="rc-sec">
+            <h4>Forma de pago</h4>
+            <div className="rc-chips">
+              {FORMAS.map(([v, l]) => <span key={v} className={'chip' + (f.forma_pago === v ? ' on' : '')} onClick={() => set('forma_pago', v)}>{l}</span>)}
+            </div>
+            {formaInfo && <p className="rc-hint">{formaInfo}</p>}
+          </section>
+
+          {/* Qué busca: configuración */}
           <section className="rc-sec">
             <h4>Qué busca</h4>
             {!dev ? (
@@ -218,61 +271,58 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
             )}
             <div className="dw-field"><label>Recámaras</label>
               <div className="rc-chips">
-                {RECS.map(([v, l]) => <span key={v} className={'chip' + (f.rec_interes === v ? ' on' : '')} onClick={() => set('rec_interes', v)}>{l}</span>)}
+                {REC_OPTS.map(([v, l]) => <span key={v} className={'chip' + (f.rec_interes === v ? ' on' : '')} onClick={() => set('rec_interes', v)}>{l}</span>)}
               </div>
             </div>
             <div className="dw-row">
-              <div className="dw-field"><label>Presupuesto</label>
-                <select value={f.presupuesto} onChange={e => set('presupuesto', e.target.value)}>
-                  {PRESUP.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
+              <div className="dw-field"><label>Baños</label>
+                <div className="rc-chips">
+                  {BANO_OPTS.map(([v, l]) => <span key={v} className={'chip' + (f.banos_interes === v ? ' on' : '')} onClick={() => set('banos_interes', v)}>{l}</span>)}
+                </div>
               </div>
+              <div className="dw-field"><label>Estacionamientos</label>
+                <div className="rc-chips">
+                  {ESTAC_OPTS.map(([v, l]) => <span key={v} className={'chip' + (f.estac_interes === v ? ' on' : '')} onClick={() => set('estac_interes', v)}>{l}</span>)}
+                </div>
+              </div>
+            </div>
+            <div className="dw-field"><label>Exteriores (opcional)</label>
+              <div className="rc-chips">
+                <span className={'chip' + (f.balcon ? ' on' : '')} onClick={() => set('balcon', !f.balcon)}>🌿 Balcón</span>
+                <span className={'chip' + (f.terraza ? ' on' : '')} onClick={() => set('terraza', !f.terraza)}>☀️ Terraza</span>
+                <span className={'chip' + (f.roof ? ' on' : '')} onClick={() => set('roof', !f.roof)}>🏙️ Roof garden privado</span>
+              </div>
+            </div>
+            <div className="dw-row">
               <div className="dw-field"><label>Zona de interés</label>
                 <select value={f.zona_interes} onChange={e => set('zona_interes', e.target.value)}>
                   <option value="">Cualquiera</option>
                   {zonas.map(z => <option key={z}>{z}</option>)}
                 </select>
               </div>
-            </div>
-            <div className="dw-field"><label>Horizonte de compra</label>
-              <div className="rc-chips">
-                {URGENCIAS.map(([v, l]) => <span key={v} className={'chip' + (f.urgencia === v ? ' on' : '')} onClick={() => set('urgencia', v)}>{l}</span>)}
+              <div className="dw-field"><label>Horizonte de compra</label>
+                <select value={f.urgencia} onChange={e => set('urgencia', e.target.value)}>
+                  {URGENCIAS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
               </div>
-            </div>
-          </section>
-
-          {/* Cómo va a pagar */}
-          <section className="rc-sec">
-            <h4>Cómo va a pagar</h4>
-            <div className="dw-field"><label>Forma de pago</label>
-              <select value={f.forma_pago} onChange={e => set('forma_pago', e.target.value)}>
-                {FORMAS.map(x => <option key={x}>{x}</option>)}
-              </select>
             </div>
           </section>
 
           {/* Cita */}
           <section className="rc-sec">
-            <div className="rc-sec-head">
-              <h4>Cita</h4>
-              <button type="button" className="rc-toggle" onClick={() => setShowCita(s => !s)}>
-                {showCita ? 'Quitar' : '+ Agendar'}
-              </button>
+            <h4>Cita <span className="rc-opt">opcional</span></h4>
+            <div className="dw-row">
+              <div className="dw-field"><label>Fecha</label>
+                <input type="date" value={f.cita_fecha} onChange={e => set('cita_fecha', e.target.value)} /></div>
+              <div className="dw-field"><label>Hora</label>
+                <input type="time" value={f.cita_hora} onChange={e => set('cita_hora', e.target.value)} /></div>
             </div>
-            {showCita && (
-              <>
-                <div className="dw-row">
-                  <div className="dw-field"><label>Fecha</label>
-                    <input type="date" value={f.cita_fecha} onChange={e => set('cita_fecha', e.target.value)} /></div>
-                  <div className="dw-field"><label>Hora</label>
-                    <input type="time" value={f.cita_hora} onChange={e => set('cita_hora', e.target.value)} /></div>
-                </div>
-                <div className="dw-field"><label>Modalidad</label>
-                  <select value={f.cita_modalidad} onChange={e => set('cita_modalidad', e.target.value)}>
-                    <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
-                  </select>
-                </div>
-              </>
+            {f.cita_fecha && (
+              <div className="dw-field"><label>Modalidad</label>
+                <select value={f.cita_modalidad} onChange={e => set('cita_modalidad', e.target.value)}>
+                  <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
+                </select>
+              </div>
             )}
           </section>
 

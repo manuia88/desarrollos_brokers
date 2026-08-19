@@ -13,6 +13,7 @@ function agrupar(units) {
       proto, us: us.slice().sort((a, b) => (a.precio || 0) - (b.precio || 0)),
       rec: s.rec, banos: s.banos, n_estac: s.n_estac, m2_hab: s.m2_hab, m2_total: s.m2_total,
       balcon: s.balcon_m2, terraza: s.terraza_m2, roof: s.roof_m2,
+      tipo_estac: s.tipo_estac, bodega: s.bodega_m2,
       desde: Math.min(...us.map(u => u.precio || Infinity)),
       n: us.length,
     };
@@ -34,7 +35,7 @@ export default function ModelosView({ dev, units, medios = [], asesorId, onUnit 
       <div className="mgrid">
         {modelos.map(mm => {
           const img = imgDe(mm.proto);
-          const ext = [mm.balcon > 0 && 'Balcón', mm.terraza > 0 && 'Terraza', mm.roof > 0 && 'Roof garden'].filter(Boolean);
+          const ext = [mm.balcon > 0 && 'Balcón', mm.terraza > 0 && 'Terraza', mm.roof > 0 && 'Roof garden', mm.bodega > 0 && 'Bodega'].filter(Boolean);
           return (
             <article className={'mcard' + (img ? '' : ' nophoto')} key={mm.proto} onClick={() => setSel(mm)}>
               {img && <div className="mcard-img"><img src={img.url} alt={titulo(mm)} loading="lazy" /></div>}
@@ -45,7 +46,7 @@ export default function ModelosView({ dev, units, medios = [], asesorId, onUnit 
                 </div>
                 <div className="mcard-specs">
                   <span>🛁 {mm.banos ?? '—'} baño{mm.banos === 1 ? '' : 's'}</span>
-                  <span>🚗 {mm.n_estac || '—'} estac.</span>
+                  <span>🚗 {mm.n_estac || '—'}{mm.tipo_estac ? ` · ${mm.tipo_estac}` : ' estac.'}</span>
                   <span>📐 {m2(mm.m2_hab)} m²</span>
                 </div>
                 {ext.length > 0 && <div className="mcard-ext">{ext.map(e => <span key={e}>+ {e}</span>)}</div>}

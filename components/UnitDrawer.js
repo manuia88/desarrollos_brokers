@@ -59,24 +59,25 @@ export default function UnitDrawer({ dev, unidad: u, medios = [], asesorId = nul
         </div>
 
         <div className="dw-sec">
-          <h3>Superficies</h3>
+          <h3>Superficies (m²)</h3>
           <div className="ud-grid">
             <div><span>Habitable</span><b>{num(u.m2_hab, ' m²')}</b></div>
-            <div><span>Balcón</span><b>{num(u.balcon_m2, ' m²')}</b></div>
-            <div><span>Terraza</span><b>{num(u.terraza_m2, ' m²')}</b></div>
-            <div><span>Roof garden</span><b>{num(u.roof_m2, ' m²')}</b></div>
-            <div><span>Bodega</span><b>{num(u.bodega_m2, ' m²')}</b></div>
-            <div><span>Total</span><b>{num(u.m2_total, ' m²')}</b></div>
+            {u.balcon_m2 > 0 && <div><span>Balcón</span><b>{num(u.balcon_m2, ' m²')}</b></div>}
+            {u.terraza_m2 > 0 && <div><span>Terraza</span><b>{num(u.terraza_m2, ' m²')}</b></div>}
+            {u.roof_m2 > 0 && <div><span>Roof garden priv.</span><b>{num(u.roof_m2, ' m²')}</b></div>}
+            {u.bodega_m2 > 0 && <div><span>Bodega</span><b>{num(u.bodega_m2, ' m²')}</b></div>}
+            {u.m2_total > 0 && <div className="ud-total"><span>Total</span><b>{num(u.m2_total, ' m²')}</b></div>}
           </div>
         </div>
 
         <div className="dw-sec">
-          <h3>Distribución</h3>
+          <h3>Distribución y estacionamiento</h3>
           <div className="dw-kv"><span>Recámaras</span><b>{u.rec === 0 ? 'Loft' : (u.rec ?? '—')}</b></div>
           <div className="dw-kv"><span>Baños</span><b>{u.banos ?? '—'}</b></div>
-          <div className="dw-kv"><span>Estacionamientos</span><b>{u.n_estac ?? '—'}</b></div>
-          <div className="dw-kv"><span>Tipo de estacionamiento</span><b>{u.tipo_estac || '—'}{u.tam_estac ? ' · ' + u.tam_estac : ''}</b></div>
-          {u.elevautos && <div className="dw-kv"><span>Elevautos</span><b>{u.elevautos}</b></div>}
+          <div className="dw-kv"><span>Estacionamiento</span><b>{u.n_estac ? `${u.n_estac} cajón${u.n_estac === 1 ? '' : 'es'}` : '—'}{u.tipo_estac ? ` · ${u.tipo_estac}` : ''}</b></div>
+          {u.tam_estac && <div className="dw-kv"><span>Tamaño de cajón</span><b>{u.tam_estac}</b></div>}
+          {u.bodega_m2 > 0 && <div className="dw-kv"><span>Bodega</span><b>{num(u.bodega_m2, ' m²')}{u.sku_bodega ? ` · ${u.sku_bodega}` : ''}</b></div>}
+          {u.elevautos && <details className="ud-elev"><summary>Detalle de elevautos</summary><p>{u.elevautos}</p></details>}
           {u.descripcion && <p className="fnote" style={{ marginTop: '.6rem' }}>{u.descripcion}</p>}
         </div>
 

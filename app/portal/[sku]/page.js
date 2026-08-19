@@ -42,11 +42,6 @@ function amenIcon(a) {
   return '✨';
 }
 
-// Orden de la ficha técnica: lo que decide una compra, primero.
-const ORDEN_FICHA = ['Inventario y visita', 'Precio', 'Esquema de pago', 'Créditos aceptados', 'Unidad', 'Espacios y acabados', 'Amenidades y seguridad', 'Equipamiento', 'Costos recurrentes', 'Legal', 'Servicios', 'Construcción y calidad', 'Obra y edificio', 'Extras a la venta', 'Identificación y ubicación', 'Comercialización', 'Etapa', 'Documentación y ligas'];
-
-const FICHA_SCHEMA = [["Identificación y ubicación",["Tipo","Torre(s)","Dirección","Desarrollador","Colonia","Alcaldía / Municipio","Estado"]],["Etapa",["Preventa / En obra / Inmediata","Fecha de entrega"]],["Inventario y visita",["Unidades totales","Unidades disponibles","Unidades vendidas","% vendido","Niveles del edificio","Departamentos por piso","Caseta de venta","Depa muestra","Estacionamiento para clientes"]],["Precio",["Precio a partir de","Precio (mín)","Precio (máx)","Moneda","Precio por m²"]],["Esquema de pago",["Apartado","Enganche","Mensualidades","Meses para entrega","Mensualidad estimada","Escrituración","Descuentos disponibles"]],["Unidad",["M² habitables (mín)","M² habitables (máx)","M² terreno","Altura piso a techo","Recámaras (mín)","Recámaras (máx)","Baños (mín)","Baños (máx)","Estacionamientos (mín)","Estacionamientos (máx)","Tipo (dependiente/independiente)"]],["Espacios y acabados",["Balcón","Terraza","Roof garden privado","Bodega","Cuarto de servicio"]],["Amenidades y seguridad",["Lista de amenidades","Seguridad 24h","Acceso controlado","Elevadores"]],["Equipamiento",["Cocina integral","Barra de cocina","Canceles de baño","Clósets / vestidor","Cuarto de lavado"]],["Extras a la venta",["Estacionamiento a la venta","Precio por cajón","Bodega a la venta","Precio de bodega"]],["Comercialización",["Comisión al broker","Contacto del desarrollador"]],["Créditos aceptados",["Crédito Tradicional Infonavit","Infonavit Total","Cofinavit","Cofinavit Ingresos Adicionales","Unamos Créditos Infonavit","Crédito Conyugal Infonavit","Cuenta Infonavit + Crédito Bancario","Apoyo Infonavit","Crédito Tradicional FOVISSSTE","FOVISSSTE para Todos","Conyugal FOVISSSTE-Infonavit","Individual FOVISSSTE-Infonavit","Pensionados FOVISSSTE","ION","HIR","Yave","Bancario","IMSS","Banjército","PEMEX"]],["Costos recurrentes",["Mantenimiento mensual","Mantenimiento anticipado","Cuota de equipamiento","Predial estimado"]],["Legal",["Gastos de escrituración estimados","Permite Airbnb","Permite mascotas","Régimen de condominio","Escrituras listas"]],["Obra y edificio",["% avance de obra","Fecha de inicio de ventas","Niveles de estacionamiento","Cajones de bicicleta"]],["Servicios",["Agua (suministro)","Cisterna / capacidad","Agua caliente","Gas (tipo)","Gas (medidor)","Luz (CFE)","Planta de emergencia","Paneles solares","Drenaje","Internet / fibra"]],["Construcción y calidad",["Tipo de construcción","Sistema constructivo","Suelo / cimentación","Zona sísmica"]],["Documentación y ligas",["Memoria de acabados","Liga Drive","Liga EasyBroker","Liga brochure","Recorrido 360 / video"]]];
-
 const EST = { disponible:['Disponible','ust-ok'], apartado:['Apartado','ust-ap'], reservado:['Reservado','ust-re'], vendido:['Vendido','ust-vd'] };
 
 export default function Detalle() {
@@ -55,11 +50,10 @@ export default function Detalle() {
   const [me, setMe] = useState(null);
   const [d, setD] = useState(undefined);
   const [units, setUnits] = useState([]);
-  const [tab, setTab] = useState('resumen');
+  const [tab, setTab] = useState('desarrollo');
   const [vistaUni, setVistaUni] = useState('modelo'); // 'modelo' | 'unidad'
   const [fRec, setFRec] = useState('');               // '', '0'(loft), '1','2','3'(3+)
   const [fExt, setFExt] = useState(false);            // con balcón/terraza/roof
-  const [verVacios, setVerVacios] = useState(false);
   const [cotizar, setCotizar] = useState(null);   // null | 'dev' | unidad
   const [unitSel, setUnitSel] = useState(null);   // unidad | null
   const [showReg, setShowReg] = useState(false);
@@ -134,13 +128,11 @@ export default function Detalle() {
   const m = meses(d.fecha_entrega);
   const eng = d.esq_enganche ? d.precio_min*d.esq_enganche : null;
   const amen = (d.amenidades||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const creds = [['ION',d.credito_ion],['HIR',d.credito_hir],['Yave',d.credito_yave],['Bancario',d.credito_bancario]];
   const waNum = d.whatsapp ? 'https://'+d.whatsapp.replace('https://','').replace('http://','') : null;
   const fichaMap = d.ficha || {};
   const totales = numFicha(fichaMap['Unidades totales']) || d.unidades_totales || null;
   const vendidas = numFicha(fichaMap['Unidades vendidas']);
   const pctVendido = (totales && vendidas != null) ? Math.round(vendidas / totales * 100) : numFicha(fichaMap['% vendido']);
-  const creditosOK = FICHA_SCHEMA.find(s => s[0] === 'Créditos aceptados')[1].filter(c => { const v = fichaMap[c]; return v != null && /s[íi]|1|x|acept/i.test(String(v)); });
 
   return (
     <>
@@ -175,13 +167,113 @@ export default function Detalle() {
 
         {/* TABS */}
         <div className="ftabs">
-          {[['resumen','Resumen'],['unidades',`Unidades · ${units.length}`],['ficha','Ficha técnica']].map(([k,l])=>
+          {[['desarrollo','El desarrollo'],['unidades',`Departamentos · ${units.length}`]].map(([k,l])=>
             <button key={k} className={'ftab'+(tab===k?' on':'')} onClick={()=>setTab(k)}>{l}</button>)}
         </div>
 
-        {/* ── RESUMEN ── */}
-        {tab==='resumen' && <>
-          {/* Highlights que venden */}
+        {/* ── EL DESARROLLO (Resumen + Ficha técnica fusionados, por secciones en orden de importancia) ── */}
+        {tab==='desarrollo' && (() => {
+          const F = fichaMap;
+          const gv = k => { const v = F[k]; return (v==null||v==='') ? null : String(v); };
+          const si = v => v!=null && /^\s*s[íi]\b/i.test(String(v).trim());
+          const rng = (a,b,suf='') => { const A=(a==null||a===''), B=(b==null||b===''); if(A&&B) return null; if(B||String(a)===String(b)) return `${a}${suf}`; return `${a} – ${b}${suf}`; };
+          const dirTxt = gv('Dirección') || d.direccion;
+          const mapsQ = encodeURIComponent([dirTxt, d.colonia, d.alcaldia, d.estado].filter(Boolean).join(', '));
+          const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + mapsQ;
+          const docs = medios.filter(x => !IMG_TIPOS.includes(x.tipo));
+
+          const exteriores = [['Balcón','🌿 Balcón'],['Terraza','☀️ Terraza'],['Roof garden privado','🏙️ Roof garden privado'],['Bodega','📦 Bodega'],['Cuarto de servicio','🧹 Cuarto de servicio']].filter(([k])=>si(F[k])).map(([,l])=>l);
+          const equipo = [['Cocina integral','🍳 Cocina integral'],['Barra de cocina','Barra de cocina'],['Canceles de baño','Canceles de baño'],['Clósets / vestidor','Clósets / vestidor'],['Cuarto de lavado','🧺 Cuarto de lavado']].filter(([k])=>si(F[k])).map(([,l])=>l);
+
+          // Créditos: lista corta (Infonavit/FOVISSSTE comunes + Bancario, ION, HIR Casa)
+          const CRED = [
+            ['Infonavit', ['Crédito Tradicional Infonavit','Infonavit Total','Cofinavit','Unamos Créditos Infonavit','Apoyo Infonavit','Infonavit']],
+            ['FOVISSSTE', ['Crédito Tradicional FOVISSSTE','FOVISSSTE para Todos','Pensionados FOVISSSTE','FOVISSSTE']],
+            ['Bancario', ['Bancario']], ['ION', ['ION']], ['HIR Casa', ['HIR']],
+          ];
+          const credAcept = CRED.filter(([label,keys]) => keys.some(k=>si(F[k]))
+            || (label==='ION'&&si(d.credito_ion)) || (label==='HIR Casa'&&si(d.credito_hir)) || (label==='Bancario'&&si(d.credito_bancario))).map(x=>x[0]);
+
+          const S = [
+            { t:'Precio y pago', icon:'💰', rows:[
+              ['Precio', d.precio_min ? (d.precio_min===d.precio_max ? MXN(d.precio_min) : `${MXN(d.precio_min)} – ${MXN(d.precio_max)}`) : gv('Precio a partir de')],
+              ['Precio por m²', gv('Precio por m²')],
+              ['Apartado', d.apartado ? MXN(d.apartado) : gv('Apartado')],
+              ['Enganche', d.esq_enganche ? `${Math.round(d.esq_enganche*100)}%${eng?` · ${MXN(eng)} sobre precio desde`:''}` : gv('Enganche')],
+              ['Mensualidades en obra', d.esq_mensualidades ? `${Math.round(d.esq_mensualidades*100)}%` : gv('Mensualidades')],
+              ['Contra escritura', d.esq_escritura ? `${Math.round(d.esq_escritura*100)}%` : gv('Escrituración')],
+              ['Comisión al broker', d.comision_broker ? `${Math.round(d.comision_broker*100)}%` : gv('Comisión al broker')],
+              ['Descuentos', si(F['Descuentos disponibles']) ? 'Sí' : null],
+            ], cta:true },
+            { t:'Ubicación', icon:'📍', maps:true, rows:[
+              ['Dirección', dirTxt],
+              ['Colonia', d.colonia || gv('Colonia')],
+              ['Alcaldía / Municipio', d.alcaldia || gv('Alcaldía / Municipio')],
+              ['Estado', d.estado || gv('Estado')],
+              ['Torres', gv('Torre(s)') || d.torres],
+            ]},
+            { t:'Qué incluye la unidad', icon:'🏠', chips: exteriores.concat(equipo), rows:[
+              ['Recámaras', rng(d.rec_min===0?'Loft':d.rec_min, d.rec_min===d.rec_max?'':d.rec_max)],
+              ['Baños', rng(d.banos_min, d.banos_min===d.banos_max?'':d.banos_max)],
+              ['Estacionamientos', rng(d.estac_min, d.estac_min===d.estac_max?'':d.estac_max)],
+              ['m² habitables', d.m2_min!=null ? rng(Math.round(d.m2_min), Math.round(d.m2_min)===Math.round(d.m2_max)?'':Math.round(d.m2_max),' m²') : null],
+              ['Tipo de unidad', gv('Tipo (dependiente/independiente)')],
+              ['Altura piso a techo', gv('Altura piso a techo')],
+            ]},
+            { t:'Amenidades y seguridad', icon:'✨', amen: amen, rows:[
+              ['Seguridad 24h', si(F['Seguridad 24h'])?'Sí':null],
+              ['Acceso controlado', si(F['Acceso controlado'])?'Sí':null],
+              ['Elevadores', gv('Elevadores')],
+            ]},
+            { t:'Disponibilidad y visita', icon:'📊', rows:[
+              ['Unidades totales', totales ? String(totales) : null],
+              ['Disponibles hoy', String(units.length)],
+              ['Vendidas', vendidas!=null ? String(vendidas) : null],
+              ['% vendido', pctVendido!=null ? pctVendido+'%' : null],
+              ['Niveles del edificio', gv('Niveles del edificio')],
+              ['Departamentos por piso', gv('Departamentos por piso')],
+              ['Caseta de venta', si(F['Caseta de venta'])?'Sí':null],
+              ['Depa muestra', si(F['Depa muestra'])?'Sí':null],
+              ['Estacionamiento para clientes', si(F['Estacionamiento para clientes'])?'Sí':null],
+            ]},
+            { t:'Entrega y obra', icon:'🏗️', rows:[
+              ['Etapa', d.etapa || gv('Preventa / En obra / Inmediata')],
+              ['Fecha de entrega', d.fecha_entrega ? new Date(d.fecha_entrega+'T12:00').toLocaleDateString('es-MX',{month:'long',year:'numeric'}) : gv('Fecha de entrega')],
+              ['Meses para entrega', m!=null ? String(m) : gv('Meses para entrega')],
+              ['% avance de obra', gv('% avance de obra')],
+              ['Inicio de ventas', gv('Fecha de inicio de ventas')],
+            ]},
+            { t:'Costos recurrentes y legal', icon:'📄', rows:[
+              ['Mantenimiento mensual', gv('Mantenimiento mensual')],
+              ['Predial estimado', gv('Predial estimado')],
+              ['Gastos de escrituración', gv('Gastos de escrituración estimados')],
+              ['Permite Airbnb', si(F['Permite Airbnb'])?'Sí':(F['Permite Airbnb']!=null?'No':null)],
+              ['Permite mascotas', si(F['Permite mascotas'])?'Sí':(F['Permite mascotas']!=null?'No':null)],
+              ['Régimen de condominio', gv('Régimen de condominio')],
+              ['Escrituras listas', si(F['Escrituras listas'])?'Sí':null],
+            ]},
+            { t:'Servicios e instalaciones', icon:'🔌', rows:[
+              ['Agua', gv('Agua (suministro)')],
+              ['Agua caliente', gv('Agua caliente')],
+              ['Gas', gv('Gas (tipo)')],
+              ['Luz (CFE)', gv('Luz (CFE)')],
+              ['Planta de emergencia', si(F['Planta de emergencia'])?'Sí':null],
+              ['Paneles solares', si(F['Paneles solares'])?'Sí':null],
+              ['Drenaje', gv('Drenaje')],
+              ['Internet / fibra', gv('Internet / fibra')],
+            ]},
+            { t:'Construcción y calidad', icon:'🧱', rows:[
+              ['Tipo de construcción', gv('Tipo de construcción')],
+              ['Sistema constructivo', gv('Sistema constructivo')],
+              ['Suelo / cimentación', gv('Suelo / cimentación')],
+              ['Zona sísmica', gv('Zona sísmica')],
+            ]},
+          ];
+          const clean = S.map(s=>({ ...s, rows:s.rows.filter(r=>r[1]!=null && r[1]!=='') }))
+                         .filter(s=> s.rows.length>0 || (s.chips&&s.chips.length) || (s.amen&&s.amen.length));
+
+          return (<>
+          {/* Highlights */}
           <div className="hl">
             <div className="hl-main"><span>Precio desde</span><b>{MXN(d.precio_min)}</b><em>hasta {MXN(d.precio_max)}</em></div>
             <div className="hl-tile"><span>Entrega</span><b>{d.etapa==='Entrega inmediata'?'Inmediata':(m!=null?`${m} meses`:'Preventa')}</b></div>
@@ -208,33 +300,45 @@ export default function Detalle() {
             <div className="gal-empty">Aún no hay fotos ni renders. Usa <b>🖼️ Gestionar medios</b> arriba para subir portada, renders, fotos y planos.</div>
           )}
 
-          {modelosResumen.length>0 && <div className="sec"><h2>Modelos disponibles</h2>
-            <div className="mstrip">{modelosResumen.map(mm=>(
-              <button className="mschip" key={mm.p} onClick={()=>{setTab('unidades');setVistaUni('modelo');}}>
-                <b>{mm.p}</b>
-                <span>{mm.rec===0?'Loft':mm.rec} rec · {m2(mm.m2h)} m²</span>
-                <em>desde {MXN(mm.desde)} · {mm.n} disp.</em>
-              </button>))}</div>
-          </div>}
+          {docs.length>0 && (
+            <div className="dl-row">{docs.map(x=><a key={x.id} className="dl-btn" href={x.url} target="_blank" rel="noopener">⬇ {x.titulo||x.tipo||'Material'}</a>)}</div>
+          )}
 
-          <div className="sec"><h2>Esquema de pago</h2>
-            <div className="esq">
-              <div><span>Apartado</span><b>{MXN(d.apartado)}</b></div>
-              <div><span>Enganche</span><b>{Math.round((d.esq_enganche||0)*100)}%{eng?` · ${MXN(eng)}`:''}</b></div>
-              <div><span>Mensualidades en obra</span><b>{Math.round((d.esq_mensualidades||0)*100)}%</b></div>
-              <div><span>Contra escritura</span><b>{Math.round((d.esq_escritura||0)*100)}%</b></div>
+          {/* Jump a departamentos */}
+          {modelosResumen.length>0 && <div className="mstrip">{modelosResumen.map(mm=>(
+            <button className="mschip" key={mm.p} onClick={()=>{setTab('unidades');setVistaUni('modelo');}}>
+              <b>{mm.rec===0?'Loft':`${mm.rec} rec`}</b>
+              <span>{m2(mm.m2h)} m²</span>
+              <em>desde {MXN(mm.desde)} · {mm.n} disp.</em>
+            </button>))}</div>}
+
+          {/* Créditos aceptados (lista corta) */}
+          {credAcept.length>0 && (
+            <div className="fcard cred-card">
+              <h3>Créditos aceptados <span className="fcount">{credAcept.length}</span></h3>
+              <div className="cred-grid">{credAcept.map(c=><span className="cred-ok" key={c}>✓ {c}</span>)}</div>
             </div>
-            <div style={{marginTop:'.9rem'}}><button className="btn mag sm" onClick={()=>setCotizar('dev')}>Abrir cotizador completo</button></div>
+          )}
+
+          {/* Secciones (acordeón) */}
+          <div className="devsecs">
+            {clean.map((s,idx)=>(
+              <details className="devsec" key={s.t} open={idx<3}>
+                <summary><span className="devsec-ic">{s.icon}</span>{s.t}<span className="devsec-caret">⌄</span></summary>
+                <div className="devsec-body">
+                  {s.chips&&s.chips.length>0 && <div className="dchips">{s.chips.map(c=><span key={c}>{c}</span>)}</div>}
+                  {s.amen&&s.amen.length>0 && <div className="amen-grid">{s.amen.map((a,i)=><span className="amen" key={i}><i>{amenIcon(a)}</i>{a}</span>)}</div>}
+                  {s.rows.length>0 && <div className="kv2">{s.rows.map(([l,v])=>(
+                    <div className="kv2row" key={l}><span>{l}</span><b>{v}</b></div>
+                  ))}</div>}
+                  {s.maps && <a className="btn ghost sm devsec-maps" href={mapsUrl} target="_blank" rel="noopener">📍 Abrir en Google Maps · Cómo llegar</a>}
+                  {s.cta && <button className="btn mag sm devsec-cta" onClick={()=>setCotizar('dev')}>Abrir cotizador completo</button>}
+                </div>
+              </details>
+            ))}
           </div>
-
-          {amen.length>0 && <div className="sec"><h2>Amenidades</h2>
-            <div className="amen-grid">{amen.map((a,i)=><span className="amen" key={i}><i>{amenIcon(a)}</i>{a}</span>)}</div>
-          </div>}
-
-          <div className="sec"><h2>Créditos aceptados</h2><div className="chips2">
-            {creds.map(([l,v])=><span key={l} className={'chip2 '+(v&&/s/i.test(v)?'on':'off')}>{l}</span>)}
-          </div></div>
-        </>}
+          </>);
+        })()}
 
         {/* ── UNIDADES ── */}
         {tab==='unidades' && <>
@@ -288,58 +392,6 @@ export default function Detalle() {
             ? 'Toca un modelo para ver sus unidades disponibles, compartir una en específico o abrir su plano y plan de pago.'
             : 'Toca cualquier fila para ver plano, planta ambientada, estacionamiento y plan de pago de esa unidad.'}</p>
         </>}
-
-        {/* ── FICHA TÉCNICA ── */}
-        {tab==='ficha' && (() => {
-          const secsOrden = FICHA_SCHEMA.slice().sort((a,b)=>{
-            const ia=ORDEN_FICHA.indexOf(a[0]), ib=ORDEN_FICHA.indexOf(b[0]);
-            return (ia<0?99:ia)-(ib<0?99:ib);
-          });
-          return (
-          <div style={{marginTop:'1rem'}}>
-            <div className="ficha-head">
-              <div>
-                <h2 style={{margin:0}}>Ficha técnica completa</h2>
-                <p className="fnote" style={{margin:'.3rem 0 0'}}>Todo el detalle del desarrollo, ordenado por lo que decide una compra.</p>
-              </div>
-              <label className="vacios-tog">
-                <input type="checkbox" checked={verVacios} onChange={e=>setVerVacios(e.target.checked)} />
-                Mostrar campos vacíos
-              </label>
-            </div>
-
-            {creditosOK.length>0 && (
-              <div className="fcard cred-card">
-                <h3>Créditos aceptados <span className="fcount">{creditosOK.length}</span></h3>
-                <div className="cred-grid">{creditosOK.map(c=><span className="cred-ok" key={c}>✓ {c}</span>)}</div>
-              </div>
-            )}
-
-            <div className="fgrid">
-              {secsOrden.filter(([t])=>t!=='Créditos aceptados').map(([titulo,campos])=>{
-                const rows = campos.map(c=>[c, fichaMap[c]]).filter(([,v])=> verVacios || (v!=null && v!==''));
-                if (rows.length===0) return null;
-                const filled = campos.filter(c=>fichaMap[c]!=null && fichaMap[c]!=='').length;
-                return (
-                  <section className="fcard" key={titulo}>
-                    <h3>{titulo} <span className="fcount">{filled}/{campos.length}</span></h3>
-                    <div className="kv2">{rows.map(([c,v])=>{
-                      const lista = /amenidad|lista/i.test(c) && typeof v==='string' && v.includes(',');
-                      return (
-                      <div className={'kv2row'+(lista?' kv2col':'')} key={c}>
-                        <span>{c}</span>
-                        {lista
-                          ? <div className="kv-chips">{v.split(',').map((a,i)=><span key={i}>{a.trim()}</span>)}</div>
-                          : <b className={(v==null||v==='')?'kv-empty':''}>{(v!=null&&v!=='')?String(v):'—'}</b>}
-                      </div>);
-                    })}</div>
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-          );
-        })()}
 
         {lb!=null && galeria[lb] && (
           <div className="lbx" onClick={()=>setLb(null)}>

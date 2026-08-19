@@ -12,11 +12,14 @@ import { guardarCard } from '../../lib/clientcards';
 import { track } from '../../lib/track';
 
 const RECS = [['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3+']];
+const BANOS = [['1', '1+'], ['2', '2+'], ['3', '3+']];
 const CAJONES = [['', 'Cualquiera'], ['1', '1+'], ['2', '2+']];
+const EXT = [['balcon', '🌿 Balcón'], ['terraza', '☀️ Terraza'], ['roof', '🏙️ Roof privado']];
 const PRESUP = [['', 'Sin tope'], ['2300000', '$2.3M'], ['3500000', '$3.5M'], ['4500000', '$4.5M'], ['6000000', '$6M'], ['9000000', '$9M']];
+const PRESUP_MIN = [['', 'Sin mínimo'], ['2000000', '$2M'], ['3000000', '$3M'], ['4000000', '$4M'], ['5000000', '$5M']];
 const SORTS = [['precio', 'Precio ↑'], ['precio_m2', 'Precio/m² ↑'], ['comision', 'Comisión ↓'], ['entrega', 'Entrega ↑'], ['match', 'Mejor match ↓']];
 
-const F0 = { recs: [], presMax: '', presMin: '', precioM2Max: '', zona: '', colonia: '', entrega: '', cajonesMin: '', bodega: false, amenidades: [], creditos: [], comisionMin: '', depaMuestra: false, descuento: false, sort: 'precio' };
+const F0 = { recs: [], banosMin: '', ext: [], presMax: '', presMin: '', precioM2Max: '', zona: '', colonia: '', entrega: '', cajonesMin: '', bodega: false, amenidades: [], creditos: [], comisionMin: '', depaMuestra: false, descuento: false, sort: 'precio' };
 
 // Orden en que aflojamos filtros para no llegar a cero resultados.
 const RELAJA = [['precioM2Max', 'precio/m²'], ['comisionMin', 'comisión'], ['cajonesMin', 'cajones'], ['bodega', 'bodega'], ['amenidades', 'amenidades'], ['descuento', 'promoción'], ['entrega', 'fecha de entrega']];
@@ -54,7 +57,7 @@ export default function Buscar() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: d }, { data: u }] = await Promise.all([
         supabase.from('desarrollos').select('*').order('nombre'),
-        supabase.from('unidades').select('sku,dev_sku,torre,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,estatus').eq('estatus', 'Disponible'),
+        supabase.from('unidades').select('sku,dev_sku,torre,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,balcon_m2,terraza_m2,roof_m2,estatus').eq('estatus', 'Disponible'),
       ]);
       setDevs(d || []); setUnits(u || []);
       // Restaurar facetas desde la URL (link compartible).
@@ -63,9 +66,10 @@ export default function Buscar() {
         if ([...q.keys()].length) {
           const next = { ...F0 };
           if (q.get('recs')) next.recs = q.get('recs').split(',');
+          if (q.get('ext')) next.ext = q.get('ext').split(',');
           if (q.get('creditos')) next.creditos = q.get('creditos').split(',');
           if (q.get('amenidades')) next.amenidades = q.get('amenidades').split(',');
-          ['presMax', 'presMin', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin', 'sort'].forEach(k => { if (q.get(k)) next[k] = q.get(k); });
+          ['presMax', 'presMin', 'banosMin', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin', 'sort'].forEach(k => { if (q.get(k)) next[k] = q.get(k); });
           ['bodega', 'depaMuestra', 'descuento'].forEach(k => { if (q.get(k) === '1') next[k] = true; });
           setF(next);
         }
@@ -81,9 +85,10 @@ export default function Buscar() {
     if (!devs) return;
     const q = new URLSearchParams();
     if (f.recs.length) q.set('recs', f.recs.join(','));
+    if (f.ext.length) q.set('ext', f.ext.join(','));
     if (f.creditos.length) q.set('creditos', f.creditos.join(','));
     if (f.amenidades.length) q.set('amenidades', f.amenidades.join(','));
-    ['presMax', 'presMin', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin'].forEach(k => { if (f[k]) q.set(k, f[k]); });
+    ['presMax', 'presMin', 'banosMin', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin'].forEach(k => { if (f[k]) q.set(k, f[k]); });
     if (f.sort !== 'precio') q.set('sort', f.sort);
     ['bodega', 'depaMuestra', 'descuento'].forEach(k => { if (f[k]) q.set(k, '1'); });
     const s = q.toString();
@@ -106,6 +111,12 @@ export default function Buscar() {
     if (!skip.has('presMax') && f.presMax && u.precio > +f.presMax) return false;
     if (f.presMin && u.precio < +f.presMin) return false;
     if (f.recs.length) { const hit = f.recs.some(r => r === '3' ? u.rec >= 3 : u.rec === +r); if (!hit) return false; }
+    if (f.banosMin && (Number(u.banos) || 0) < +f.banosMin) return false;
+    // Exteriores con lógica O: si el broker marca balcón y terraza, pasa la unidad que tenga cualquiera.
+    if (f.ext.length) {
+      const has = { balcon: (u.balcon_m2 || 0) > 0, terraza: (u.terraza_m2 || 0) > 0, roof: (u.roof_m2 || 0) > 0 };
+      if (!f.ext.some(k => has[k])) return false;
+    }
     if (!skip.has('cajonesMin') && f.cajonesMin && (u.n_estac || 0) < +f.cajonesMin) return false;
     if (!skip.has('bodega') && f.bodega && !((u.bodega_m2 || 0) > 0 || u.sku_bodega)) return false;
     if (!skip.has('precioM2Max') && f.precioM2Max) { const pm = precioM2(u); if (pm == null || pm > +f.precioM2Max) return false; }
@@ -126,7 +137,7 @@ export default function Buscar() {
     return true;
   }
 
-  const activo = f.recs.length || f.presMax || f.presMin || f.precioM2Max || f.zona || f.colonia || f.entrega || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.depaMuestra || f.descuento;
+  const activo = f.recs.length || f.banosMin || f.ext.length || f.presMax || f.presMin || f.precioM2Max || f.zona || f.colonia || f.entrega || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.depaMuestra || f.descuento;
 
   const { grupos, relajado, totalU } = useMemo(() => {
     if (!devs || !units) return { grupos: [], relajado: null, totalU: 0 };
@@ -244,6 +255,17 @@ export default function Buscar() {
         <div className="crit">
           <div className="crit-row"><label>Recámaras</label>
             <div className="crit-chips">{RECS.map(([v, l]) => <span key={v} className={'chip' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}{recCounts[v] != null && <em className="chip-n">{recCounts[v]}</em>}</span>)}</div>
+          </div>
+          <div className="crit-row"><label>Baños</label>
+            <div className="crit-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
+          </div>
+          <div className="crit-row"><label>Exteriores</label>
+            <div className="crit-chips">{EXT.map(([v, l]) => <span key={v} className={'chip' + (f.ext.includes(v) ? ' on' : '')} onClick={() => toggleArr('ext', v)}>{l}</span>)}
+              {f.ext.length > 1 && <span className="crit-nota">cualquiera de los marcados</span>}
+            </div>
+          </div>
+          <div className="crit-row"><label>Presupuesto desde</label>
+            <div className="crit-chips">{PRESUP_MIN.map(([v, l]) => <span key={v} className={'chip' + (f.presMin === v ? ' on' : '')} onClick={() => set('presMin', v)}>{l}</span>)}</div>
           </div>
           <div className="crit-row"><label>Presupuesto máx.</label>
             <div className="crit-chips">{PRESUP.map(([v, l]) => <span key={v} className={'chip' + (f.presMax === v ? ' on' : '')} onClick={() => set('presMax', v)}>{l}</span>)}</div>

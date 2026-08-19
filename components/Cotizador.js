@@ -42,6 +42,8 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
     () => resumenCredito(Number(financiar) || 0, (Number(tasa) || 0) / 100, Number(plazo) || 0),
     [financiar, tasa, plazo]
   );
+  // Ingreso mensual mínimo para calificar: el pago no debe pasar del 30% del ingreso (regla de la banca).
+  const ingresoMin = cred.mensualidad ? Math.round(cred.mensualidad / 0.30) : null;
 
   const [brand, setBrand] = useState(null);
   const [gen, setGen] = useState(null);       // 'pdf' | 'pptx' | null
@@ -83,7 +85,8 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
     `· Saldo a escritura (${Math.round((dev.esq_escritura || 0) * 100)}%): ${MXN(esq.saldoEscritura)}\n\n` +
     `CRÉDITO HIPOTECARIO (${banco})\n` +
     `· Financiar: ${MXN(financiar)} a ${tasa}% / ${plazo} años\n` +
-    `· Mensualidad estimada: ${MXN(cred.mensualidad)}`;
+    `· Mensualidad estimada: ${MXN(cred.mensualidad)}` +
+    (ingresoMin ? `\n· Ingreso mínimo para calificar: ${MXN(ingresoMin)}/mes` : '');
 
   function copiar() { if (navigator.clipboard) navigator.clipboard.writeText(resumenTxt); }
   const waHref = 'https://wa.me/?text=' + encodeURIComponent(resumenTxt);
@@ -137,6 +140,9 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
             <b>{MXN(cred.mensualidad)}</b>
             <small>{cred.meses} pagos · total {MXN(cred.totalPagado)} · intereses {MXN(cred.intereses)}</small>
           </div>
+          {ingresoMin && (
+            <div className="cotiz-ingreso"><span>Ingreso mínimo para calificar</span><b>{MXN(ingresoMin)}/mes</b><small>si el pago es ≤ 30% del ingreso</small></div>
+          )}
           <p className="fnote">Tasas de referencia (Banxico/CONDUSEF), editables. Infonavit varía por salario. Cálculo referencial, no es oferta vinculante.</p>
         </section>
 
