@@ -493,6 +493,19 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .fp-amen-i{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.32rem .7rem}
 .fp-amen-i i{font-style:normal}
 .fp-form-h{font-weight:800;font-size:1rem;margin-bottom:.2rem}
+/* Agenda inteligente (horarios libres del asesor) */
+.fp-agenda{display:flex;flex-direction:column;gap:.5rem}
+.fp-agenda-lbl{font-size:.78rem;color:var(--sub);font-weight:600}
+.fp-dias{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.2rem}
+.fp-dia{flex:none;display:flex;flex-direction:column;align-items:center;gap:.05rem;min-width:56px;padding:.5rem .3rem;background:var(--panel2);border:1px solid var(--line);border-radius:12px;cursor:pointer;color:var(--ink)}
+.fp-dia span{font-size:.68rem;color:var(--sub);text-transform:uppercase}
+.fp-dia b{font-size:1.25rem;line-height:1;font-variant-numeric:tabular-nums}
+.fp-dia em{font-size:.66rem;color:var(--dim);font-style:normal;text-transform:capitalize}
+.fp-dia.on{background:var(--mag-soft);border-color:var(--mag);color:var(--mag)}
+.fp-dia.on span,.fp-dia.on em{color:var(--mag)}
+.fp-horas{display:flex;flex-wrap:wrap;gap:.4rem}
+.fp-horas .chip{font-variant-numeric:tabular-nums}
+.fp-modalidad{margin-top:.2rem}
 .fp-esq{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
 .fp-esq>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem}
 .fp-esq span{display:block;color:var(--sub);font-size:.72rem}

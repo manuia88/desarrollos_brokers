@@ -31,6 +31,31 @@ const tituloRec = r => r === 0 ? 'Loft' : `${r} recámara${r === 1 ? '' : 's'}`;
 // Esquema de pago BASE para la ficha del cliente (se ajustará por desarrollo después).
 const ESQUEMA_BASE = { firma: 0.15, obra: 0.10, escritura: 0.75 };
 
+// Agenda inteligente: horarios de atención y días a ofrecer.
+const HORARIOS = ['10:00', '11:00', '12:00', '13:00', '16:00', '17:00', '18:00'];
+const DOW = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const DIAS_AGENDA = 21;   // ventana a revisar
+const MAX_DIAS = 8;       // días con cupo que se muestran
+function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+// Construye los días con horarios libres (excluye ocupados, domingos y horas pasadas de hoy).
+function construirAgenda(ocupados) {
+  const busy = new Set((ocupados || []).map(o => `${o.fecha} ${(o.hora || '').slice(0, 5)}`));
+  const now = new Date();
+  const out = [];
+  for (let i = 0; i < DIAS_AGENDA && out.length < MAX_DIAS; i++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    if (day.getDay() === 0) continue;               // sin domingos
+    const fecha = ymd(day);
+    const slots = HORARIOS.filter(h => {
+      if (busy.has(`${fecha} ${h}`)) return false;
+      if (i === 0) { const [hh, mm] = h.split(':'); const t = new Date(day); t.setHours(+hh, +mm, 0, 0); if (t <= now) return false; }
+      return true;
+    });
+    if (slots.length) out.push({ fecha, dow: day.getDay(), dia: day.getDate(), mes: day.toLocaleDateString('es-MX', { month: 'short' }), slots });
+  }
+  return out;
+}
+
 function amenIcon(a) {
   const s = (a || '').toLowerCase();
   if (/alberca|piscina/.test(s)) return '🏊';
@@ -67,12 +92,17 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   // Cotizador del cliente
   const [cotRec, setCotRec] = useState(null);    // recámaras elegidas para cotizar
   const [cotPlazo, setCotPlazo] = useState(20);
+  const [ocupados, setOcupados] = useState([]);  // horarios ya tomados del asesor
 
   useEffect(() => {
     (async () => {
       const { data: d } = await supabase.rpc('ficha_publica', { p_sku: sku, p_asesor: asesor || null });
       setData(d || null);
       supabase.rpc('registrar_vista', { p_sku: sku, p_asesor: asesor || null, p_client: cliente ? Number(cliente) : null });
+      if (asesor) {
+        const { data: oc } = await supabase.rpc('horarios_asesor', { p_asesor: asesor });
+        setOcupados(oc || []);
+      }
     })();
   }, [sku, asesor, cliente]);
 
@@ -89,6 +119,8 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   }, [medios]);
   const unitMedio = (tipo) => selUnit && medios.find(m => m.tipo === tipo && (m.unidad_sku === selUnit.sku || (m.prototipo && m.prototipo === selUnit.prototipo)));
   const grupos = useMemo(() => agruparPorRec(unidades), [unidades]);
+  const agenda = useMemo(() => construirAgenda(ocupados), [ocupados]);
+  const slotsDelDia = useMemo(() => agenda.find(a => a.fecha === form.fecha)?.slots || [], [agenda, form.fecha]);
   const modeloImg = proto => medios.find(x => x.prototipo === proto && ['planta', 'plano', 'render', 'foto'].includes(x.tipo));
 
   if (data === undefined) return <div className="loading">Cargando ficha…</div>;
@@ -325,13 +357,37 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
             <form className="fp-form" onSubmit={enviar}>
               <div className="fp-form-h">📅 Agenda tu visita con {ase?.nombre || 'tu asesor'}</div>
               {err && <div className="msg err">{err}</div>}
-              <div className="fp-cita-row">
-                <input type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
-                <input type="time" value={form.hora} onChange={e => setForm({ ...form, hora: e.target.value })} />
-                <select value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
-                  <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
-                </select>
-              </div>
+              {agenda.length > 0 ? (
+                <div className="fp-agenda">
+                  <span className="fp-agenda-lbl">Elige el día</span>
+                  <div className="fp-dias">
+                    {agenda.map(a => (
+                      <button type="button" key={a.fecha} className={'fp-dia' + (form.fecha === a.fecha ? ' on' : '')} onClick={() => setForm({ ...form, fecha: a.fecha, hora: '' })}>
+                        <span>{DOW[a.dow]}</span><b>{a.dia}</b><em>{a.mes}</em>
+                      </button>
+                    ))}
+                  </div>
+                  {form.fecha && <>
+                    <span className="fp-agenda-lbl">Elige la hora ({ase?.nombre || 'tu asesor'} tiene libre)</span>
+                    <div className="fp-horas">
+                      {slotsDelDia.map(h => (
+                        <button type="button" key={h} className={'chip' + (form.hora === h ? ' on' : '')} onClick={() => setForm({ ...form, hora: h })}>{h}</button>
+                      ))}
+                    </div>
+                  </>}
+                  <select className="fp-modalidad" value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
+                    <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="fp-cita-row">
+                  <input type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} />
+                  <input type="time" value={form.hora} onChange={e => setForm({ ...form, hora: e.target.value })} />
+                  <select value={form.modalidad} onChange={e => setForm({ ...form, modalidad: e.target.value })}>
+                    <option>Presencial</option><option>Videollamada</option><option>Llamada</option>
+                  </select>
+                </div>
+              )}
               <input placeholder="Nombre *" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
               <input placeholder="Teléfono / WhatsApp *" value={form.telefono} onChange={e => setForm({ ...form, telefono: e.target.value })} />
               <input placeholder="Correo" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
