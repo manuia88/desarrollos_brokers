@@ -10,6 +10,18 @@ const m2 = v => (v == null || v === '') ? '—' : (Math.round(v * 10) / 10);
 function meses(f) { if (!f) return null; const h = new Date(), x = new Date(f + 'T12:00'); return Math.max(0, (x.getFullYear() - h.getFullYear()) * 12 + x.getMonth() - h.getMonth()); }
 const IMG = ['portada', 'render', 'foto', 'amenidad', 'planta', 'plano'];
 
+// Agrupa las unidades por prototipo para mostrar MODELOS al cliente
+// (desde + disponibilidad), sin exponer la lista de precios unidad por unidad.
+function agruparModelos(units) {
+  const g = {};
+  units.forEach(u => { const k = u.prototipo || 'Modelo'; (g[k] = g[k] || []).push(u); });
+  return Object.entries(g).map(([proto, us]) => {
+    const s = us.slice().sort((a, b) => (a.precio || 0) - (b.precio || 0))[0];
+    return { proto, rec: s.rec, banos: s.banos, n_estac: s.n_estac, m2_hab: s.m2_hab, desde: Math.min(...us.map(u => u.precio || Infinity)), n: us.length };
+  }).sort((a, b) => a.desde - b.desde);
+}
+const tituloModelo = mm => mm.rec === 0 ? 'Loft' : `${mm.rec} recámara${mm.rec === 1 ? '' : 's'}`;
+
 export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const [data, setData] = useState(undefined);
   const [foto, setFoto] = useState(null);
@@ -39,6 +51,8 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
     return medios.filter(m => IMG.includes(m.tipo)).slice().sort((a, b) => (pri[a.tipo] - pri[b.tipo]) || ((a.orden || 0) - (b.orden || 0)));
   }, [medios]);
   const unitMedio = (tipo) => selUnit && medios.find(m => m.tipo === tipo && (m.unidad_sku === selUnit.sku || (m.prototipo && m.prototipo === selUnit.prototipo)));
+  const modelos = useMemo(() => agruparModelos(unidades), [unidades]);
+  const modeloImg = proto => medios.find(x => x.prototipo === proto && ['planta', 'plano', 'render', 'foto'].includes(x.tipo));
 
   if (data === undefined) return <div className="loading">Cargando ficha…</div>;
   if (!dev) return <div className="loading">Esta ficha no está disponible.</div>;
@@ -47,6 +61,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const amen = (dev.amenidades || '').split(',').map(s => s.trim()).filter(Boolean);
   const creds = [['ION', dev.credito_ion], ['HIR', dev.credito_hir], ['Yave', dev.credito_yave], ['Bancario', dev.credito_bancario]].filter(([l, v]) => v && /s/i.test(v));
   const engMonto = dev.esq_enganche ? dev.precio_min * dev.esq_enganche : null;
+  const mapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', '));
   const telDig = ase?.telefono ? soloDig(ase.telefono) : '';
   const waAse = telDig ? 'https://wa.me/' + (telDig.length === 10 ? '52' : '') + telDig + '?text=' + encodeURIComponent(`Hola ${ase?.nombre || ''}, me interesa ${dev.nombre}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`) : null;
   const planoUrl = unitMedio('plano')?.url;
@@ -153,20 +168,33 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           </div>
         </section>
 
+        <section className="fp-sec"><h2>Ubicación</h2>
+          <p className="fp-dir">📍 {[dev.direccion, dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', ')}</p>
+          <a className="btn ghost sm" href={mapsUrl} target="_blank" rel="noopener">Ver en Google Maps · Cómo llegar</a>
+        </section>
+
         {amen.length > 0 && <section className="fp-sec"><h2>Amenidades</h2><div className="chips2">{amen.map((a, i) => <span className="chip2" key={i}>{a}</span>)}</div></section>}
         {creds.length > 0 && <section className="fp-sec"><h2>Créditos aceptados</h2><div className="chips2">{creds.map(([l]) => <span className="chip2 on" key={l}>{l}</span>)}</div></section>}
 
-        {!selUnit && unidades.length > 0 && (
-          <section className="fp-sec"><h2>Unidades disponibles · {unidades.length}</h2>
-            <div className="utbl-wrap"><table className="utbl"><thead><tr>
-              <th>Unidad</th><th>Prototipo</th><th>Rec</th><th>m² hab</th><th>Precio</th>
-            </tr></thead><tbody>
-              {unidades.slice(0, 30).map(u => (
-                <tr key={u.sku}><td><b>T{u.torre} · {u.num_depto}</b></td><td>{u.prototipo || '—'}</td>
-                  <td>{u.rec === 0 ? 'Loft' : u.rec}</td><td>{m2(u.m2_hab)}</td><td><b>{MXN(u.precio)}</b></td></tr>
-              ))}
-            </tbody></table></div>
-            {unidades.length > 30 && <p className="fnote">Y {unidades.length - 30} unidades más — pregúntale a tu asesor.</p>}
+        {!selUnit && modelos.length > 0 && (
+          <section className="fp-sec"><h2>Modelos disponibles</h2>
+            <div className="fp-modelos">
+              {modelos.map(mm => {
+                const img = modeloImg(mm.proto);
+                return (
+                  <div className={'fp-model' + (img ? '' : ' nophoto')} key={mm.proto}>
+                    {img && <div className="fp-model-img"><img src={img.url} alt={tituloModelo(mm)} loading="lazy" /></div>}
+                    <div className="fp-model-body">
+                      <b>{tituloModelo(mm)}</b>
+                      <span className="fp-model-specs">{m2(mm.m2_hab)} m² · {mm.banos ?? '—'} baño{mm.banos === 1 ? '' : 's'} · {mm.n_estac || '—'} estac.</span>
+                      <div className="fp-model-price"><span>desde</span><b>{MXN(mm.desde)}</b></div>
+                      <span className="fp-model-disp">{mm.n} disponible{mm.n === 1 ? '' : 's'}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="fnote">Pregúntale a {ase?.nombre || 'tu asesor'} por la unidad ideal para ti y su disponibilidad.</p>
           </section>
         )}
 

@@ -451,6 +451,19 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .fp-gal-i{position:relative;border:0;padding:0;border-radius:12px;overflow:hidden;aspect-ratio:4/3;cursor:pointer;background:var(--panel2)}
 .fp-gal-i img{width:100%;height:100%;object-fit:cover;display:block}
 .fp-gal-i span{position:absolute;left:.4rem;bottom:.4rem;font-size:.64rem;font-weight:700;color:#fff;background:rgba(10,10,12,.7);padding:.12rem .45rem;border-radius:6px;text-transform:capitalize}
+/* Ficha pública: modelos para el cliente (sin lista de precios unidad por unidad) */
+.fp-modelos{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.7rem}
+.fp-model{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.fp-model-img{aspect-ratio:16/10;background:var(--panel2)}
+.fp-model-img img{width:100%;height:100%;object-fit:cover;display:block}
+.fp-model-body{padding:.75rem .85rem;display:flex;flex-direction:column;gap:.25rem}
+.fp-model-body>b{font-size:1.05rem;letter-spacing:-.01em}
+.fp-model-specs{color:var(--sub);font-size:.8rem}
+.fp-model-price{display:flex;align-items:baseline;gap:.4rem;margin-top:.2rem}
+.fp-model-price span{color:var(--sub);font-size:.74rem}
+.fp-model-price b{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.fp-model-disp{font-size:.72rem;font-weight:700;color:var(--lime);background:var(--lime-soft);border:1px solid rgba(198,255,58,.3);border-radius:99px;padding:.1rem .5rem;align-self:flex-start;margin-top:.15rem}
+.fp-dir{color:var(--sub);font-size:.9rem;margin:.1rem 0 .7rem}
 .fp-esq{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
 .fp-esq>div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6rem .7rem}
 .fp-esq span{display:block;color:var(--sub);font-size:.72rem}
