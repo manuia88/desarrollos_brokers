@@ -22,7 +22,7 @@ export async function POST(req) {
   try { body = await req.json(); } catch { /* noop */ }
   const { pregunta, historial } = body;
   if (!pregunta) return NextResponse.json({ error: 'falta pregunta' }, { status: 400 });
-  const { data: devs } = await db.from('desarrollos').select('sku,nombre,alcaldia,precio_min,precio_max,rec_min,rec_max,comision_broker,etapa,credito_ion,credito_hir,credito_bancario');
+  const { data: devs } = await db.from('desarrollos').select('sku,nombre,alcaldia,precio_min,precio_max,rec_min,rec_max,comision_broker,etapa,credito_ion,credito_hir,credito_bancario').eq('publicado', true);
   const { data: us } = await db.from('unidades').select('dev_sku').eq('estatus', 'Disponible');
   const byDev = {}; (us || []).forEach(u => { byDev[u.dev_sku] = (byDev[u.dev_sku] || 0) + 1; });
   const lineas = (devs || []).map(d => {

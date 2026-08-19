@@ -14,7 +14,7 @@ proveedores (variables de entorno en Vercel). Sin ellas, el worker corre pero no
 
 | Variable | Valor / de dónde |
 |---|---|
-| `CRON_SECRET` | `qc_rem_9f3a72c1b8e4` (debe ser EXACTAMENTE este; es el que manda el cron) |
+| `CRON_SECRET` | `<TU_CRON_SECRET>` (debe ser EXACTAMENTE este; es el que manda el cron) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → **service_role** (la misma de Google) |
 | `TWILIO_ACCOUNT_SID` | Twilio → Account SID |
 | `TWILIO_AUTH_TOKEN` | Twilio → Auth Token |
@@ -36,7 +36,7 @@ la API key. `RESEND_FROM` debe usar un dominio verificado para no caer en spam.
 
 ## Probar a mano
 `GET https://desarrollos-brokers-portal.vercel.app/api/reminders/run` con el header
-`x-cron-secret: qc_rem_9f3a72c1b8e4`. Responde `{ ok, enviados }` o `{ skipped: 'fuera-de-horario' }`.
+`x-cron-secret: <TU_CRON_SECRET>`. Responde `{ ok, enviados }` o `{ skipped: 'fuera-de-horario' }`.
 
 ## Cambiar el horario / frecuencia
 El job vive en Supabase (pg_cron, `recordatorios-citas`, cada 15 min). La ventana 8am-8pm y
