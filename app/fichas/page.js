@@ -15,11 +15,16 @@ export default function CargarFichas() {
   const [expandido, setExpandido] = useState(null);
   const [aplicando, setAplicando] = useState(false);
   const [res, setRes] = useState(null);
+  const [modo, setModo] = useState('excel');   // 'excel' | 'pdf'
+  const [token, setToken] = useState('');
+  const [pdfDev, setPdfDev] = useState('');
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
+      setToken(session.access_token);
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       if (prof?.rol !== 'super_admin') return;
@@ -53,6 +58,31 @@ export default function CargarFichas() {
     } catch (e2) {
       setErr('No pude leer el archivo: ' + (e2?.message || 'error') + '. Debe ser .xlsx.');
     }
+  }
+
+  async function onPdf(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!pdfDev) { setErr('Primero elige a qué desarrollo pertenece el PDF.'); e.target.value = ''; return; }
+    setErr(null); setRes(null); setItems(null); setArchivo(file.name); setPdfBusy(true);
+    try {
+      const buf = await file.arrayBuffer();
+      let bin = ''; const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      const pdfBase64 = btoa(bin);
+      const r = await fetch('/api/ia/ficha-pdf', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ devSku: pdfDev, pdfBase64 }),
+      });
+      const j = await r.json();
+      if (j.error) { setErr(j.mensaje || j.error); setPdfBusy(false); return; }
+      if (!j.campos) { setErr('La IA no encontró campos en ese PDF. Prueba con un documento con más datos.'); setPdfBusy(false); return; }
+      const nombre = fichasActuales[pdfDev]?.nombre || pdfDev;
+      setItems([{ sku: pdfDev, nombre, ficha: j.ficha, campos: j.campos }]);
+    } catch (e2) {
+      setErr('No pude procesar el PDF: ' + (e2?.message || 'error'));
+    }
+    setPdfBusy(false);
   }
 
   const resumen = useMemo(() => {
@@ -95,7 +125,7 @@ export default function CargarFichas() {
       <main className="wrap">
         <div className="buscar-intro">
           <h1>Cargar fichas técnicas</h1>
-          <p>Sube el Excel del desarrollador con la estructura de columnas y lleno automáticamente los datos de cada desarrollo. Te muestro qué va a cambiar antes de aplicar.</p>
+          <p>Llena las fichas automáticamente: sube el <b>Excel estructurado</b> (extracción exacta) o el <b>PDF del desarrollador</b> y deja que la IA lo lea. En ambos casos te muestro qué va a cambiar antes de aplicar.</p>
         </div>
 
         {res && (
@@ -107,13 +137,38 @@ export default function CargarFichas() {
 
         {/* Paso 1: subir */}
         <div className="fcard" style={{ marginBottom: '1rem' }}>
-          <h3 style={{ marginTop: 0 }}>1 · Sube el Excel</h3>
-          <label className="upload-box">
-            <input type="file" accept=".xlsx,.xls" onChange={onFile} style={{ display: 'none' }} />
-            <span className="upload-ic">📄</span>
-            <span>{archivo ? <b>{archivo}</b> : 'Toca para elegir el archivo .xlsx'}</span>
-            <span className="upload-hint">Usa la hoja con la estructura de columnas (Concentrado) — SKU, precios, créditos, servicios, etc.</span>
-          </label>
+          <div className="vtoggle" style={{ marginBottom: '.9rem' }}>
+            <button className={'vt' + (modo === 'excel' ? ' on' : '')} onClick={() => { setModo('excel'); setErr(null); setItems(null); }}>📊 Excel estructurado</button>
+            <button className={'vt' + (modo === 'pdf' ? ' on' : '')} onClick={() => { setModo('pdf'); setErr(null); setItems(null); }}>🤖 PDF con IA</button>
+          </div>
+
+          {modo === 'excel' ? (
+            <>
+              <h3 style={{ marginTop: 0 }}>1 · Sube el Excel</h3>
+              <label className="upload-box">
+                <input type="file" accept=".xlsx,.xls" onChange={onFile} style={{ display: 'none' }} />
+                <span className="upload-ic">📄</span>
+                <span>{archivo ? <b>{archivo}</b> : 'Toca para elegir el archivo .xlsx'}</span>
+                <span className="upload-hint">Usa la hoja con la estructura de columnas (Concentrado) — SKU, precios, créditos, servicios, etc.</span>
+              </label>
+            </>
+          ) : (
+            <>
+              <h3 style={{ marginTop: 0 }}>1 · Sube el PDF del desarrollador</h3>
+              <p className="fnote" style={{ marginTop: 0 }}>Para brochures o listas de precios en PDF (con texto). La IA lee el documento y llena la ficha del desarrollo que elijas. Usa tu llave de IA conectada en <b>Conexiones</b>.</p>
+              <label className="lbl">¿De qué desarrollo es este PDF?</label>
+              <select className="inp" value={pdfDev} onChange={e => setPdfDev(e.target.value)}>
+                <option value="">Elige el desarrollo…</option>
+                {Object.entries(fichasActuales).sort((a, b) => (a[1].nombre || '').localeCompare(b[1].nombre || '')).map(([sku, d]) => <option key={sku} value={sku}>{d.nombre} ({sku})</option>)}
+              </select>
+              <label className={'upload-box' + (pdfDev ? '' : ' disabled')} style={{ marginTop: '.7rem', opacity: pdfDev ? 1 : .5, pointerEvents: pdfBusy ? 'none' : 'auto' }}>
+                <input type="file" accept="application/pdf,.pdf" onChange={onPdf} style={{ display: 'none' }} disabled={!pdfDev || pdfBusy} />
+                <span className="upload-ic">{pdfBusy ? '⏳' : '🤖'}</span>
+                <span>{pdfBusy ? <b>Leyendo el PDF con IA…</b> : archivo ? <b>{archivo}</b> : 'Toca para elegir el PDF'}</span>
+                <span className="upload-hint">{pdfDev ? 'La IA extrae precios, créditos, amenidades, entrega, etc. y te muestra qué cambia antes de aplicar.' : 'Primero elige el desarrollo arriba.'}</span>
+              </label>
+            </>
+          )}
           {err && <div className="msg err" style={{ marginTop: '.8rem' }}>{err}</div>}
         </div>
 
