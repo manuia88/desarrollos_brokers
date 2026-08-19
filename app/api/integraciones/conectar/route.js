@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { validarEB } from '../../../../lib/integraciones';
+import { validarIA } from '../../../../lib/ia';
 import { cifrar } from '../../../../lib/cripto';
 
 export const runtime = 'nodejs';
@@ -20,7 +21,10 @@ export async function POST(req) {
   let b = {}; try { b = await req.json(); } catch { /* noop */ }
   const proveedor = b.proveedor || 'easybroker';
   const scope = b.scope === 'asesor' ? 'asesor' : 'org';
-  const ambiente = b.ambiente === 'staging' ? 'staging' : 'produccion';
+  // Para IA, "ambiente" guarda el proveedor del LLM (anthropic/openai).
+  const ambiente = proveedor === 'ia'
+    ? (b.ambiente === 'openai' ? 'openai' : 'anthropic')
+    : (b.ambiente === 'staging' ? 'staging' : 'produccion');
   const api_key = (b.api_key || '').trim();
   if (!api_key) return NextResponse.json({ error: 'falta la API key' }, { status: 400 });
   if (!p.org_id && p.rol !== 'super_admin') return NextResponse.json({ error: 'tu usuario no tiene inmobiliaria' }, { status: 400 });
@@ -32,9 +36,10 @@ export async function POST(req) {
   const org_id = p.org_id;
   const asesor_id = scope === 'asesor' ? p.uid : null;
 
-  // Validar la llave contra EasyBroker (prod o staging) antes de guardar.
+  // Validar la llave antes de guardar (EasyBroker o IA).
   let valida = true;
   if (proveedor === 'easybroker') valida = await validarEB(api_key, ambiente);
+  else if (proveedor === 'ia') valida = await validarIA(ambiente, api_key);
 
   // Cuota opcional: máximo de anuncios vivos que esta cuenta puede tener en el portal.
   let cuota = null;

@@ -14,6 +14,8 @@ export default function Conexiones() {
   const [modo, setModo] = useState('org');
   const [form, setForm] = useState({ ambiente: 'produccion', api_key: '', etiqueta: '', cuota: '' });
   const [msg, setMsg] = useState(null);
+  const [iaForm, setIaForm] = useState({ proveedor: 'anthropic', api_key: '' });
+  const [iaMsg, setIaMsg] = useState(null);
 
   const esDirectivo = me && ['director', 'gerente', 'independiente', 'super_admin'].includes(me.rol);
   const scope = me && me.rol === 'asesor' ? 'asesor' : 'org';
@@ -50,6 +52,18 @@ export default function Conexiones() {
   async function desconectar(id) {
     await fetch('/api/integraciones/conectar', { method: 'DELETE', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
     cargar();
+  }
+  async function conectarIA() {
+    setIaMsg({ t: 'load' });
+    try {
+      const r = await fetch('/api/integraciones/conectar', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proveedor: 'ia', scope, ambiente: iaForm.proveedor, api_key: iaForm.api_key, etiqueta: iaForm.proveedor === 'openai' ? 'OpenAI' : 'Anthropic' }),
+      });
+      const j = await r.json();
+      if (j.error) setIaMsg({ t: 'err', m: j.error });
+      else { setIaMsg({ t: 'ok', m: j.valida ? '✓ Llave de IA conectada y validada. El concierge y el copiloto ya usan tu cuenta.' : '⚠ Guardada, pero no validó — revisa que la llave sea correcta.' }); setIaForm(f => ({ ...f, api_key: '' })); cargar(); }
+    } catch (e) { setIaMsg({ t: 'err', m: String(e?.message || e) }); }
   }
 
   if (!me) return <div className="loading">Cargando…</div>;
@@ -100,14 +114,31 @@ export default function Conexiones() {
           <section className="sec"><p className="fnote" style={{ margin: 0 }}>Tu inmobiliaria está en modo “una cuenta para todos”: la conexión la hace el director. Si el modo es “cada asesor su cuenta”, aquí conectarás la tuya.</p></section>
         )}
 
+        {/* Asistente de IA (BYOK) */}
+        {(scope === 'org' ? esDirectivo && me.rol !== 'super_admin' : true) && (
+          <section className="sec">
+            <h2>Asistente de IA <span className="fnote" style={{ fontWeight: 400 }}>· opcional, tu cuenta paga el uso</span></h2>
+            <p className="fnote" style={{ marginTop: 0 }}>Conecta tu llave para prender el <b>concierge</b> en las fichas de tus clientes y el <b>copiloto</b> del broker. {scope === 'org' ? 'Esta llave la usarán todos tus asesores.' : 'Solo tú la usarás.'} Se guarda cifrada y nunca se muestra de vuelta.</p>
+            <div className="crit-chips" style={{ marginBottom: '.6rem' }}>
+              <span className={'chip' + (iaForm.proveedor === 'anthropic' ? ' on' : '')} onClick={() => setIaForm(f => ({ ...f, proveedor: 'anthropic' }))}>Anthropic (Claude)</span>
+              <span className={'chip' + (iaForm.proveedor === 'openai' ? ' on' : '')} onClick={() => setIaForm(f => ({ ...f, proveedor: 'openai' }))}>OpenAI</span>
+            </div>
+            <label className="lbl">API Key de {iaForm.proveedor === 'openai' ? 'OpenAI' : 'Anthropic'}</label>
+            <input className="inp" type="password" value={iaForm.api_key} onChange={e => setIaForm(f => ({ ...f, api_key: e.target.value }))} placeholder={iaForm.proveedor === 'openai' ? 'sk-...' : 'sk-ant-...'} />
+            <button className="btn mag block" style={{ marginTop: '.8rem' }} disabled={!iaForm.api_key || iaMsg?.t === 'load'} onClick={conectarIA}>{iaMsg?.t === 'load' ? 'Validando…' : 'Conectar IA'}</button>
+            {iaMsg && iaMsg.t !== 'load' && <div className={'cap-msg ' + (iaMsg.t === 'ok' ? 'ok' : 'err')} style={{ marginTop: '.7rem' }}>{iaMsg.m}</div>}
+            <p className="fnote">Sin llave todo funciona igual: el concierge invita al cliente a dejar sus datos y compartes por WhatsApp normal. La llave la sacas de console.anthropic.com o platform.openai.com, donde también pones tus topes de gasto.</p>
+          </section>
+        )}
+
         {/* Conexiones actuales */}
         {conns.length > 0 && (
           <section className="sec">
             <h2>Cuentas conectadas</h2>
             {conns.map(c => (
               <div className="camp" key={c.id}>
-                <div className="camp-main"><b>{c.proveedor} · {c.scope === 'org' ? 'inmobiliaria' : 'asesor'}</b>
-                  <span className="camp-sub">{c.ambiente}{c.etiqueta ? ' · ' + c.etiqueta : ''}{c.cuota ? ' · tope ' + c.cuota + ' anuncios' : ''} · {c.valida ? '✓ validada' : '⚠ sin validar'}</span></div>
+                <div className="camp-main"><b>{c.proveedor === 'ia' ? 'Asistente IA' : c.proveedor} · {c.scope === 'org' ? 'inmobiliaria' : 'asesor'}</b>
+                  <span className="camp-sub">{c.ambiente}{c.etiqueta ? ' · ' + c.etiqueta : ''}{c.proveedor !== 'ia' && c.cuota ? ' · tope ' + c.cuota + ' anuncios' : ''} · {c.valida ? '✓ validada' : '⚠ sin validar'}</span></div>
                 <button className="regla-x" onClick={() => desconectar(c.id)}>✕</button>
               </div>
             ))}
