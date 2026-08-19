@@ -109,8 +109,11 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
       setData(d || null);
       supabase.rpc('registrar_vista', { p_sku: sku, p_asesor: asesor || null, p_client: null });
       if (asesor) {
-        const { data: oc } = await supabase.rpc('horarios_asesor', { p_asesor: asesor });
-        setOcupados(oc || []);
+        try {
+          const r = await fetch('/api/agenda/horarios', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sku, asesor }) });
+          const j = await r.json();
+          setOcupados(j.ocupados || []);
+        } catch { setOcupados([]); }
         if (cliente) {
           const { data: ci } = await supabase.rpc('cliente_card_publica', { p_token: String(cliente), p_asesor: asesor });
           const hit = Array.isArray(ci) ? ci[0] : ci;
