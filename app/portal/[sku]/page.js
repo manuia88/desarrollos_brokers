@@ -163,6 +163,10 @@ export default function Detalle() {
         <div className="dactions">
           <button className="btn mag" onClick={()=>setCotizar('dev')}>Cotizar</button>
           <button className="btn lim" onClick={()=>abrirReg(null)}>Registrar cliente</button>
+          <a className="btn wa" style={{background:'#25D366',color:'#0a2e18',border:'none',fontWeight:700}} target="_blank" rel="noopener"
+             href={'https://wa.me/?text='+encodeURIComponent(`Te comparto ${d.nombre} (${d.colonia}, ${d.alcaldia}) — desde ${MXN(d.precio_min)}:\n${(typeof window!=='undefined'?window.location.origin:'')}/f/${sku}?a=${me?.id||''}&utm_source=broker&utm_medium=whatsapp&utm_campaign=${sku}`)}>
+            📲 Enviar al cliente
+          </a>
           <button className="btn ghost" onClick={()=>setShowShare(true)}>🔗 Compartir ficha{vistas>0?` · 👁 ${vistas}`:''}</button>
           {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
