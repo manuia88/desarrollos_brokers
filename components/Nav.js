@@ -30,6 +30,7 @@ const SUPER = [
   ['/captura', 'Captura'],
   ['/fichas', 'Cargar fichas'],
   ['/publicador', 'Publicador'],
+  ['/inventario', 'Inventario'],
   ['/pricing', 'Pricing'],
   ['/integraciones', 'Integraciones'],
   ['/altas', 'Altas'],
@@ -38,13 +39,20 @@ const SUPER = [
 export default function Nav({ me, current, logo = 'Portal de Brokers' }) {
   const router = useRouter();
   const [noLeidos, setNoLeidos] = useState(0);
-  useEffect(() => { contarNoLeidos().then(setNoLeidos).catch(() => {}); }, []);
+  const [esDev, setEsDev] = useState(false);
+  useEffect(() => {
+    contarNoLeidos().then(setNoLeidos).catch(() => {});
+    (async () => {
+      if (!me?.org_id) return;
+      const { data } = await supabase.from('orgs').select('tipo,es_master_broker').eq('id', me.org_id).maybeSingle();
+      if (data && (data.tipo === 'desarrollador' || data.es_master_broker)) setEsDev(true);
+    })();
+  }, [me?.org_id]);
   async function logout() { await supabase.auth.signOut(); router.replace('/login'); }
-  const items = me?.rol === 'super_admin'
-    ? [...LINKS, ['/equipo', 'Equipo'], ...SUPER]
-    : me?.rol === 'director'
-      ? [...LINKS, ['/equipo', 'Equipo']]
-      : LINKS;
+  const dirExtra = [];
+  if (me?.rol === 'director' || me?.rol === 'super_admin') dirExtra.push(['/equipo', 'Equipo']);
+  if (esDev && me?.rol !== 'super_admin') dirExtra.push(['/inventario', 'Inventario']);
+  const items = me?.rol === 'super_admin' ? [...LINKS, ...dirExtra, ...SUPER] : [...LINKS, ...dirExtra];
   return (
     <header className="topbar"><div className="topbar-in">
       <span className="logo" onClick={() => router.push('/portal')} style={{ cursor: 'pointer' }}><b>D</b>{logo}</span>
