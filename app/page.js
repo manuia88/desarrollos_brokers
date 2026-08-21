@@ -6,6 +6,7 @@ export default function Landing() {
     <>
       <style dangerouslySetInnerHTML={{ __html: LANDING_CSS }} />
 
+      <div className="lp-page">
       <header className="lp-top">
         <div className="lp-top-in">
           <span className="lp-logo"><b>D</b>DesarrollosMX</span>
@@ -28,10 +29,10 @@ export default function Landing() {
           <p>Inventario en vivo, cotizador con crédito, CRM y comisiones en una sola plataforma.
              Tú vendes; nosotros ponemos el catálogo y las herramientas para que cierres más rápido.</p>
           <div className="lp-cta">
+            <Link href="/para/desarrolladores" className="lp-btn lp-btn-cyan">Soy desarrollador</Link>
             <Link href="/para/inmobiliarias" className="lp-btn lp-btn-mag">Soy inmobiliaria</Link>
             <Link href="/para/brokers" className="lp-btn lp-btn-lime">Soy broker independiente</Link>
-            <Link href="/registro?modo=unirme" className="lp-btn lp-btn-ghost">Pertenezco a una inmobiliaria</Link>
-            <Link href="/para/desarrolladores" className="lp-btn lp-btn-ghost">Soy desarrollador</Link>
+            <Link href="/registro?modo=unirme" className="lp-btn lp-btn-amber">Pertenezco a una inmobiliaria</Link>
           </div>
           <div className="lp-micro">Sin instalar nada · listo en minutos · desde el navegador</div>
           <div className="lp-stats">
@@ -212,10 +213,10 @@ export default function Landing() {
           <h2>Tu próxima venta empieza aquí</h2>
           <p>Elige tu perfil y crea tu cuenta. Empiezas a vender el mismo día.</p>
           <div className="lp-cta">
+            <Link href="/para/desarrolladores" className="lp-btn lp-btn-cyan">Soy desarrollador</Link>
             <Link href="/para/inmobiliarias" className="lp-btn lp-btn-mag">Soy inmobiliaria</Link>
             <Link href="/para/brokers" className="lp-btn lp-btn-lime">Soy broker independiente</Link>
-            <Link href="/registro?modo=unirme" className="lp-btn lp-btn-ghost">Pertenezco a una inmobiliaria</Link>
-            <Link href="/para/desarrolladores" className="lp-btn lp-btn-ghost">Soy desarrollador</Link>
+            <Link href="/registro?modo=unirme" className="lp-btn lp-btn-amber">Pertenezco a una inmobiliaria</Link>
           </div>
           <div className="lp-micro">¿Ya tienes cuenta? <Link href="/login" style={{ color: 'var(--lime)' }}>Inicia sesión</Link></div>
         </section>
@@ -231,6 +232,7 @@ export default function Landing() {
           <Link href="/login">Iniciar sesión</Link>
         </div>
       </footer>
+      </div>
     </>
   );
 }

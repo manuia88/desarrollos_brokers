@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 import { subirDocumento } from '../../lib/docs';
+import { tituloInteligente } from '../../lib/nombre';
 
 const DOCS_BASE = [
   ['ine', 'INE / IFE'],
@@ -126,7 +127,7 @@ export default function Registro() {
           <h1>Únete a tu inmobiliaria</h1>
           <p className="sub">Crea tu cuenta de asesor. En el siguiente paso eliges la inmobiliaria a la que perteneces y el director aprueba tu ingreso.</p>
           {msg && <div className={'msg ' + msg.t}>{msg.m}</div>}
-          <div className="field"><label>Tu nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} required /></div>
+          <div className="field"><label>Tu nombre</label><input value={nombre} onChange={e => setNombre(e.target.value)} onBlur={e => setNombre(tituloInteligente(e.target.value))} required /></div>
           <div className="field"><label>Correo</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" /></div>
           <div className="field"><label>Teléfono / WhatsApp</label><input value={telefono} onChange={e => setTelefono(e.target.value)} inputMode="tel" /></div>
           <div className="field"><label>Contraseña</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" /></div>
@@ -171,9 +172,9 @@ export default function Registro() {
             <option value="moral">Persona moral (empresa)</option>
           </select></div>
         <div className="field"><label>{tipo === 'independiente' ? 'Nombre comercial' : tipo === 'desarrollador' ? 'Nombre del desarrollador / empresa' : 'Nombre de la inmobiliaria'}</label>
-          <input value={nombreOrg} onChange={e => { setNombreOrg(e.target.value); setDup(null); }} required /></div>
+          <input value={nombreOrg} onChange={e => { setNombreOrg(e.target.value); setDup(null); }} onBlur={e => setNombreOrg(tituloInteligente(e.target.value))} required /></div>
         <div className="field"><label>Tu nombre</label>
-          <input value={nombre} onChange={e => setNombre(e.target.value)} required /></div>
+          <input value={nombre} onChange={e => setNombre(e.target.value)} onBlur={e => setNombre(tituloInteligente(e.target.value))} required /></div>
         <div className="field"><label>Correo</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" /></div>
         <div className="field"><label>Teléfono / WhatsApp</label>
