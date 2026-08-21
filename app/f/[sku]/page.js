@@ -14,7 +14,7 @@ export async function generateMetadata({ params }) {
   const desc = [precio ? 'Desde ' + precio : null, og?.ubicacion || null].filter(Boolean).join(' · ') || 'Desarrollo inmobiliario';
   const images = og?.portada ? [{ url: og.portada }] : [];
   return {
-    title: `${nombre} — Quiero Casa`,
+    title: `${nombre} — DesarrollosMX`,
     description: desc,
     openGraph: { title: nombre, description: desc, images, type: 'website' },
     twitter: { card: images.length ? 'summary_large_image' : 'summary', title: nombre, description: desc, images: og?.portada ? [og.portada] : [] },

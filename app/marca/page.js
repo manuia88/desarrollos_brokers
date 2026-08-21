@@ -153,7 +153,7 @@ export default function Marca() {
               ? <button className="btn ghost sm" disabled={busy} onClick={desconectarGoogle}>Desconectar</button>
               : <button className="btn lim sm" onClick={conectarGoogle}>Conectar Google Calendar</button>}
           </div>
-          <p className="fnote">Al conectarlo, las citas que agenden tus clientes se crean solas en tu Google Calendar. Requiere que Quiero Casa haya configurado las credenciales de Google.</p>
+          <p className="fnote">Al conectarlo, las citas que agenden tus clientes se crean solas en tu Google Calendar. Requiere que DesarrollosMX haya configurado las credenciales de Google.</p>
         </section>
       </main>
     </>

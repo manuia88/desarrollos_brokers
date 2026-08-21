@@ -42,7 +42,11 @@ export default function Unirme() {
   async function pedir(org) {
     setMsg(null);
     const { error } = await supabase.rpc('solicitar_ingreso', { p_org: org.id });
-    if (error) { setMsg({ t: 'err', m: error.message }); return; }
+    if (error) {
+      const m = String(error.message || '');
+      if (m.startsWith('persona_duplicada|')) { const [, desc] = m.split('|'); setMsg({ t: 'err', m: `Ya hay un registro de esta persona como ${desc}. No puedes estar en una inmobiliaria y además registrado en otro lado.` }); return; }
+      setMsg({ t: 'err', m }); return;
+    }
     setSol({ org_id: org.id, org_nombre: org.nombre, estado: 'pendiente' });
   }
 

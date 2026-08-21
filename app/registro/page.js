@@ -21,6 +21,8 @@ const MODO_TIPO = { inmobiliaria: 'inmobiliaria', independiente: 'independiente'
 
 export default function Registro() {
   const router = useRouter();
+  const salir = () => router.push('/');
+  const cerrarBackdrop = (e) => { if (e.target === e.currentTarget) salir(); };
   const [modo, setModo] = useState('inmobiliaria');   // inmobiliaria | independiente | desarrollador | unirme
   const [tipo, setTipo] = useState('inmobiliaria');
   const [persona, setPersona] = useState('fisica');
@@ -58,6 +60,11 @@ export default function Registro() {
       if (m.startsWith('org_duplicada|')) {
         const [, id, nom] = m.split('|');
         setDup({ id, nombre: nom });   // ofrecer unirse o mandar a revisión — no duplicar en silencio
+        return false;
+      }
+      if (m.startsWith('persona_duplicada|')) {
+        const [, desc] = m.split('|');
+        setMsg({ t: 'err', m: `Ya hay un registro de esta persona como ${desc}. Una persona no puede tener dos registros; usa esa cuenta o contacta al administrador.` });
         return false;
       }
       setMsg({ t: 'err', m: m }); return false;
@@ -112,8 +119,9 @@ export default function Registro() {
   // ---------- Vista: modo asesor ----------
   if (modo === 'unirme') {
     return (
-      <div className="authwrap">
-        <form className="authcard" onSubmit={onSubmit}>
+      <div className="authwrap" onClick={cerrarBackdrop}>
+        <form className="authcard" style={{ position: 'relative' }} onSubmit={onSubmit}>
+          <button type="button" onClick={salir} aria-label="Cerrar" style={{ position: 'absolute', top: '.8rem', right: '.95rem', background: 'none', border: 'none', color: 'var(--sub)', fontSize: '1.5rem', lineHeight: 1, cursor: 'pointer' }}>×</button>
           <span className="logo" style={{ marginBottom: '1rem' }}><b>D</b>DesarrollosMX</span>
           <h1>Únete a tu inmobiliaria</h1>
           <p className="sub">Crea tu cuenta de asesor. En el siguiente paso eliges la inmobiliaria a la que perteneces y el director aprueba tu ingreso.</p>
@@ -141,13 +149,13 @@ export default function Registro() {
 
         {dup && (
           <div className="inbox" style={{ marginBottom: '1rem' }}>
-            <h2><span className="warn-ic">⚠️</span> Ya existe una inmobiliaria parecida</h2>
-            <p className="sub">Encontramos <b>{dup.nombre}</b>. Para no duplicar, ¿perteneces a ella?</p>
+            <h2><span className="warn-ic">⚠️</span> Ya existe {tipo === 'desarrollador' ? 'un desarrollador' : 'una inmobiliaria'} parecid{tipo === 'desarrollador' ? 'o' : 'a'}</h2>
+            <p className="sub">Encontramos <b>{dup.nombre}</b>. {tipo === 'desarrollador' ? '¿Es el mismo?' : 'Para no duplicar, ¿perteneces a ella?'}</p>
             <div className="ap-actions">
-              <button type="button" className="btn ok sm" onClick={unirmeADuplicada} disabled={loading}>Sí, unirme a {dup.nombre}</button>
-              <button type="button" className="btn no sm" onClick={() => crearOrg(true)} disabled={loading}>Es otra inmobiliaria distinta — solicitar revisión</button>
+              {tipo !== 'desarrollador' && <button type="button" className="btn ok sm" onClick={unirmeADuplicada} disabled={loading}>Sí, unirme a {dup.nombre}</button>}
+              <button type="button" className="btn no sm" onClick={() => crearOrg(true)} disabled={loading}>Es {tipo === 'desarrollador' ? 'otro desarrollador distinto' : 'otra inmobiliaria distinta'} — solicitar revisión</button>
             </div>
-            <p className="ap-hint" style={{ marginTop: '.4rem' }}>Si pides revisión, un administrador valida el caso antes de activarla. No se crea nada en automático.</p>
+            <p className="ap-hint" style={{ marginTop: '.4rem' }}>Si pides revisión, un administrador valida el caso antes de activarlo. No se crea nada en automático.</p>
           </div>
         )}
 

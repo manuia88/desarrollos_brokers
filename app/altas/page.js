@@ -67,7 +67,7 @@ export default function Altas() {
   return (
     <>
       <header className="topbar"><div className="topbar-in">
-        <span className="logo"><b>Q</b>Altas de brokers</span>
+        <span className="logo"><b>D</b>Altas de brokers</span>
         <nav className="nav">
           <a onClick={() => router.push('/crm')}>CRM</a>
           <a onClick={() => router.push('/comisiones')}>Comisiones</a>

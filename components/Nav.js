@@ -47,7 +47,7 @@ export default function Nav({ me, current, logo = 'Portal de Brokers' }) {
       : LINKS;
   return (
     <header className="topbar"><div className="topbar-in">
-      <span className="logo" onClick={() => router.push('/portal')} style={{ cursor: 'pointer' }}><b>Q</b>{logo}</span>
+      <span className="logo" onClick={() => router.push('/portal')} style={{ cursor: 'pointer' }}><b>D</b>{logo}</span>
       <nav className="nav">
         {items.map(([href, label]) => (
           <a key={href} onClick={() => router.push(href)} className={current === href ? 'on' : ''}>{label}</a>

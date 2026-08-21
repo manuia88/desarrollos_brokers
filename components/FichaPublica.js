@@ -237,7 +237,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   return (
     <div className="fp">
       <div className="fp-brand">
-        {ase?.org_logo ? <img className="fp-logo" src={ase.org_logo} alt={ase.org_nombre} /> : <span className="fp-org">{ase?.org_nombre || 'Quiero Casa'}</span>}
+        {ase?.org_logo ? <img className="fp-logo" src={ase.org_logo} alt={ase.org_nombre} /> : <span className="fp-org">{ase?.org_nombre || 'DesarrollosMX'}</span>}
         {ase?.nombre && <span className="fp-by">Compartido por <b>{ase.nombre}</b></span>}
       </div>
 
@@ -457,7 +457,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
           )}
         </section>
 
-        <footer className="fp-foot">Ficha compartida vía <b>Quiero Casa</b> · Información referencial, sujeta a disponibilidad.</footer>
+        <footer className="fp-foot">Ficha compartida vía <b>DesarrollosMX</b> · Información referencial, sujeta a disponibilidad.</footer>
       </div>
 
       {foto && <div className="fp-viewer" onClick={() => setFoto(null)}><img src={foto} alt="Foto del desarrollo" /><button className="fp-viewer-x" aria-label="Cerrar imagen">✕</button></div>}

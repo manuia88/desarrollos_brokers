@@ -58,7 +58,7 @@ export default function Materiales() {
       await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
       const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
       const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
-      const marca = String(me?.nombre || 'Quiero Casa').toUpperCase();
+      const marca = String(me?.nombre || 'DesarrollosMX').toUpperCase();
       const pad = Math.round(c.width * 0.02);
       const fs = Math.max(16, Math.round(c.width * 0.028));
       ctx.font = `700 ${fs}px system-ui, sans-serif`;
