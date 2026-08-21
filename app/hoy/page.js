@@ -8,6 +8,7 @@ import { scoreLead, accionSugerida, diasSin } from '../../lib/leadscore';
 const hoyStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dias = ts => ts ? Math.floor((Date.now() - new Date(ts).getTime()) / 86400000) : 0;
 const first = n => String(n || '').split(' ')[0];
+const MXN = n => n == null ? null : '$' + Math.round(n).toLocaleString('es-MX');
 const wa = (tel, txt) => { const d = String(tel || '').replace(/[^0-9]/g, ''); return d ? `https://wa.me/52${d.length === 10 ? d : d.replace(/^52/, '')}?text=${encodeURIComponent(txt || '')}` : null; };
 
 export default function Hoy() {
@@ -19,6 +20,7 @@ export default function Hoy() {
   const [devById, setDevById] = useState({});
   // Briefing IA
   const [brief, setBrief] = useState(null);   // { nombre, texto, loading, disabled }
+  const [resIA, setResIA] = useState(null);   // resumen afinado por IA { texto, loading, disabled }
 
   useEffect(() => {
     (async () => {
@@ -77,6 +79,46 @@ export default function Hoy() {
     }
   }
 
+  // Resumen del día por reglas (instantáneo, sin IA). La IA solo lo "afina".
+  const resumenReglas = useMemo(() => {
+    const arranque = prioridad ? prioridad.titulo.charAt(0).toLowerCase() + prioridad.titulo.slice(1) : (nuevos.length ? 'tus nuevos por llamar' : 'tu seguimiento');
+    const p1 = `Hoy tienes ${citasHoy.length} cita${citasHoy.length === 1 ? '' : 's'} y ${calientes.length} lead${calientes.length === 1 ? '' : 's'} caliente${calientes.length === 1 ? '' : 's'}.`;
+    const p2 = `Arranca con ${arranque}.`;
+    const p3 = `Te quedan ${nuevos.length} nuevo${nuevos.length === 1 ? '' : 's'} por llamar y ${seguir.length} en seguimiento.`;
+    return `${p1} ${p2} ${p3}`;
+  }, [citasHoy, calientes, nuevos, seguir, prioridad]);
+
+  async function afinarResumen() {
+    setResIA({ loading: true });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/ia/resumen', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${session?.access_token || ''}` },
+        body: JSON.stringify({ citas: citasHoy.length, calientes: calientes.length, nuevos: nuevos.length, seguir: seguir.length, prioridad: prioridad?.titulo, top: calientes[0]?.l?.nombre }),
+      });
+      const j = await r.json();
+      setResIA({ texto: j.resumen || j.error, disabled: !!j.disabled });
+    } catch (e) {
+      setResIA({ texto: 'No se pudo afinar: ' + (e.message || 'error') });
+    }
+  }
+
+  // #5 — "¿Qué le queda?": abre el Copiloto con una pregunta armada del perfil del lead.
+  function queLeQueda(l) {
+    const rec = l.rec_interes != null ? (l.rec_interes === 0 ? 'un loft' : `${l.rec_interes} recámaras`) : null;
+    const pres = MXN(l.presupuesto_max || l.presupuesto);
+    const partes = [
+      `Cliente ${first(l.nombre)}:`,
+      rec && `busca ${rec}`,
+      l.zona_interes && `en ${l.zona_interes}`,
+      pres && `con presupuesto hasta ${pres}`,
+      l.forma_pago && !/definir/i.test(l.forma_pago) && `paga con ${l.forma_pago}`,
+    ].filter(Boolean).join(' ');
+    const q = `${partes}. ¿Qué unidades de mi inventario le quedan y por qué?`;
+    router.push('/copiloto?q=' + encodeURIComponent(q));
+  }
+
   if (leads === null) return <div className="loading">Cargando tu día…</div>;
   const nombre = first(me?.nombre);
   const tempCls = t => 'ck-temp ' + t;
@@ -88,6 +130,14 @@ export default function Hoy() {
         <div className="buscar-intro">
           <h1>Hoy{nombre ? `, ${nombre}` : ''}</h1>
           <p>Tu cabina del día: la acción más importante primero, tus leads calientes y tus citas. Empieza por arriba.</p>
+        </div>
+
+        <div className="ck-resumen">
+          <span className="ck-res-ic">📝</span>
+          <p>{resIA?.loading ? 'Afinando tu resumen con IA…' : (resIA?.texto || resumenReglas)}</p>
+          {resIA?.disabled
+            ? <span className="ck-res-note">Conecta tu IA en <a onClick={() => router.push('/conexiones')}>Conexiones</a> para afinarlo</span>
+            : !resIA && <button className="cotiz-mini ghost" onClick={afinarResumen}>✨ Afínalo con IA</button>}
         </div>
 
         {prioridad && (
@@ -103,6 +153,7 @@ export default function Hoy() {
                   <a className="btn lim" href={wa(prioridad.tel, `Hola ${first(prioridad.nombre)}, `)} target="_blank" rel="noopener">WhatsApp</a>
                 )}
                 <button className="btn ghost" onClick={() => pedirBriefing(prioridad.cita ? { citaId: prioridad.cita.id } : { leadId: prioridad.lead.id }, prioridad.nombre)}>⚡ Prepárame (IA)</button>
+                {prioridad.lead && <button className="btn ghost" onClick={() => queLeQueda(prioridad.lead)}>🏠 ¿Qué le queda?</button>}
                 <button className="btn ghost" onClick={() => router.push('/crm')}>Ver en CRM</button>
               </div>
             </div>
@@ -128,7 +179,8 @@ export default function Hoy() {
                 </div>
                 <div className="ck-lead-act">
                   {wa(l.telefono, `Hola ${first(l.nombre)}, `) && <a className="cotiz-mini" href={wa(l.telefono, `Hola ${first(l.nombre)}, `)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>Escribir</a>}
-                  <button className="cotiz-mini ghost" onClick={e => { e.stopPropagation(); pedirBriefing({ leadId: l.id }, l.nombre); }}>IA</button>
+                  <button className="cotiz-mini ghost" title="Prepárame para este lead (IA)" onClick={e => { e.stopPropagation(); pedirBriefing({ leadId: l.id }, l.nombre); }}>⚡ IA</button>
+                  <button className="cotiz-mini ghost" title="¿Qué unidad le queda?" onClick={e => { e.stopPropagation(); queLeQueda(l); }}>🏠</button>
                 </div>
               </div>
             ))}

@@ -87,10 +87,18 @@ body:has(.sidebar){padding-left:252px}
 .cmdk-item.on{background:var(--lime-soft);color:var(--ink)}
 .cmdk-lbl{flex:1;font-weight:600;color:var(--ink)}
 .cmdk-group{font-size:.72rem;color:var(--dim)}
+.cmdk-item.ask .cmdk-lbl{color:var(--lime)}
+.cmdk-item.ask{border:1px dashed var(--lime-line)}
+.cmdk-item.ask.on{background:var(--lime-soft)}
 .cmdk-foot{display:flex;align-items:center;gap:.4rem;padding:.6rem .9rem;border-top:1px solid var(--line);color:var(--dim);font-size:.74rem}
 
 /* cockpit /hoy */
-.ck-hero{background:linear-gradient(120deg,var(--lime-soft),transparent 62%),var(--panel);border:1px solid var(--lime-line);border-radius:18px;padding:1.3rem 1.4rem;box-shadow:var(--sh)}
+.ck-resumen{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.7rem .9rem;margin-top:.4rem}
+.ck-resumen .ck-res-ic{font-size:1rem;flex:none}
+.ck-resumen p{flex:1;min-width:200px;color:var(--sub);font-size:.9rem;margin:0}
+.ck-res-note{font-size:.78rem;color:var(--dim)}
+.ck-res-note a{color:var(--lime);cursor:pointer}
+.ck-hero{background:linear-gradient(120deg,var(--lime-soft),transparent 62%),var(--panel);border:1px solid var(--lime-line);border-radius:18px;padding:1.3rem 1.4rem;box-shadow:var(--sh);margin-top:.8rem}
 .ck-hero-tag{font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--lime)}
 .ck-hero-main{display:flex;align-items:center;justify-content:space-between;gap:1.2rem;flex-wrap:wrap;margin-top:.5rem}
 .ck-hero-main h2{font-size:1.35rem;letter-spacing:-.01em;margin-bottom:.2rem}

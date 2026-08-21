@@ -94,7 +94,7 @@ export default function Nav({ me, current }) {
   const activeGroup = groups.find(g => g.items.some(([href]) => href === current))?.t;
   const shownOpen = openG ?? activeGroup ?? groups[0].t;
 
-  // Resultados de la paleta.
+  // Resultados de la paleta (+ acción de preguntar al Copiloto cuando hay texto).
   const results = useMemo(() => {
     const nq = norm(q.trim());
     if (!nq) return favItems.length ? favItems : allItems;
@@ -102,8 +102,16 @@ export default function Nav({ me, current }) {
       .map(it => ({ it, s: norm(it.label).indexOf(nq), g: norm(it.group).indexOf(nq) }))
       .filter(x => x.s >= 0 || x.g >= 0)
       .sort((a, b) => (a.s === 0 ? -1 : b.s === 0 ? 1 : 0) || (a.s < 0 ? 1 : b.s < 0 ? -1 : a.s - b.s));
-    return scored.map(x => x.it);
+    const list = scored.map(x => x.it);
+    list.push({ ask: true, ic: '🤖', label: `Preguntar al Copiloto: “${q.trim()}”`, group: 'IA' });
+    return list;
   }, [q, allItems, favItems]);
+
+  function activar(it) {
+    if (!it) return;
+    if (it.ask) go(`/copiloto?q=${encodeURIComponent(q.trim())}`);
+    else go(it.href);
+  }
 
   // Atajo global ⌘K / Ctrl+K.
   useEffect(() => {
@@ -134,7 +142,7 @@ export default function Nav({ me, current }) {
   function palKey(e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSel(s => Math.min(s + 1, results.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setSel(s => Math.max(s - 1, 0)); }
-    else if (e.key === 'Enter') { e.preventDefault(); const r = results[sel]; if (r) go(r.href); }
+    else if (e.key === 'Enter') { e.preventDefault(); activar(results[sel]); }
   }
 
   const linkRow = (it, inFav) => (
@@ -214,7 +222,7 @@ export default function Nav({ me, current }) {
               {!q.trim() && favItems.length > 0 && <div className="cmdk-glabel">Favoritos</div>}
               {results.length === 0 && <div className="cmdk-empty">Sin resultados para “{q}”.</div>}
               {results.map((it, i) => (
-                <div key={it.href} className={'cmdk-item' + (i === sel ? ' on' : '')} onMouseEnter={() => setSel(i)} onClick={() => go(it.href)}>
+                <div key={it.href || 'ask'} className={'cmdk-item' + (i === sel ? ' on' : '') + (it.ask ? ' ask' : '')} onMouseEnter={() => setSel(i)} onClick={() => activar(it)}>
                   <span className="ic">{it.ic}</span>
                   <span className="cmdk-lbl">{it.label}</span>
                   <span className="cmdk-group">{it.group}</span>

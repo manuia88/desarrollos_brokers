@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
@@ -16,6 +16,7 @@ export default function Copiloto() {
   const [chat, setChat] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const autoRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -26,9 +27,17 @@ export default function Copiloto() {
     })();
   }, [router]);
 
-  async function enviar(e) {
+  // Pregunta pre-armada por URL (?q=…), p. ej. desde ⌘K o "¿Qué le queda?" — se envía sola.
+  useEffect(() => {
+    if (!me || autoRef.current) return;
+    let q = '';
+    try { q = new URLSearchParams(window.location.search).get('q') || ''; } catch { /* noop */ }
+    if (q.trim()) { autoRef.current = true; enviar(null, q.trim()); }
+  }, [me]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function enviar(e, textoOverride) {
     if (e) e.preventDefault();
-    const q = input.trim();
+    const q = String(textoOverride ?? input).trim();
     if (!q || busy) return;
     const nuevo = [...chat, { role: 'user', content: q }];
     setChat(nuevo); setInput(''); setBusy(true);
