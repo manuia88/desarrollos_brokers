@@ -20,7 +20,8 @@ export default function Unirme() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login?next=/unirme'); return; }
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
-      if (prof?.org_id) { router.replace('/portal'); return; }   // ya pertenece a una org
+      // Ya pertenece a una org, o es super_admin (que no se une a ninguna): al portal.
+      if (prof?.org_id || prof?.rol === 'super_admin') { router.replace('/portal'); return; }
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const { data: ms } = await supabase.rpc('mi_solicitud');
       if (ms && ms[0] && ms[0].estado === 'pendiente') setSol(ms[0]);

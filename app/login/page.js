@@ -24,8 +24,9 @@ export default function Login() {
       try {
         const uid = sess?.user?.id;
         if (uid) {
-          const { data: prof } = await supabase.from('profiles').select('org_id').eq('id', uid).single();
-          if (!prof?.org_id) next = '/unirme';
+          const { data: prof } = await supabase.from('profiles').select('org_id,rol').eq('id', uid).single();
+          // El super_admin no pertenece a ninguna inmobiliaria (org_id null es normal): va directo al portal.
+          if (!prof?.org_id && prof?.rol !== 'super_admin') next = '/unirme';
         }
       } catch { /* noop */ }
     }
