@@ -1,9 +1,10 @@
 :root{
-  --bg:#0A0A0C; --panel:#141419; --panel2:#1B1B22; --line:#2A2A33;
-  --ink:#F5F5F7; --sub:#9A9AA7; --dim:#8C8C99;
+  --bg:#0B0B10; --panel:#1A1A22; --panel2:#24242F; --line:#35353F;
+  --ink:#F6F6F8; --sub:#A8A8B4; --dim:#8C8C99;
   --mag:#FF1E7A; --mag-soft:rgba(255,30,122,.14); --mag-line:rgba(255,30,122,.4);
-  --lime:#C6FF3A; --lime-soft:rgba(198,255,58,.12); --lime-ink:#0A0A0C;
+  --lime:#C6FF3A; --lime-soft:rgba(198,255,58,.13); --lime-ink:#0A0A0C; --lime-line:rgba(198,255,58,.4);
   --r:16px; --ease:cubic-bezier(.22,1,.36,1);
+  --sh:0 1px 0 rgba(255,255,255,.045) inset,0 10px 26px rgba(0,0,0,.5);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -23,6 +24,40 @@ button,input,select{font:inherit}
 .nav a,.nav button{color:var(--sub);font-weight:600;font-size:.9rem;padding:.5rem .8rem;border-radius:10px;border:none;background:none;cursor:pointer}
 .nav a:hover,.nav button:hover{color:var(--ink);background:rgba(255,255,255,.05)}
 
+/* sidebar (reemplaza al topbar en el portal) */
+.sidebar{position:fixed;left:0;top:0;width:252px;height:100vh;background:linear-gradient(180deg,var(--panel2),var(--panel));border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:40;padding:.85rem .7rem}
+body:has(.sidebar){padding-left:252px}
+.sb-logo{display:flex;align-items:center;gap:.55rem;font-weight:800;color:var(--ink);padding:.35rem .5rem 1rem;cursor:pointer}
+.sb-logo b{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--mag),#FF5CA8);display:grid;place-items:center;color:#fff;font-size:.85rem;flex:none}
+.sb-scroll{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:.1rem;padding-right:.15rem}
+.sb-scroll::-webkit-scrollbar{width:8px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+.sb-group{margin-top:.1rem}
+.sb-ghead{display:flex;align-items:center;gap:.5rem;width:100%;padding:.5rem .6rem;background:none;border:none;color:var(--dim);font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:8px}
+.sb-ghead:hover{color:var(--sub)}
+.sb-ghead .chev{margin-left:auto;transition:transform .18s var(--ease);font-size:1rem}
+.sb-group.open .sb-ghead .chev{transform:rotate(90deg)}
+.sb-items{display:flex;flex-direction:column;gap:.12rem;padding:.1rem 0 .3rem}
+.sb-link{display:flex;align-items:center;gap:.65rem;padding:.5rem .7rem;border-radius:10px;color:var(--sub);font-weight:600;font-size:.9rem;cursor:pointer;border:1px solid transparent}
+.sb-link:hover{background:rgba(255,255,255,.055);color:var(--ink)}
+.sb-link.on{background:var(--lime-soft);color:var(--lime);border-color:var(--lime-line);font-weight:700}
+.sb-link .ic{width:20px;text-align:center;flex:none;font-size:1rem}
+.sb-badge{margin-left:auto;background:var(--mag);color:#fff;font-size:.62rem;font-weight:800;border-radius:99px;padding:.06rem .4rem;min-width:18px;text-align:center}
+.sb-foot{border-top:1px solid var(--line);padding-top:.7rem;margin-top:.4rem;display:flex;flex-direction:column;gap:.5rem}
+.sb-user{display:flex;align-items:center;gap:.5rem;padding:.2rem .5rem;font-size:.85rem;color:var(--sub)}
+.sb-super{font-size:.58rem;font-weight:800;color:var(--lime);background:var(--lime-soft);border:1px solid var(--lime-line);padding:.1rem .4rem;border-radius:99px;letter-spacing:.06em}
+.sb-salir{width:100%;padding:.55rem;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-weight:700;cursor:pointer;font-size:.86rem}
+.sb-salir:hover{border-color:var(--mag-line)}
+.sb-burger{display:none}
+.sb-backdrop{display:none}
+@media(max-width:900px){
+  body:has(.sidebar){padding-left:0}
+  .sidebar{transform:translateX(-100%);transition:transform .2s var(--ease);box-shadow:0 0 50px rgba(0,0,0,.6)}
+  .sidebar.open{transform:none}
+  .sb-burger{display:grid;place-items:center;position:fixed;top:.7rem;left:.7rem;z-index:50;width:42px;height:42px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-size:1.15rem;cursor:pointer}
+  .sb-backdrop.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:39}
+}
+
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.75rem 1.15rem;border-radius:12px;font-weight:700;border:1px solid transparent;cursor:pointer;transition:transform .15s var(--ease),filter .15s;font-size:.95rem}
 .btn:active{transform:scale(.97)}
@@ -40,7 +75,7 @@ button,input,select{font:inherit}
 .hero p{color:var(--sub);max-width:60ch;font-size:1.08rem}
 .cta{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:1.8rem}
 .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.9rem;margin:3rem 0}
-.fcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:1.2rem}
+.fcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:1.2rem;box-shadow:var(--sh)}
 .fcard .ic{width:40px;height:40px;border-radius:11px;background:var(--mag-soft);border:1px solid var(--mag-line);display:grid;place-items:center;font-size:1.1rem;margin-bottom:.7rem}
 .fcard h3{font-size:1.05rem;margin-bottom:.3rem}
 .fcard p{color:var(--sub);font-size:.9rem}
@@ -75,7 +110,7 @@ button,input,select{font:inherit}
 
 /* grid de desarrollos */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1.1rem;padding:.5rem 0 3rem}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:transform .2s var(--ease),border-color .2s}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;transition:transform .2s var(--ease),border-color .2s;box-shadow:var(--sh)}
 .card:hover{transform:translateY(-3px);border-color:var(--mag-line)}
 .cover{height:120px;position:relative;display:flex;align-items:flex-end;padding:.8rem}
 .cover .sig{position:absolute;inset:0;display:grid;place-items:center;font-size:2.2rem;font-weight:800;color:rgba(255,255,255,.16)}
