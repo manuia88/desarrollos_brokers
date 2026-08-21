@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
+import Nav from '../../components/Nav';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 function meses(fecha) {
@@ -63,19 +64,7 @@ export default function Portal() {
 
   return (
     <>
-      <header className="topbar"><div className="topbar-in">
-        <span className="logo"><b>Q</b>Portal de Brokers</span>
-        <nav className="nav">
-          <a onClick={() => router.push('/buscar')}>Buscar</a>
-          <a onClick={() => router.push('/crm')}>CRM</a>
-          <a onClick={() => router.push('/comisiones')}>Comisiones</a>
-          <a onClick={() => router.push('/marca')}>Mi marca</a>
-          {me?.rol === 'super_admin' && <a onClick={() => router.push('/altas')}>Altas</a>}
-          {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
-          <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
-          <button onClick={logout}>Salir</button>
-        </nav>
-      </div></header>
+      <Nav me={me} current="/portal" />
 
       <main className="wrap">
         <div className="filters">

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
+import Nav from '../../components/Nav';
 import SuperBar from '../../components/SuperBar';
 import { getViewAs } from '../../lib/viewas';
 
@@ -96,17 +97,7 @@ export default function Comisiones() {
 
   return (
     <>
-      <header className="topbar"><div className="topbar-in">
-        <span className="logo"><b>Q</b>Comisiones</span>
-        <nav className="nav">
-          <a onClick={() => router.push('/crm')}>CRM</a>
-          <a onClick={() => router.push('/portal')}>Catálogo</a>
-          {me?.rol === 'super_admin' && <a onClick={() => router.push('/altas')}>Altas</a>}
-          {me?.rol === 'super_admin' && <span className="tag-super">SUPER ADMIN</span>}
-          <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
-          <button onClick={logout}>Salir</button>
-        </nav>
-      </div></header>
+      <Nav me={me} current="/comisiones" />
 
       {me?.rol === 'super_admin' && <SuperBar onChange={setViewAs} />}
 

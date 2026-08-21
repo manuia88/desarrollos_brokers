@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../lib/supabase';
+import Nav from '../../../components/Nav';
 import Cotizador from '../../../components/Cotizador';
 import UnitDrawer from '../../../components/UnitDrawer';
 import RegistroCliente from '../../../components/RegistroCliente';
@@ -76,7 +77,7 @@ export default function Detalle() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('rol,org_id').eq('id', session.user.id).single();
-      setMe({ id: session.user.id, ...(prof || {}) });
+      setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const { data } = await supabase.from('desarrollos').select('*').eq('sku', sku).single();
       setD(data || null);
       const { data: us } = await supabase.from('unidades').select('*').eq('dev_sku', sku).eq('estatus','Disponible').order('torre').order('num_depto');
@@ -164,10 +165,7 @@ export default function Detalle() {
 
   return (
     <>
-      <header className="topbar"><div className="topbar-in">
-        <span className="logo"><b>Q</b>Portal de Brokers</span>
-        <nav className="nav"><Link href="/portal">← Catálogo</Link></nav>
-      </div></header>
+      <Nav me={me} current="/portal" />
 
       <main className="wrap" style={{paddingBottom:'3rem'}}>
         {/* HERO */}

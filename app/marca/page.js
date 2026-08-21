@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
+import Nav from '../../components/Nav';
 import { subirLogo, subirFotoAsesor, guardarTelefono } from '../../lib/marca';
 
 export default function Marca() {
@@ -87,15 +88,7 @@ export default function Marca() {
 
   return (
     <>
-      <header className="topbar"><div className="topbar-in">
-        <span className="logo"><b>Q</b>Mi marca</span>
-        <nav className="nav">
-          <a onClick={() => router.push('/crm')}>CRM</a>
-          <a onClick={() => router.push('/portal')}>Catálogo</a>
-          <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
-          <button onClick={logout}>Salir</button>
-        </nav>
-      </div></header>
+      <Nav me={me} current="/marca" />
 
       <main className="wrap" style={{ maxWidth: 720 }}>
         <div className="buscar-intro">

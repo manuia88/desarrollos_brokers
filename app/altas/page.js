@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
+import Nav from '../../components/Nav';
 import { abrirDocumento } from '../../lib/docs';
 
 const ESTADOS = [['pendiente', 'Pendientes'], ['activo', 'Activas'], ['rechazado', 'Rechazadas'], ['', 'Todas']];
@@ -66,17 +67,7 @@ export default function Altas() {
 
   return (
     <>
-      <header className="topbar"><div className="topbar-in">
-        <span className="logo"><b>D</b>Altas de brokers</span>
-        <nav className="nav">
-          <a onClick={() => router.push('/crm')}>CRM</a>
-          <a onClick={() => router.push('/comisiones')}>Comisiones</a>
-          <a onClick={() => router.push('/portal')}>Catálogo</a>
-          <span className="tag-super">SUPER ADMIN</span>
-          <span style={{ color: 'var(--sub)', fontSize: '.85rem' }}>{me?.nombre || me?.email}</span>
-          <button onClick={logout}>Salir</button>
-        </nav>
-      </div></header>
+      <Nav me={me} current="/altas" />
 
       <main className="wrap">
         <div className="buscar-intro">
