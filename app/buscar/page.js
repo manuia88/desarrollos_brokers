@@ -6,7 +6,8 @@ import Nav from '../../components/Nav';
 import { MXN, EmptyState } from '../../components/ui';
 import {
   meses, precioM2, pasaEntrega, ENTREGA_BUCKETS, creditosDe, cabeEnCredito,
-  CREDITOS, AMENIDADES_CLAVE, VISTAS, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo,
+  CREDITOS, AMENIDADES_CLAVE, VISTAS, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo, parseConsulta,
+  precalifica, yieldBruto,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
 import { track } from '../../lib/track';
@@ -35,6 +36,10 @@ export default function Buscar() {
   const [saved, setSaved] = useState(false);
   const [vistas, setVistas] = useState([]);       // vistas propias guardadas
   const [persona, setPersona] = useState(null);
+  const [nlq, setNlq] = useState('');             // búsqueda en lenguaje natural
+  const [af, setAf] = useState({ ingreso: '', enganche: '', tipo: 'Bancario' });   // capacidad de pago
+  const [sel, setSel] = useState([]);             // shortlist de desarrollos (skus)
+  const [why, setWhy] = useState(null);           // sku con "¿por qué?" abierto
 
   useEffect(() => { try { setVistas(JSON.parse(localStorage.getItem('qc_vistas') || '[]')); } catch { setVistas([]); } }, []);
   function guardarVista() {
@@ -153,13 +158,13 @@ export default function Buscar() {
       }
     }
     const g = {};
-    ok.forEach(u => { const d = byId[u.dev_sku]; const f2 = fitScore(u, d, criterios); (g[u.dev_sku] = g[u.dev_sku] || { d, us: [], best: 0 }); g[u.dev_sku].us.push({ ...u, _fit: f2.score }); g[u.dev_sku].best = Math.max(g[u.dev_sku].best, f2.score); });
-    let arr = Object.values(g).map(({ d, us, best }) => {
+    ok.forEach(u => { const d = byId[u.dev_sku]; const f2 = fitScore(u, d, criterios); const grp = (g[u.dev_sku] = g[u.dev_sku] || { d, us: [], best: 0, bestFac: [] }); grp.us.push({ ...u, _fit: f2.score }); if (f2.score >= grp.best) { grp.best = f2.score; grp.bestFac = f2.factores || []; } });
+    let arr = Object.values(g).map(({ d, us, best, bestFac }) => {
       us.sort((a, b) => a.precio - b.precio);
       const min = us[0].precio, max = us[us.length - 1].precio;
       const pms = us.map(precioM2).filter(Boolean);
       return {
-        d, us, best,
+        d, us, best, bestFac,
         min, max,
         pm2: pms.length ? Math.min(...pms) : null,
         comPct: Math.round((d.comision_broker || 0) * 100),
@@ -210,6 +215,70 @@ export default function Buscar() {
     setF(o => ({ ...F0, sort: v.sort || 'precio', ...v.patch, recs: v.patch.recs || [], creditos: v.patch.creditos || [], amenidades: v.patch.amenidades || [] }));
   }
 
+  // Traduce lenguaje natural a filtros (ej. "2 rec en Coyoacán, hasta 3.7M, Infonavit").
+  function aplicarNL(e) {
+    if (e) e.preventDefault();
+    if (!nlq.trim()) return;
+    const { crit } = parseConsulta(nlq, zonas);
+    setF(o => ({
+      ...o,
+      recs: crit.recs && crit.recs.length ? crit.recs : o.recs,
+      presMax: crit.presupuestoMax ? String(crit.presupuestoMax) : o.presMax,
+      zona: (crit.zonas && crit.zonas[0]) || o.zona,
+      creditos: crit.creditos && crit.creditos.length ? crit.creditos : o.creditos,
+      amenidades: crit.amenidades && crit.amenidades.length ? crit.amenidades : o.amenidades,
+      cajonesMin: crit.cajonesMin ? String(crit.cajonesMin) : o.cajonesMin,
+      bodega: crit.bodega != null ? crit.bodega : o.bodega,
+      entrega: crit.entregaBucket || o.entrega,
+    }));
+  }
+
+  // Chips de filtros activos (removibles) para que el broker vea y quite lo aplicado.
+  const chipsActivos = useMemo(() => {
+    const out = [];
+    const recL = { '0': 'Loft', '1': '1 rec', '2': '2 rec', '3': '3+ rec' };
+    f.recs.forEach(r => out.push({ k: 'recs:' + r, label: recL[r] || r, clear: () => toggleArr('recs', r) }));
+    if (f.banosMin) out.push({ k: 'banos', label: f.banosMin + '+ baños', clear: () => set('banosMin', '') });
+    if (f.presMin) out.push({ k: 'presMin', label: 'desde ' + MXN(+f.presMin), clear: () => set('presMin', '') });
+    if (f.presMax) out.push({ k: 'presMax', label: 'hasta ' + MXN(+f.presMax), clear: () => set('presMax', '') });
+    if (f.zona) out.push({ k: 'zona', label: f.zona, clear: () => { set('zona', ''); set('colonia', ''); } });
+    if (f.colonia) out.push({ k: 'colonia', label: f.colonia, clear: () => set('colonia', '') });
+    if (f.entrega) { const el = { inmediata: 'Inmediata', '6': '≤ 6 meses', '12': '≤ 12 meses', '24': '≤ 24 meses', '36': '≤ 36 meses' }; out.push({ k: 'entrega', label: el[f.entrega] || 'Entrega', clear: () => set('entrega', '') }); }
+    f.creditos.forEach(c => out.push({ k: 'cred:' + c, label: (CREDITOS.find(x => x[0] === c) || [, c])[1], clear: () => toggleArr('creditos', c) }));
+    f.ext.forEach(x => out.push({ k: 'ext:' + x, label: (EXT.find(e => e[0] === x) || [, x])[1], clear: () => toggleArr('ext', x) }));
+    if (f.cajonesMin) out.push({ k: 'cajones', label: f.cajonesMin + '+ cajón', clear: () => set('cajonesMin', '') });
+    if (f.bodega) out.push({ k: 'bodega', label: '📦 Bodega', clear: () => set('bodega', false) });
+    f.amenidades.forEach(a => out.push({ k: 'amen:' + a, label: a, clear: () => toggleArr('amenidades', a) }));
+    if (f.comisionMin) out.push({ k: 'comision', label: '💰 ≥ ' + f.comisionMin + '%', clear: () => set('comisionMin', '') });
+    if (f.precioM2Max) out.push({ k: 'pm2', label: '≤ ' + MXN(+f.precioM2Max) + '/m²', clear: () => set('precioM2Max', '') });
+    if (f.depaMuestra) out.push({ k: 'muestra', label: '🏠 Depa muestra', clear: () => set('depaMuestra', false) });
+    if (f.descuento) out.push({ k: 'promo', label: '🔻 Promoción', clear: () => set('descuento', false) });
+    return out;
+  }, [f]);
+
+  // Capacidad de pago: ingreso + enganche → precio máximo que califica.
+  const preAf = useMemo(() => {
+    const ing = +af.ingreso || 0, eng = +af.enganche || 0;
+    if (!ing) return null;
+    return precalifica(ing, eng, af.tipo);
+  }, [af]);
+  function aplicarPago() {
+    if (!preAf) return;
+    const k = af.tipo.toLowerCase();
+    setF(o => ({ ...o, presMax: String(preAf.maxPrecio), creditos: (af.tipo !== 'Bancario' && !o.creditos.includes(k)) ? [...o.creditos, k] : o.creditos }));
+  }
+
+  // Shortlist de desarrollos para armar una propuesta al cliente.
+  function toggleSel(sku, e) { if (e) e.stopPropagation(); setSel(s => s.includes(sku) ? s.filter(x => x !== sku) : [...s, sku]); }
+  function compartirShortlist() {
+    const elegidos = grupos.filter(g => sel.includes(g.d.sku));
+    if (!elegidos.length) return;
+    const txt = 'Hola, te comparto algunas opciones que te pueden servir:\n\n' + elegidos.map(g =>
+      `• ${g.d.nombre} — ${g.d.colonia}, ${g.d.alcaldia}\n  ${g.min === g.max ? MXN(g.min) : MXN(g.min) + '–' + MXN(g.max)} · aprox. ${MXN(g.mens)}/mes`).join('\n\n');
+    if (typeof window !== 'undefined') window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+  }
+  function compararShortlist() { if (sel.length) router.push('/comparar?skus=' + sel.join(',')); }
+
   async function onSave() {
     const r = await guardarCard({ ...criterios, ...saveForm });
     if (!r.error) { setSaved(true); setTimeout(() => { setSaveOpen(false); setSaved(false); setSaveForm({ nombre: '', telefono: '', email: '', notas: '' }); }, 1200); }
@@ -219,135 +288,197 @@ export default function Buscar() {
 
   return (
     <>
-      <Nav me={me} current="/buscar" logo="Buscador inteligente" />
-      <main className="wrap">
+      <Nav me={me} current="/buscar" />
+      <main className="wrap bs-wrap">
         <div className="buscar-intro">
           <h1>¿Qué busca tu cliente?</h1>
-          <p>Define sus criterios y te digo qué le queda de {devs.length} desarrollos y {units.length.toLocaleString('es-MX')} unidades disponibles — con mensualidad, ingreso mínimo y comisión ya calculados.</p>
+          <p>Define sus criterios y te digo qué le queda de {devs.length} desarrollos y {units.length.toLocaleString('es-MX')} unidades — con mensualidad, ingreso mínimo y comisión ya calculados.</p>
         </div>
 
-        {/* Vistas inteligentes */}
-        <div className="vistas">
-          {VISTAS.map(v => <button key={v.id} className="vista" onClick={() => aplicarVista(v)}><i>{v.icon}</i>{v.label}</button>)}
-        </div>
+        {/* Búsqueda en lenguaje natural */}
+        <form className="bs-nl" onSubmit={aplicarNL}>
+          <span className="bs-nl-ic">🗣️</span>
+          <input className="bs-nl-in" value={nlq} onChange={e => setNlq(e.target.value)} placeholder="Dilo como tu cliente: “2 recámaras en Coyoacán, hasta 3.7M, con Infonavit”" />
+          <button className="btn lim sm" type="submit">Traducir a filtros</button>
+        </form>
 
-        {/* Personas: perfil de cliente + pitch sugerido */}
-        <div className="pers-row">
-          <span className="pers-lbl">Perfil:</span>
-          {PERSONAS.map(p => <button key={p.id} className={'chip' + (persona?.id === p.id ? ' on' : '')} onClick={() => setPersona(persona?.id === p.id ? null : p)}>{p.label}</button>)}
+        {/* Quick-start: perfil + atajos + mis vistas */}
+        <div className="bs-quick">
+          <div className="bs-qrow"><span className="bs-qlbl">Perfil</span>
+            {PERSONAS.map(p => <button key={p.id} className={'chip' + (persona?.id === p.id ? ' on' : '')} onClick={() => setPersona(persona?.id === p.id ? null : p)}>{p.label}</button>)}
+          </div>
+          <div className="bs-qrow"><span className="bs-qlbl">Atajos</span>
+            {VISTAS.map(v => <button key={v.id} className="chip" onClick={() => aplicarVista(v)}><i className="bs-qic">{v.icon}</i>{v.label}</button>)}
+          </div>
+          {vistas.length > 0 && (
+            <div className="bs-qrow"><span className="bs-qlbl">Mis vistas</span>
+              {vistas.map(v => <span key={v.nombre} className="saved-chip"><button onClick={() => aplicarVistaPropia(v)}>{v.nombre}</button><i onClick={() => borrarVista(v.nombre)}>✕</i></span>)}
+            </div>
+          )}
         </div>
         {persona && <div className="pers-pitch">💡 <b>{persona.label}:</b> {persona.pitch}</div>}
 
-        {/* Vistas propias guardadas */}
-        {vistas.length > 0 && (
-          <div className="saved-row">
-            <span className="pers-lbl">Mis vistas:</span>
-            {vistas.map(v => (
-              <span key={v.nombre} className="saved-chip">
-                <button onClick={() => aplicarVistaPropia(v)}>{v.nombre}</button>
-                <i onClick={() => borrarVista(v.nombre)}>✕</i>
-              </span>
-            ))}
-          </div>
-        )}
+        <div className="bs-layout">
+          {/* FILTROS por secciones */}
+          <aside className="bs-filters">
+            <details open className="bs-sec">
+              <summary>🎯 Lo esencial</summary>
+              <div className="bs-field"><label>Recámaras</label>
+                <div className="bs-chips">{RECS.map(([v, l]) => <span key={v} className={'chip' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}{recCounts[v] != null && <em className="chip-n">{recCounts[v]}</em>}</span>)}</div>
+              </div>
+              <div className="bs-field"><label>Baños</label>
+                <div className="bs-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
+              </div>
+              <div className="bs-field"><label>Presupuesto del cliente</label>
+                <div className="bs-money">
+                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={f.presMin} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+                  <span className="bs-dash">—</span>
+                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={f.presMax} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+                </div>
+                <input type="range" className="bs-range" min="1000000" max="15000000" step="100000" value={f.presMax || 15000000} onChange={e => set('presMax', e.target.value === '15000000' ? '' : e.target.value)} />
+                <div className="bs-hint">{(f.presMin || f.presMax) ? `${f.presMin ? MXN(+f.presMin) : '$0'} — ${f.presMax ? MXN(+f.presMax) : 'sin tope'}` : 'Escribe el rango exacto, no solo botones'}</div>
+                <div className="bs-chips">{PRESUP.filter(([v]) => v).map(([v, l]) => <span key={v} className={'chip sm' + (f.presMax === v ? ' on' : '')} onClick={() => set('presMax', f.presMax === v ? '' : v)}>≤ {l}</span>)}</div>
+              </div>
+              <div className="bs-af">
+                <div className="bs-af-h">💳 ¿No sabes su presupuesto? Búscalo por lo que puede pagar</div>
+                <div className="bs-af-grid">
+                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Ingreso/mes" value={af.ingreso} onChange={e => setAf(a => ({ ...a, ingreso: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
+                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Enganche" value={af.enganche} onChange={e => setAf(a => ({ ...a, enganche: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
+                  <select className="crit-sel sm" value={af.tipo} onChange={e => setAf(a => ({ ...a, tipo: e.target.value }))}><option>Bancario</option><option>Infonavit</option><option>FOVISSSTE</option></select>
+                </div>
+                {preAf && <div className="bs-af-res">Califica hasta <b>{MXN(preAf.maxPrecio)}</b> · pago ~{MXN(preAf.pago)}/mes <button className="chip on sm" onClick={aplicarPago}>Aplicar</button></div>}
+              </div>
+            </details>
 
-        {/* Facetas */}
-        <div className="crit">
-          <div className="crit-row"><label>Recámaras</label>
-            <div className="crit-chips">{RECS.map(([v, l]) => <span key={v} className={'chip' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}{recCounts[v] != null && <em className="chip-n">{recCounts[v]}</em>}</span>)}</div>
-          </div>
-          <div className="crit-row"><label>Baños</label>
-            <div className="crit-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
-          </div>
-          <div className="crit-row"><label>Exteriores</label>
-            <div className="crit-chips">{EXT.map(([v, l]) => <span key={v} className={'chip' + (f.ext.includes(v) ? ' on' : '')} onClick={() => toggleArr('ext', v)}>{l}</span>)}
-              {f.ext.length > 1 && <span className="crit-nota">cualquiera de los marcados</span>}
+            <details open className="bs-sec">
+              <summary>📍 Ubicación</summary>
+              <div className="bs-field"><label>Alcaldía</label>
+                <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
+              </div>
+              {colonias.length > 0 && <div className="bs-field"><label>Colonia</label>
+                <select value={f.colonia} onChange={e => set('colonia', e.target.value)} className="crit-sel"><option value="">Cualquier colonia</option>{colonias.map(z => <option key={z}>{z}</option>)}</select>
+              </div>}
+            </details>
+
+            <details className="bs-sec">
+              <summary>🗓️ Entrega y crédito</summary>
+              <div className="bs-field"><label>Entrega</label>
+                <div className="bs-chips"><span className={'chip' + (f.entrega === '' ? ' on' : '')} onClick={() => set('entrega', '')}>Cualquiera</span>{ENTREGA_BUCKETS.map(([v, l]) => <span key={v} className={'chip' + (f.entrega === v ? ' on' : '')} onClick={() => set('entrega', v)}>{l}</span>)}</div>
+              </div>
+              <div className="bs-field"><label>Crédito</label>
+                <div className="bs-chips">{CREDITOS.map(([k, l]) => <span key={k} className={'chip' + (f.creditos.includes(k) ? ' on' : '')} onClick={() => toggleArr('creditos', k)}>{l}</span>)}</div>
+              </div>
+            </details>
+
+            <details className="bs-sec">
+              <summary>🛋️ Espacios y amenidades</summary>
+              <div className="bs-field"><label>Exteriores</label>
+                <div className="bs-chips">{EXT.map(([v, l]) => <span key={v} className={'chip' + (f.ext.includes(v) ? ' on' : '')} onClick={() => toggleArr('ext', v)}>{l}</span>)}{f.ext.length > 1 && <span className="crit-nota">cualquiera</span>}</div>
+              </div>
+              <div className="bs-field"><label>Cajones</label>
+                <div className="bs-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}<span className={'chip' + (f.bodega ? ' on' : '')} onClick={() => set('bodega', !f.bodega)}>📦 Con bodega</span></div>
+              </div>
+              <div className="bs-field"><label>Amenidades</label>
+                <div className="bs-chips">{AMENIDADES_CLAVE.map(([k, l]) => <span key={k} className={'chip' + (f.amenidades.includes(l) ? ' on' : '')} onClick={() => toggleArr('amenidades', l)}>{l}</span>)}</div>
+              </div>
+            </details>
+
+            <details className="bs-sec">
+              <summary>💰 Oportunidad para ti</summary>
+              <div className="bs-field"><label>Comisión mínima</label>
+                <div className="bs-chips"><span className={'chip' + (f.comisionMin === '4' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '4' ? '' : '4')}>≥ 4%</span><span className={'chip' + (f.comisionMin === '5' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '5' ? '' : '5')}>≥ 5%</span></div>
+              </div>
+              <div className="bs-field"><label>Precio/m² máx.</label>
+                <div className="bs-chips">{[['60000', '≤ $60k'], ['80000', '≤ $80k'], ['100000', '≤ $100k']].map(([v, l]) => <span key={v} className={'chip' + (f.precioM2Max === v ? ' on' : '')} onClick={() => set('precioM2Max', f.precioM2Max === v ? '' : v)}>{l}</span>)}</div>
+              </div>
+              <div className="bs-field"><label>Extras</label>
+                <div className="bs-chips"><span className={'chip' + (f.depaMuestra ? ' on' : '')} onClick={() => set('depaMuestra', !f.depaMuestra)}>🏠 Depa muestra</span><span className={'chip' + (f.descuento ? ' on' : '')} onClick={() => set('descuento', !f.descuento)}>🔻 Promoción</span></div>
+              </div>
+            </details>
+
+            <div className="bs-filters-foot">
+              {activo && <button className="btn ghost sm" onClick={guardarVista}>☆ Guardar vista</button>}
+              {activo && <button className="btn ghost sm" onClick={() => setF(F0)}>Limpiar todo</button>}
             </div>
-          </div>
-          <div className="crit-row"><label>Presupuesto desde</label>
-            <div className="crit-chips">{PRESUP_MIN.map(([v, l]) => <span key={v} className={'chip' + (f.presMin === v ? ' on' : '')} onClick={() => set('presMin', v)}>{l}</span>)}</div>
-          </div>
-          <div className="crit-row"><label>Presupuesto máx.</label>
-            <div className="crit-chips">{PRESUP.map(([v, l]) => <span key={v} className={'chip' + (f.presMax === v ? ' on' : '')} onClick={() => set('presMax', v)}>{l}</span>)}</div>
-          </div>
-          <div className="crit-row"><label>Entrega</label>
-            <div className="crit-chips">
-              <span className={'chip' + (f.entrega === '' ? ' on' : '')} onClick={() => set('entrega', '')}>Cualquiera</span>
-              {ENTREGA_BUCKETS.map(([v, l]) => <span key={v} className={'chip' + (f.entrega === v ? ' on' : '')} onClick={() => set('entrega', v)}>{l}</span>)}
+          </aside>
+
+          {/* RESULTADOS */}
+          <div className="bs-results">
+            <div className="bs-results-head">
+              <div className="bs-count">
+                {activo ? <><b>{totalU}</b> unidad{totalU === 1 ? '' : 'es'} · <b>{grupos.length}</b> desarrollo{grupos.length === 1 ? '' : 's'}</> : 'Elige criterios para ver opciones'}
+                {relajado && <span className="relaja"> · aflojé <b>{relajado}</b></span>}
+              </div>
+              <div className="bs-head-act">
+                <select value={f.sort} onChange={e => set('sort', e.target.value)} className="crit-sel sm">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+                {activo && <button className="btn lim sm" onClick={() => setSaveOpen(true)}>💾 Guardar cliente</button>}
+              </div>
             </div>
-          </div>
-          <div className="crit-row"><label>Cajones</label>
-            <div className="crit-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}
-              <span className={'chip' + (f.bodega ? ' on' : '')} onClick={() => set('bodega', !f.bodega)}>📦 Con bodega</span>
-            </div>
-          </div>
-          <div className="crit-row"><label>Créditos</label>
-            <div className="crit-chips">{CREDITOS.map(([k, l]) => <span key={k} className={'chip' + (f.creditos.includes(k) ? ' on' : '')} onClick={() => toggleArr('creditos', k)}>{l}</span>)}</div>
-          </div>
-          <div className="crit-row"><label>Amenidades</label>
-            <div className="crit-chips">{AMENIDADES_CLAVE.map(([k, l]) => <span key={k} className={'chip' + (f.amenidades.includes(l) ? ' on' : '')} onClick={() => toggleArr('amenidades', l)}>{l}</span>)}</div>
-          </div>
-          <div className="crit-row"><label>Zona</label>
-            <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel">
-              <option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}
-            </select>
-            {colonias.length > 0 && <select value={f.colonia} onChange={e => set('colonia', e.target.value)} className="crit-sel">
-              <option value="">Cualquier colonia</option>{colonias.map(z => <option key={z}>{z}</option>)}
-            </select>}
-          </div>
-          <div className="crit-row"><label>Extras</label>
-            <div className="crit-chips">
-              <span className={'chip' + (f.comisionMin === '4' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '4' ? '' : '4')}>💰 Comisión ≥ 4%</span>
-              <span className={'chip' + (f.depaMuestra ? ' on' : '')} onClick={() => set('depaMuestra', !f.depaMuestra)}>🏠 Depa muestra</span>
-              <span className={'chip' + (f.descuento ? ' on' : '')} onClick={() => set('descuento', !f.descuento)}>🔻 Con promoción</span>
-              <select value={f.precioM2Max} onChange={e => set('precioM2Max', e.target.value)} className="crit-sel sm">
-                <option value="">Precio/m² máx.</option><option value="60000">≤ $60k/m²</option><option value="80000">≤ $80k/m²</option><option value="100000">≤ $100k/m²</option>
-              </select>
-            </div>
-          </div>
-          <div className="crit-row crit-foot">
-            <div className="crit-chips"><label style={{ minWidth: 0 }}>Ordenar</label>{SORTS.map(([v, l]) => <span key={v} className={'chip' + (f.sort === v ? ' on' : '')} onClick={() => set('sort', v)}>{l}</span>)}</div>
-            {activo && <button className="crit-clear" onClick={guardarVista}>☆ Guardar vista</button>}
-            {activo && <button className="crit-clear" onClick={() => setF(F0)}>Limpiar</button>}
+
+            {chipsActivos.length > 0 && (
+              <div className="bs-active">
+                {chipsActivos.map(c => <span key={c.k} className="bs-active-chip" onClick={c.clear}>{c.label} <i>✕</i></span>)}
+                <button className="bs-active-clear" onClick={() => setF(F0)}>Limpiar</button>
+              </div>
+            )}
+
+            {!activo ? (
+              <EmptyState icon="🔎" title="Empieza por lo esencial">
+                Elige recámaras y presupuesto, escribe la búsqueda en lenguaje natural, o toca un atajo — te muestro las mejores opciones con match %.
+              </EmptyState>
+            ) : totalU === 0 ? (
+              <EmptyState icon="🤔" title="Nada encaja">Sube el presupuesto o quita alguna amenidad con los chips de arriba.</EmptyState>
+            ) : (
+              <div className="res-grid bs-grid">
+                {grupos.map(({ d, us, best, bestFac, min, max, pm2, comPct, comMonto, mens, ingreso, m }) => {
+                  const enSel = sel.includes(d.sku);
+                  const yld = persona?.id === 'inversionista' ? yieldBruto(min) : null;
+                  return (
+                    <article className={'match' + (enSel ? ' sel' : '')} key={d.sku}>
+                      <button className={'bs-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
+                      <div className="match-body" onClick={() => router.push('/portal/' + d.sku)}>
+                        <div className="match-h">
+                          <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
+                          {best > 0 && <span className={'fit ' + (best >= 80 ? 'hi' : best >= 55 ? 'mid' : 'lo')}>{best}%</span>}
+                        </div>
+                        <div className="match-price">{min === max ? MXN(min) : `${MXN(min)} – ${MXN(max)}`}</div>
+                        <div className="match-calc">
+                          <span title="Mensualidad hipotecaria estimada">🏦 ~{MXN(mens)}/mes</span>
+                          <span title="Ingreso mensual mínimo para calificar">💵 ingreso {MXN(ingreso)}</span>
+                          {pm2 && <span title="Precio por m² desde">📐 {MXN(pm2)}/m²</span>}
+                          {yld != null && <span className="lim" title="Yield bruto anual estimado">📈 {yld}% yield</span>}
+                        </div>
+                        <div className="match-meta">
+                          <span>{d.etapa === 'Entrega inmediata' ? '⚡ Inmediata' : (m != null ? `🕑 ${m} meses` : 'Preventa')}</span>
+                          {us.length <= 3 ? <span className="escaso">🔥 Solo {us.length}</span> : <span>🏠 {us.length} disp.</span>}
+                          {comMonto ? <span className="lim">💰 {comPct}% · {MXN(comMonto)}</span> : (comPct ? <span className="lim">💰 {comPct}%</span> : null)}
+                        </div>
+                      </div>
+                      {best > 0 && bestFac && bestFac.length > 0 && (
+                        <div className="bs-why">
+                          <button className="bs-why-t" onClick={() => setWhy(why === d.sku ? null : d.sku)}>{why === d.sku ? '▾' : '▸'} ¿Por qué {best}%?</button>
+                          {why === d.sku && <div className="bs-why-list">{bestFac.slice(0, 4).map((fa, i) => <span key={i} className={'bs-fac' + (fa.pts < 0 ? ' neg' : '')}>{fa.pts > 0 ? '+' : ''}{fa.pts} {fa.label}</span>)}</div>}
+                        </div>
+                      )}
+                      <div className="bs-card-act">
+                        <button className="cotiz-mini" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
+                        <button className="cotiz-mini ghost" onClick={e => toggleSel(d.sku, e)}>{enSel ? '★ En propuesta' : '☆ A propuesta'}</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Acciones sobre el criterio */}
-        {activo && (
-          <div className="res-head">
-            <div><b>{totalU}</b> unidad{totalU === 1 ? '' : 'es'} en <b>{grupos.length}</b> desarrollo{grupos.length === 1 ? '' : 's'}{relajado && <span className="relaja"> · aflojé <b>{relajado}</b> para no dejarte sin resultados</span>}</div>
-            <button className="btn lim sm" onClick={() => setSaveOpen(true)}>💾 Guardar como cliente</button>
-          </div>
-        )}
-
-        {!activo ? (
-          <EmptyState icon="🔎" title="Empieza por lo esencial">
-            Elige recámaras y presupuesto, o toca una vista inteligente arriba — con eso ya te muestro las mejores opciones para tu cliente, con match %.
-          </EmptyState>
-        ) : totalU === 0 ? (
-          <EmptyState icon="🤔" title="Nada encaja">Prueba subir el presupuesto o quitar alguna amenidad.</EmptyState>
-        ) : (
-          <div className="res-grid">
-            {grupos.map(({ d, us, best, min, max, pm2, comPct, comMonto, mens, ingreso, m }) => (
-              <article className="match" key={d.sku} onClick={() => router.push('/portal/' + d.sku)}>
-                <div className="match-h">
-                  <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
-                  {best > 0 && <span className={'fit ' + (best >= 80 ? 'hi' : best >= 55 ? 'mid' : 'lo')}>{best}%</span>}
-                </div>
-                <div className="match-price">{min === max ? MXN(min) : `${MXN(min)} – ${MXN(max)}`}</div>
-                <div className="match-calc">
-                  <span title="Mensualidad hipotecaria estimada">🏦 ~{MXN(mens)}/mes</span>
-                  <span title="Ingreso mensual mínimo para calificar">💵 ingreso {MXN(ingreso)}</span>
-                  {pm2 && <span title="Precio por m² desde">📐 {MXN(pm2)}/m²</span>}
-                </div>
-                <div className="match-meta">
-                  <span>{d.etapa === 'Entrega inmediata' ? '⚡ Inmediata' : (m != null ? `🕑 ${m} meses` : 'Preventa')}</span>
-                  {us.length <= 3 ? <span className="escaso">🔥 Solo {us.length}</span> : <span>🏠 {us.length} disp.</span>}
-                  {comMonto ? <span className="lim">💰 {comPct}% · {MXN(comMonto)}</span> : (comPct ? <span className="lim">💰 {comPct}%</span> : null)}
-                </div>
-                <div className="match-foot"><span>Ver desarrollo →</span></div>
-              </article>
-            ))}
+        {/* Barra flotante de shortlist / propuesta */}
+        {sel.length > 0 && (
+          <div className="bs-shortlist">
+            <span className="bs-sl-count">★ {sel.length} para propuesta</span>
+            <button className="btn ghost sm" onClick={compararShortlist}>⚖️ Comparar</button>
+            <button className="btn lim sm" onClick={compartirShortlist}>📲 Enviar por WhatsApp</button>
+            <button className="bs-sl-x" onClick={() => setSel([])} aria-label="Vaciar">✕</button>
           </div>
         )}
 
