@@ -45,28 +45,35 @@ $$;
 revoke all on function public.buscar_orgs(text) from public, anon;
 grant execute on function public.buscar_orgs(text) to authenticated;
 
--- registrar_org con guard anti-duplicado + p_forzar (override).
+-- Marca de "posible duplicado" para que el super la revise en /altas.
+alter table public.orgs add column if not exists dup_de uuid references public.orgs(id);
+
+-- registrar_org: si hay duplicado NO se crea directo. Con p_revision=true se crea PENDIENTE y
+-- marcada (dup_de) para revisión del super; nunca queda activa por sí sola.
 drop function if exists public.registrar_org(text,text,text);
-create or replace function public.registrar_org(p_nombre text, p_tipo text, p_rfc text, p_forzar boolean default false)
+drop function if exists public.registrar_org(text,text,text,boolean);
+create or replace function public.registrar_org(p_nombre text, p_tipo text, p_rfc text, p_revision boolean default false)
 returns uuid language plpgsql security definer set search_path to 'public' as $$
 declare v_org uuid; v_dup_id uuid; v_dup_nombre text; v_tipo text := coalesce(p_tipo,'inmobiliaria');
 begin
   if auth.uid() is null then raise exception 'no autenticado'; end if;
   if (select org_id from profiles where id = auth.uid()) is not null then
     raise exception 'ya perteneces a una organización'; end if;
-  if not coalesce(p_forzar,false) and v_tipo in ('inmobiliaria','desarrollador') then
+  if v_tipo in ('inmobiliaria','desarrollador') then
     select id, nombre into v_dup_id, v_dup_nombre from orgs
      where tipo = v_tipo and nombre_norm <> ''
        and (nombre_norm = public.nombre_norm(p_nombre) or nombre_norm % public.nombre_norm(p_nombre))
      order by similarity(nombre_norm, public.nombre_norm(p_nombre)) desc, creado asc limit 1;
-    if v_dup_id is not null then
+    if v_dup_id is not null and not coalesce(p_revision,false) then
       raise exception 'org_duplicada|%|%', v_dup_id, v_dup_nombre using errcode = '23505'; end if;
   end if;
-  insert into orgs(nombre, tipo, estado, rfc) values (p_nombre, v_tipo, 'pendiente', p_rfc) returning id into v_org;
+  insert into orgs(nombre, tipo, estado, rfc, dup_de)
+  values (p_nombre, v_tipo, 'pendiente', p_rfc, case when coalesce(p_revision,false) then v_dup_id else null end)
+  returning id into v_org;
   update profiles set org_id = v_org,
     rol = case when v_tipo = 'independiente' then 'independiente' else 'director' end
   where id = auth.uid();
-  perform app_audit('org','crear', v_org::text, jsonb_build_object('tipo', v_tipo));
+  perform app_audit('org','crear', v_org::text, jsonb_build_object('tipo', v_tipo, 'revision', coalesce(p_revision,false), 'dup_de', v_dup_id));
   return v_org;
 end $$;
 grant execute on function public.registrar_org(text,text,text,boolean) to authenticated;

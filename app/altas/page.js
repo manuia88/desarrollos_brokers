@@ -25,7 +25,7 @@ export default function Altas() {
 
   async function load() {
     const [{ data: o }, { data: p }, { data: d }] = await Promise.all([
-      supabase.from('orgs').select('id,nombre,tipo,estado,rfc,creado').order('creado', { ascending: false }),
+      supabase.from('orgs').select('id,nombre,tipo,estado,rfc,creado,dup_de').order('creado', { ascending: false }),
       supabase.from('profiles').select('id,nombre,email,rol,org_id'),
       supabase.from('documentos').select('id,org_id,tipo,nombre_archivo,path,creado').eq('ambito', 'broker').order('creado'),
     ]);
@@ -56,6 +56,7 @@ export default function Altas() {
 
   const docsByOrg = useMemo(() => { const m = {}; docs.forEach(d => { (m[d.org_id] = m[d.org_id] || []).push(d); }); return m; }, [docs]);
   const ownerByOrg = useMemo(() => { const m = {}; people.forEach(p => { if (['director', 'independiente'].includes(p.rol) && !m[p.org_id]) m[p.org_id] = p; }); return m; }, [people]);
+  const orgById = useMemo(() => Object.fromEntries((orgs || []).map(o => [o.id, o])), [orgs]);
   const rows = useMemo(() => (orgs || []).filter(o => !fEstado || o.estado === fEstado), [orgs, fEstado]);
 
   if (orgs === null) return <div className="loading">Cargando…</div>;
@@ -109,6 +110,12 @@ export default function Altas() {
                     {owner ? <><b>{owner.nombre}</b><span>{owner.email || 's/correo'} · {owner.rol}</span></> : <span className="fnote">Sin responsable registrado</span>}
                     <span className="alta-date">Registrado {new Date(o.creado).toLocaleDateString('es-MX')}</span>
                   </div>
+
+                  {o.dup_de && (
+                    <div className="why" style={{ display: 'block', padding: '.45rem .6rem', lineHeight: 1.4 }}>
+                      ⚠️ Posible duplicado de <b>{orgById[o.dup_de]?.nombre || 'otra inmobiliaria'}</b>. El sistema detectó un nombre muy parecido. Revisa si de verdad es distinta; si no, recházala y pide que el asesor se una a la existente.
+                    </div>
+                  )}
 
                   <div className="alta-docs">
                     <div className="alta-docs-h">Documentos ({ds.length})</div>

@@ -47,16 +47,17 @@ export default function Registro() {
   const setFile = (k, f) => setFiles(s => ({ ...s, [k]: f }));
 
   // ---- Alta con creación de organización (inmobiliaria / independiente / desarrollador) ----
-  async function crearOrg(forzar) {
+  // revision=true: la crea PENDIENTE y marcada como posible duplicado, para que el super la revise.
+  async function crearOrg(revision) {
     setMsg(null); setLoading(true);
     const { error: e2 } = await supabase.rpc('registrar_org',
-      { p_nombre: nombreOrg, p_tipo: tipo, p_rfc: rfc || null, p_forzar: !!forzar });
+      { p_nombre: nombreOrg, p_tipo: tipo, p_rfc: rfc || null, p_revision: !!revision });
     if (e2) {
       setLoading(false);
       const m = String(e2.message || '');
       if (m.startsWith('org_duplicada|')) {
         const [, id, nom] = m.split('|');
-        setDup({ id, nombre: nom });   // ofrecer unirse en vez de duplicar
+        setDup({ id, nombre: nom });   // ofrecer unirse o mandar a revisión — no duplicar en silencio
         return false;
       }
       setMsg({ t: 'err', m: m }); return false;
@@ -67,8 +68,10 @@ export default function Registro() {
       const f = files[k]; if (!f) continue;
       await subirDocumento({ file: f, ambito: 'broker', org_id: orgId, tipo: k });
     }
-    setLoading(false);
-    setMsg({ t: 'ok', m: '¡Cuenta creada! Tu registro y documentos quedaron en revisión para aprobación.' });
+    setDup(null); setLoading(false);
+    setMsg({ t: 'ok', m: revision
+      ? 'Enviamos tu caso a revisión del administrador (posible duplicado). Si confirma que es una inmobiliaria distinta, la aprobará y podrás operar. Te avisaremos.'
+      : '¡Cuenta creada! Tu registro y documentos quedaron en revisión para aprobación.' });
     return true;
   }
 
@@ -142,8 +145,9 @@ export default function Registro() {
             <p className="sub">Encontramos <b>{dup.nombre}</b>. Para no duplicar, ¿perteneces a ella?</p>
             <div className="ap-actions">
               <button type="button" className="btn ok sm" onClick={unirmeADuplicada} disabled={loading}>Sí, unirme a {dup.nombre}</button>
-              <button type="button" className="btn no sm" onClick={() => crearOrg(true)} disabled={loading}>No, es otra distinta — crear de todos modos</button>
+              <button type="button" className="btn no sm" onClick={() => crearOrg(true)} disabled={loading}>Es otra inmobiliaria distinta — solicitar revisión</button>
             </div>
+            <p className="ap-hint" style={{ marginTop: '.4rem' }}>Si pides revisión, un administrador valida el caso antes de activarla. No se crea nada en automático.</p>
           </div>
         )}
 
