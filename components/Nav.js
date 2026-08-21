@@ -40,7 +40,11 @@ export default function Nav({ me, current, logo = 'Portal de Brokers' }) {
   const [noLeidos, setNoLeidos] = useState(0);
   useEffect(() => { contarNoLeidos().then(setNoLeidos).catch(() => {}); }, []);
   async function logout() { await supabase.auth.signOut(); router.replace('/login'); }
-  const items = me?.rol === 'super_admin' ? [...LINKS, ...SUPER] : LINKS;
+  const items = me?.rol === 'super_admin'
+    ? [...LINKS, ['/equipo', 'Equipo'], ...SUPER]
+    : me?.rol === 'director'
+      ? [...LINKS, ['/equipo', 'Equipo']]
+      : LINKS;
   return (
     <header className="topbar"><div className="topbar-in">
       <span className="logo" onClick={() => router.push('/portal')} style={{ cursor: 'pointer' }}><b>Q</b>{logo}</span>

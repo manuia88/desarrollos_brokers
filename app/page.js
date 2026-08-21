@@ -135,9 +135,9 @@ export default function Landing() {
           <p>Inventario en vivo, cotizador con crédito, CRM y comisiones en una sola plataforma.
              Tú vendes; nosotros ponemos el catálogo y las herramientas para que cierres más rápido.</p>
           <div className="lp-cta">
-            <Link href="/registro" className="lp-btn lp-btn-mag">Crear cuenta gratis</Link>
-            <Link href="/registro" className="lp-btn lp-btn-lime">Soy broker independiente</Link>
-            <Link href="/login" className="lp-btn lp-btn-ghost">Ya tengo cuenta</Link>
+            <Link href="/registro?modo=inmobiliaria" className="lp-btn lp-btn-mag">Soy inmobiliaria</Link>
+            <Link href="/registro?modo=independiente" className="lp-btn lp-btn-lime">Soy broker independiente</Link>
+            <Link href="/registro?modo=unirme" className="lp-btn lp-btn-ghost">Pertenezco a una inmobiliaria</Link>
           </div>
           <div className="lp-micro">Sin instalar nada · listo en minutos · desde el navegador</div>
           <div className="lp-stats">
@@ -318,10 +318,11 @@ export default function Landing() {
           <h2>Tu próxima venta empieza aquí</h2>
           <p>Crea tu cuenta y trae inventario, cotizador y CRM a un solo lugar. Empiezas a vender el mismo día.</p>
           <div className="lp-cta">
-            <Link href="/registro" className="lp-btn lp-btn-mag">Crear cuenta gratis</Link>
-            <Link href="/registro" className="lp-btn lp-btn-lime">Soy broker independiente</Link>
+            <Link href="/registro?modo=inmobiliaria" className="lp-btn lp-btn-mag">Soy inmobiliaria</Link>
+            <Link href="/registro?modo=independiente" className="lp-btn lp-btn-lime">Soy broker independiente</Link>
+            <Link href="/registro?modo=unirme" className="lp-btn lp-btn-ghost">Pertenezco a una inmobiliaria</Link>
           </div>
-          <div className="lp-micro">Sin instalar nada · sin tarjeta para empezar</div>
+          <div className="lp-micro">Sin instalar nada · ¿ya tienes cuenta? <Link href="/login" style={{ color: 'var(--lime)' }}>Inicia sesión</Link></div>
         </section>
 
       </main>
