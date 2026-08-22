@@ -1,10 +1,13 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase, selectAll } from '../../lib/supabase';
 import Nav from '../../components/Nav';
 
 const RECLBL = { '0': 'Loft', '1': '1 rec', '2': '2 rec', '3': '3+ rec' };
+
+// Ventana de analisis: 90 dias. Completa (paginada), no 'las ultimas N filas'.
+const hace90d = () => new Date(Date.now() - 90 * 86400000).toISOString();
 
 export default function Metricas() {
   const router = useRouter();
@@ -20,7 +23,7 @@ export default function Metricas() {
       if (prof?.org_id) { const { data: o } = await supabase.from('orgs').select('tipo').eq('id', prof.org_id).maybeSingle(); tipoOrg = o?.tipo; }
       setMe({ id: session.user.id, email: session.user.email, tipoOrg, ...(prof || {}) });
       const [ev, ld, ci, no, de] = await Promise.all([
-        supabase.from('eventos').select('tipo,entidad_id,meta,creado').order('creado', { ascending: false }).limit(3000),
+        selectAll('eventos', q => q.select('tipo,entidad_id,meta,creado').gte('creado', hace90d()).order('creado', { ascending: false })),
         supabase.from('leads').select('id,dev_sku,rec_interes,zona_interes,fuente,etapa,creado'),
         supabase.from('citas').select('id,dev_sku,estatus'),
         supabase.from('notificaciones').select('tipo,leido'),

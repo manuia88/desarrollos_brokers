@@ -51,5 +51,5 @@ create trigger trg_cambios_unidades
 
 -- (misma tanda) ficha_og ahora también devuelve 'direccion', para que el metadata
 -- de /f/[sku] arme el título comercial con tituloDev. Aplicado como ficha_og_direccion.
--- Y hardening: revoke execute de log_cambio_unidad a anon/authenticated; search_path
+-- Y hardening: revoke execute de log_cambio_unidad a PUBLIC/anon/authenticated; search_path
 -- fijo en profiles_guard, orgs_guard, nombre_norm, tel_norm (migración hardening_funciones).

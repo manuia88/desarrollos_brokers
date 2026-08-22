@@ -2,11 +2,14 @@
 import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase, selectAll } from '../../lib/supabase';
 import Nav from '../../components/Nav';
 import { MXN } from '../../components/ui';
 
 const dias = ts => ts ? Math.floor((Date.now() - new Date(ts).getTime()) / 86400000) : 0;
+
+// Ventana de analisis: 90 dias. Completa (paginada), no 'las ultimas N filas'.
+const hace90d = () => new Date(Date.now() - 90 * 86400000).toISOString();
 
 export default function Pricing() {
   const router = useRouter();
@@ -24,7 +27,7 @@ export default function Pricing() {
       if (prof?.rol !== 'super_admin' && tipoOrg !== 'desarrollador') { router.replace('/portal'); return; }
       setMe({ id: session.user.id, email: session.user.email, tipoOrg, ...(prof || {}) });
       const [ev, ld, un, de] = await Promise.all([
-        supabase.from('eventos').select('tipo,entidad_id,meta').limit(5000),
+        selectAll('eventos', q => q.select('tipo,entidad_id,meta').gte('creado', hace90d()).order('creado', { ascending: false })),
         supabase.from('leads').select('dev_sku'),
         supabase.from('unidades').select('dev_sku,precio,estatus,creado,m2_hab,rec'),
         supabase.from('desarrollos').select('sku,nombre,comision_broker,etapa,dev_org_id'),

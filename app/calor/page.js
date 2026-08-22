@@ -2,7 +2,7 @@
 import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase, selectAll } from '../../lib/supabase';
 import Nav from '../../components/Nav';
 import { EmptyState } from '../../components/ui';
 
@@ -14,6 +14,9 @@ function hace(ts) {
   if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
   return `hace ${Math.floor(s / 86400)} d`;
 }
+
+// Ventana de analisis: 90 dias. Completa (paginada), no 'las ultimas N filas'.
+const hace90d = () => new Date(Date.now() - 90 * 86400000).toISOString();
 
 export default function Calor() {
   const router = useRouter();
@@ -29,7 +32,7 @@ export default function Calor() {
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: e }, { data: c }, { data: d }] = await Promise.all([
-        supabase.from('eventos').select('*').order('creado', { ascending: false }).limit(1000),
+        selectAll('eventos', q => q.select('*').gte('creado', hace90d()).order('creado', { ascending: false })),
         supabase.from('client_cards').select('id,nombre,telefono'),
         supabase.from('desarrollos').select('sku,nombre,direccion'),
       ]);
