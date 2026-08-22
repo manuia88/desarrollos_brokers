@@ -10,6 +10,7 @@ import {
   precalifica, yieldEstimado, rentaEstimada, montoFinanciar,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
+import { tituloDev } from '../../lib/nombre';
 import { generarPropuestaShortlist } from '../../lib/propuesta';
 import { esquemaPago } from '../../lib/finance';
 import { track } from '../../lib/track';
@@ -601,9 +602,8 @@ export default function Buscar() {
                     <article className={'mc' + (enSel ? ' sel' : '')} key={d.sku}>
                       <button className={'mc-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
                       <div className="mc-body" onClick={() => router.push('/portal/' + d.sku)}>
-                        <div className="mc-name">{d.nombre}</div>
+                        <div className="mc-name">{tituloDev(d)}</div>
                         <div className="mc-loc">📍 {d.colonia}, {d.alcaldia}</div>
-                        {d.direccion && <div className="mc-addr">{d.direccion}</div>}
                         <div className="mc-price">{min === max ? MXN(min) : `${MXN(min)} – ${MXN(max)}`}</div>
                         <div className="mc-stats">{inv
                           ? [yld != null ? `${yld}% yield` : null, renta != null ? `renta ~${MXN(renta)}` : null, pm2 ? `${MXN(pm2)}/m²` : null].filter(Boolean).join('   ·   ')
@@ -648,7 +648,7 @@ export default function Buscar() {
                     <article className={'mc' + (enSel ? ' sel' : '')} key={u.sku}>
                       <button className={'mc-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
                       <div className="mc-body" onClick={() => router.push('/portal/' + d.sku)}>
-                        <div className="mc-name">{d.nombre}</div>
+                        <div className="mc-name">{tituloDev(d)}</div>
                         <div className="mc-loc">📍 {d.colonia}, {d.alcaldia}</div>
                         <div className="mc-addr">{u.prototipo || u.num_depto || 'Unidad'}{u.torre ? ` · T${u.torre}` : ''}{u.nivel != null && u.nivel !== '' ? ` · Piso ${u.nivel}` : ''}</div>
                         <div className="mc-price">{MXN(u.precio)}</div>
