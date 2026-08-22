@@ -74,3 +74,9 @@ alter table public.ia_cuota_dia
 -- (service role) replica el candado en conv() y en aprobar/descartar borrador.
 -- ponytail: wa_select usa subconsulta correlacionada; si el volumen de mensajes crece
 -- mucho, denormalizar asesor_id en wa_mensajes.
+
+-- (RAG) Base de conocimiento del agente (migraciones conocimiento_rag + buscar_conocimiento_or):
+-- tabla conocimiento (tsvector español + trigram), RLS: lee la org, escribe director/gerente.
+-- buscar_conocimiento(org, dev, q): FTS con términos en OR (preguntas naturales) + respaldo
+-- trigram, service-role. Herramienta consultar_conocimiento en el cerebro. Admin en /conocimiento.
+-- ponytail: texto-completo, no embeddings (sin llave externa). Subir a pgvector si hace falta semántica fina.

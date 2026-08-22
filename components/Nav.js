@@ -45,6 +45,7 @@ const GROUP_ADMIN = { t: 'Administración', items: [
   ['/motor', 'Motor', '⚙️'],
   ['/captura', 'Captura', '📥'],
   ['/fichas', 'Cargar fichas', '📄'],
+  ['/conocimiento', 'Conocimiento IA', '📚'],
   ['/publicador', 'Publicador', '📤'],
   ['/pricing', 'Pricing', '🏷️'],
   ['/integraciones', 'Integraciones', '🔗'],

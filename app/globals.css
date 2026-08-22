@@ -1634,3 +1634,18 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .wg-in input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.55rem .75rem;color:var(--ink)}
 .wg-in button{background:var(--mag);color:#fff;border:none;border-radius:10px;padding:0 .9rem;font-size:1rem;cursor:pointer}
 .wg-in button:disabled{opacity:.5}
+
+/* /conocimiento — base RAG del agente */
+.ck-form{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1.1rem}
+.ck-form h2{font-size:1rem;margin-bottom:.6rem}
+.ck-form .inp{width:100%;margin-bottom:.7rem}
+.ck-form textarea.inp{resize:vertical;font:inherit;line-height:1.5}
+.ck-actions{display:flex;align-items:center;gap:.5rem}
+.ck-filtro{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.9rem}
+.ck-list{display:flex;flex-direction:column;gap:.55rem}
+.ck-item{display:flex;gap:.7rem;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.75rem .9rem}
+.ck-item-main{flex:1;min-width:0}
+.ck-item-main b{display:block}
+.ck-scope{font-size:.72rem;color:var(--lime);font-weight:700}
+.ck-item-main p{margin:.35rem 0 0;color:var(--sub);font-size:.88rem;line-height:1.5;white-space:pre-wrap}
+.ck-item-acc{display:flex;flex-direction:column;gap:.3rem;flex:none}

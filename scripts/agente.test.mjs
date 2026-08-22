@@ -51,7 +51,7 @@ const unidades = [
 
 // --- contrato de herramientas y prompt ---
 assert.deepEqual(HERRAMIENTAS.map(h => h.name),
-  ['buscar_unidades', 'info_desarrollo', 'cotizar', 'horarios_disponibles', 'agendar_cita', 'registrar_prospecto', 'pasar_a_humano']);
+  ['buscar_unidades', 'info_desarrollo', 'consultar_conocimiento', 'cotizar', 'horarios_disponibles', 'agendar_cita', 'registrar_prospecto', 'pasar_a_humano']);
 assert.ok(HERRAMIENTAS.every(h => h.input_schema?.type === 'object'));
 const prompt = promptAgente({ lead: { nombre: 'Ana', dev_sku: 'AI3' }, nombreOrg: 'Prueba' });
 assert.ok(prompt.includes('AGENDE UNA VISITA'));               // la meta es explícita
