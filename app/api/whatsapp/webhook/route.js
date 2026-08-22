@@ -101,6 +101,7 @@ async function procesar(body) {
   const r = await responderAgente({
     db, ia, orgId, nombreOrg: org?.nombre, canal: 'whatsapp', contacto: from,
     texto, historial, lead, asesorId: lead?.asesor_id || null,
+    soloLectura: modo === 'sugerir',   // en sugerir el humano aprueba; nada se escribe solo
   });
   await db.rpc('ia_registrar_tokens', { p_clave: 'org:' + orgId, p_in: r.tokens_in, p_out: r.tokens_out });
 

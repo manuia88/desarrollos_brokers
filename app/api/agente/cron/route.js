@@ -39,7 +39,7 @@ export async function POST(req) {
   // --- 1) Cadencias de seguimiento ---
   const { data: frios } = await db.from('leads')
     .select('id,org_id,asesor_id,nombre,telefono,dev_sku,actualizado,etapa')
-    .not('etapa', 'in', '("Cita","Apartado","Escriturado","Perdido","Descartado")')
+    .or('etapa.is.null,etapa.not.in.("Cita","Apartado","Escriturado","Perdido","Descartado")')
     .lt('actualizado', new Date(Date.now() - 2 * 86400e3).toISOString())
     .not('telefono', 'is', null).limit(300);
   for (const l of (frios || [])) {
@@ -65,7 +65,7 @@ export async function POST(req) {
   }
   for (const [devSku, cambios] of Object.entries(porDev)) {
     const { data: interesados } = await db.from('leads').select('id,org_id,asesor_id,nombre,telefono,dev_sku')
-      .eq('dev_sku', devSku).not('etapa', 'in', '("Apartado","Escriturado","Perdido","Descartado")').limit(100);
+      .eq('dev_sku', devSku).or('etapa.is.null,etapa.not.in.("Apartado","Escriturado","Perdido","Descartado")').limit(100);
     const mejor = cambios.reduce((b, c) => (c.antes.precio - c.despues.precio) > (b.antes.precio - b.despues.precio) ? c : b, cambios[0]);
     for (const l of (interesados || [])) {
       if (!(await toque(l.id, `precio:${devSku}:${hoy}`))) continue;

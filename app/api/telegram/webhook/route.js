@@ -54,7 +54,7 @@ async function procesar(req) {
     .eq('canal', 'telegram').eq('estado', 'enviado').order('creado', { ascending: false }).limit(10);
   const historial = (hist || []).slice(1).reverse().map(m => ({ role: m.rol === 'cliente' ? 'user' : 'assistant', content: m.texto || '' })).filter(m => m.content);
 
-  const r = await responderAgente({ db, ia, orgId, nombreOrg: org?.nombre, canal: 'telegram', contacto: chatId, texto, historial, lead, asesorId: lead?.asesor_id || null });
+  const r = await responderAgente({ db, ia, orgId, nombreOrg: org?.nombre, canal: 'telegram', contacto: chatId, texto, historial, lead, asesorId: lead?.asesor_id || null, soloLectura: modo === 'sugerir' });
   await db.rpc('ia_registrar_tokens', { p_clave: 'org:' + orgId, p_in: r.tokens_in, p_out: r.tokens_out });
 
   if (modo === 'sugerir') {

@@ -98,7 +98,7 @@ export default function Conexiones() {
       }).then(x => x.json()).catch(() => ({}));
       setTgMsg(w.ok ? { t: 'ok', m: '✓ Telegram conectado y webhook registrado. Escríbele a tu bot para probarlo.' }
                     : { t: 'err', m: 'Token guardado, pero el webhook no quedó: ' + (w.detalle || w.error || 'revisa el token.') });
-      setTgForm({ token: '' }); recargar();
+      setTgForm({ token: '' }); cargar();
     } catch { setTgMsg({ t: 'err', m: 'Error de red.' }); }
   }
 
