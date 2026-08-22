@@ -1649,3 +1649,27 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .ck-scope{font-size:.72rem;color:var(--lime);font-weight:700}
 .ck-item-main p{margin:.35rem 0 0;color:var(--sub);font-size:.88rem;line-height:1.5;white-space:pre-wrap}
 .ck-item-acc{display:flex;flex-direction:column;gap:.3rem;flex:none}
+
+/* /comparar — comparación rediseñada (columnas-tarjeta + ganador por fila) */
+.cx{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:1rem 1.1rem;margin-top:1.2rem}
+.cx-h{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.8rem}
+.cx-h-acc{display:flex;align-items:center;gap:.5rem}
+.cx-scroll{overflow-x:auto}
+.cx-grid{display:grid;gap:0;min-width:min-content}
+.cx-corner{position:sticky;left:0;background:var(--panel);z-index:2}
+.cx-head{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem;margin:0 .25rem .5rem;position:relative;display:flex;flex-direction:column;gap:.15rem}
+.cx-x{position:absolute;top:.4rem;right:.5rem;background:none;border:none;color:var(--dim);cursor:pointer;font-size:.8rem;line-height:1}
+.cx-x:hover{color:var(--mag)}
+.cx-name{font-size:.95rem;line-height:1.2;cursor:pointer;padding-right:1rem}
+.cx-name:hover{color:var(--lime)}
+.cx-unit{font-size:.72rem;color:var(--dim)}
+.cx-price{font-size:1.25rem;font-weight:800;letter-spacing:-.02em;margin-top:.2rem;font-variant-numeric:tabular-nums}
+.cx-mens{font-size:.76rem;color:var(--sub)}
+.cx-badges{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.4rem}
+.cx-badge{font-size:.62rem;font-weight:800;color:var(--lime);background:var(--lime-soft);border:1px solid var(--lime-line);border-radius:99px;padding:.1rem .4rem}
+.cx-lbl{position:sticky;left:0;background:var(--panel);z-index:1;display:flex;align-items:center;font-size:.78rem;color:var(--sub);font-weight:600;padding:.55rem .5rem;border-top:1px solid var(--line)}
+.cx-cell{display:flex;align-items:center;gap:.3rem;justify-content:space-between;font-size:.86rem;padding:.55rem .7rem;border-top:1px solid var(--line);margin:0 .25rem;font-variant-numeric:tabular-nums}
+.cx-cell.win{background:var(--lime-soft);color:var(--lime);font-weight:700;border-radius:8px;border-top-color:transparent}
+.cx-tick{font-size:.7rem;opacity:.9}
+.cx-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--line)}
+@media(max-width:640px){.cx-price{font-size:1.05rem}.cx-cell,.cx-lbl{font-size:.8rem}}
