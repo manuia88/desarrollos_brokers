@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
+import { ErrorCarga } from '../../components/ui';
 import SuperBar from '../../components/SuperBar';
 import RegistroCliente from '../../components/RegistroCliente';
 import DocsCliente from '../../components/DocsCliente';
@@ -33,6 +34,7 @@ export default function CRM() {
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [leads, setLeads] = useState(null);
+  const [errCarga, setErrCarga] = useState(false);
   const [team, setTeam] = useState([]);
   const [devName, setDevName] = useState({});
   const [drag, setDrag] = useState(null);        // etapa column being hovered
@@ -49,10 +51,11 @@ export default function CRM() {
   useEffect(() => { setViewAs(getViewAs()); }, []);
 
   const load = useCallback(async () => {
-    const [{ data: ld }, { data: ap }] = await Promise.all([
+    const [{ data: ld, error: eLd }, { data: ap, error: eAp }] = await Promise.all([
       supabase.from('leads').select('*').order('actualizado', { ascending: false }),
       supabase.from('apartados').select('*').order('creado', { ascending: false }),
     ]);
+    if (eLd || eAp) setErrCarga(true);
     setLeads(ld || []);
     setApartados(ap || []);
   }, []);
@@ -214,6 +217,7 @@ export default function CRM() {
       {me?.rol === 'super_admin' && <SuperBar onChange={setViewAs} />}
 
       <main className="wrap">
+        {errCarga && <ErrorCarga />}
         <div className="crm-metrics">
           <div className="mtile"><b>{kpi.total}</b><span>Leads activos</span></div>
           <div className="mtile"><b>{kpi.abiertos}</b><span>En pipeline</span></div>

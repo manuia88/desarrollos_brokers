@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
+import { ErrorCarga } from '../../components/ui';
 import { scoreLead, accionSugerida, diasSin } from '../../lib/leadscore';
 
 const hoyStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -16,6 +17,7 @@ export default function Hoy() {
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [leads, setLeads] = useState(null);
+  const [errCarga, setErrCarga] = useState(false);
   const [citas, setCitas] = useState([]);
   const [devName, setDevName] = useState({});
   const [devById, setDevById] = useState({});
@@ -29,11 +31,12 @@ export default function Hoy() {
       if (!session) { router.replace('/login'); return; }
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
-      const [{ data: l }, { data: c }, { data: d }] = await Promise.all([
+      const [{ data: l, error: e1 }, { data: c, error: e2 }, { data: d, error: e3 }] = await Promise.all([
         supabase.from('leads').select('*').order('actualizado', { ascending: true }),
         supabase.from('citas').select('*').gte('fecha', hoyStr()).order('fecha').order('hora'),
         supabase.from('desarrollos').select('sku,nombre,direccion,alcaldia'),
       ]);
+      if (e1 || e2 || e3) setErrCarga(true);
       setLeads(l || []); setCitas(c || []);
       setDevName(Object.fromEntries((d || []).map(x => [x.sku, tituloDev(x)])));
       setDevById(Object.fromEntries((d || []).map(x => [x.sku, x])));
@@ -128,6 +131,7 @@ export default function Hoy() {
     <>
       <Nav me={me} current="/hoy" />
       <main className="wrap">
+        {errCarga && <ErrorCarga />}
         <div className="buscar-intro">
           <h1>Hoy{nombre ? `, ${nombre}` : ''}</h1>
           <p>Tu cabina del día: la acción más importante primero, tus leads calientes y tus citas. Empieza por arriba.</p>

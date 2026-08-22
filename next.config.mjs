@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
+
+// pptxgenjs (y antes jspdf) referencian módulos de Node que no existen en el
+// navegador; se resuelven a un módulo vacío SOLO en el bundle de browser.
+const NODE_LIBS = [
+  'fs', 'https', 'http', 'os', 'path', 'crypto', 'stream', 'zlib', 'util', 'url', 'assert', 'buffer', 'child_process',
+];
+const resolveAlias = {};
+for (const l of NODE_LIBS) {
+  resolveAlias[l] = { browser: './lib/vacio.js' };
+  resolveAlias['node:' + l] = { browser: './lib/vacio.js' };
+}
+
 const nextConfig = {
   reactStrictMode: true,
+  turbopack: { resolveAlias },
   async headers() {
     return [{
       source: '/:path*',
@@ -12,25 +25,6 @@ const nextConfig = {
         { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
       ],
     }];
-  },
-  webpack: (config, { isServer, webpack }) => {
-    if (!isServer) {
-      // pptxgenjs / jspdf referencian módulos de Node que no existen en el navegador.
-      const nodeLibs = [
-        'fs', 'https', 'http', 'os', 'path', 'crypto', 'stream', 'zlib', 'util', 'url', 'assert', 'buffer', 'child_process',
-      ];
-      config.resolve = config.resolve || {};
-      config.resolve.fallback = { ...(config.resolve.fallback || {}) };
-      for (const l of nodeLibs) {
-        config.resolve.fallback[l] = false;
-        config.resolve.fallback['node:' + l] = false;
-      }
-      // Reescribe imports "node:xxx" a "xxx" (que arriba mandamos a false en el cliente).
-      config.plugins.push(new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
-        resource.request = resource.request.replace(/^node:/, '');
-      }));
-    }
-    return config;
   },
 };
 export default nextConfig;

@@ -5,9 +5,10 @@ import { tituloDev } from '../../../lib/nombre';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }) {
+  const { sku } = await params;
   let og = null;
   try {
-    const { data } = await supabase.rpc('ficha_og', { p_sku: params.sku });
+    const { data } = await supabase.rpc('ficha_og', { p_sku: sku });
     og = data;
   } catch (e) { og = null; }
   const nombre = (og?.nombre ? tituloDev(og) : null) || 'Ficha técnica';
@@ -22,6 +23,8 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default function Page({ params, searchParams }) {
-  return <FichaPublica sku={params.sku} asesor={searchParams?.a || null} unidad={searchParams?.u || null} cliente={searchParams?.c || null} />;
+export default async function Page({ params, searchParams }) {
+  const { sku } = await params;
+  const sp = (await searchParams) || {};
+  return <FichaPublica sku={sku} asesor={sp.a || null} unidad={sp.u || null} cliente={sp.c || null} />;
 }
