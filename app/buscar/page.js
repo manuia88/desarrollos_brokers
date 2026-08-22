@@ -7,7 +7,7 @@ import { MXN, EmptyState } from '../../components/ui';
 import {
   meses, precioM2, pasaEntrega, ENTREGA_BUCKETS, creditosDe, cabeEnCredito,
   CREDITOS, AMENIDADES_CLAVE, VISTAS, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo, parseConsulta,
-  precalifica, yieldBruto,
+  precalifica, yieldBruto, montoFinanciar,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
 import { track } from '../../lib/track';
@@ -15,12 +15,16 @@ import { track } from '../../lib/track';
 const RECS = [['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3+']];
 const BANOS = [['1', '1+'], ['2', '2+'], ['3', '3+']];
 const CAJONES = [['', 'Cualquiera'], ['1', '1+'], ['2', '2+']];
+const PM2 = [['40000', '≤ $40k'], ['50000', '≤ $50k'], ['60000', '≤ $60k'], ['80000', '≤ $80k'], ['100000', '≤ $100k'], ['120000', '≤ $120k']];
+const COMIS = [['1', '≥ 1%'], ['2', '≥ 2%'], ['3', '≥ 3%'], ['3.5', '≥ 3.5%'], ['4', '≥ 4%'], ['5', '≥ 5%'], ['6', '≥ 6%']];
+const NIVELES = [['0', 'PB'], ['bajo', '1-3'], ['medio', '4-8'], ['alto', '9+']];
+const nfmt = v => v ? Number(v).toLocaleString('es-MX') : '';   // 3700000 -> 3,700,000
 const EXT = [['balcon', '🌿 Balcón'], ['terraza', '☀️ Terraza'], ['roof', '🏙️ Roof privado']];
-const PRESUP = [['', 'Sin tope'], ['2300000', '$2.3M'], ['3500000', '$3.5M'], ['4500000', '$4.5M'], ['6000000', '$6M'], ['9000000', '$9M']];
+const PRESUP = [['1500000', '$1.5M'], ['2000000', '$2M'], ['2500000', '$2.5M'], ['3000000', '$3M'], ['3500000', '$3.5M'], ['4000000', '$4M'], ['5000000', '$5M'], ['6000000', '$6M'], ['8000000', '$8M'], ['10000000', '$10M']];
 const PRESUP_MIN = [['', 'Sin mínimo'], ['2000000', '$2M'], ['3000000', '$3M'], ['4000000', '$4M'], ['5000000', '$5M']];
 const SORTS = [['precio', 'Precio ↑'], ['precio_m2', 'Precio/m² ↑'], ['comision', 'Comisión ↓'], ['entrega', 'Entrega ↑'], ['match', 'Mejor match ↓']];
 
-const F0 = { recs: [], banosMin: '', ext: [], presMax: '', presMin: '', precioM2Max: '', zona: '', colonia: '', entrega: '', cajonesMin: '', bodega: false, amenidades: [], creditos: [], comisionMin: '', depaMuestra: false, descuento: false, sort: 'precio' };
+const F0 = { recs: [], banosMin: '', m2Min: '', m2Max: '', nivel: '', engancheMax: '', mensMax: '', ext: [], presMax: '', presMin: '', precioM2Max: '', zona: '', colonia: '', entrega: '', cajonesMin: '', bodega: false, amenidades: [], creditos: [], comisionMin: '', depaMuestra: false, descuento: false, sort: 'precio' };
 
 // Orden en que aflojamos filtros para no llegar a cero resultados.
 const RELAJA = [['precioM2Max', 'precio/m²'], ['comisionMin', 'comisión'], ['cajonesMin', 'cajones'], ['bodega', 'bodega'], ['amenidades', 'amenidades'], ['descuento', 'promoción'], ['entrega', 'fecha de entrega']];
@@ -40,6 +44,8 @@ export default function Buscar() {
   const [af, setAf] = useState({ ingreso: '', enganche: '', tipo: 'Bancario' });   // capacidad de pago
   const [sel, setSel] = useState([]);             // shortlist de desarrollos (skus)
   const [why, setWhy] = useState(null);           // sku con "¿por qué?" abierto
+  const [openUnits, setOpenUnits] = useState(null); // sku con la lista de unidades abierta
+  const [vista, setVista] = useState('dev');        // 'dev' | 'unidad'
   const [masOpen, setMasOpen] = useState(false);  // drawer de filtros avanzados
   const [afOpen, setAfOpen] = useState(false);    // panel de capacidad de pago
 
@@ -64,7 +70,7 @@ export default function Buscar() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: d }, { data: u }] = await Promise.all([
         supabase.from('desarrollos').select('*').order('nombre'),
-        supabase.from('unidades').select('sku,dev_sku,torre,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,balcon_m2,terraza_m2,roof_m2,estatus').eq('estatus', 'Disponible'),
+        supabase.from('unidades').select('sku,dev_sku,torre,nivel,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,balcon_m2,terraza_m2,roof_m2,estatus').eq('estatus', 'Disponible'),
       ]);
       setDevs(d || []); setUnits(u || []);
       // Restaurar facetas desde la URL (link compartible).
@@ -76,7 +82,7 @@ export default function Buscar() {
           if (q.get('ext')) next.ext = q.get('ext').split(',');
           if (q.get('creditos')) next.creditos = q.get('creditos').split(',');
           if (q.get('amenidades')) next.amenidades = q.get('amenidades').split(',');
-          ['presMax', 'presMin', 'banosMin', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin', 'sort'].forEach(k => { if (q.get(k)) next[k] = q.get(k); });
+          ['presMax', 'presMin', 'banosMin', 'm2Min', 'm2Max', 'nivel', 'engancheMax', 'mensMax', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin', 'sort'].forEach(k => { if (q.get(k)) next[k] = q.get(k); });
           ['bodega', 'depaMuestra', 'descuento'].forEach(k => { if (q.get(k) === '1') next[k] = true; });
           setF(next);
         }
@@ -95,7 +101,7 @@ export default function Buscar() {
     if (f.ext.length) q.set('ext', f.ext.join(','));
     if (f.creditos.length) q.set('creditos', f.creditos.join(','));
     if (f.amenidades.length) q.set('amenidades', f.amenidades.join(','));
-    ['presMax', 'presMin', 'banosMin', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin'].forEach(k => { if (f[k]) q.set(k, f[k]); });
+    ['presMax', 'presMin', 'banosMin', 'm2Min', 'm2Max', 'nivel', 'engancheMax', 'mensMax', 'precioM2Max', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin'].forEach(k => { if (f[k]) q.set(k, f[k]); });
     if (f.sort !== 'precio') q.set('sort', f.sort);
     ['bodega', 'depaMuestra', 'descuento'].forEach(k => { if (f[k]) q.set(k, '1'); });
     const s = q.toString();
@@ -119,6 +125,16 @@ export default function Buscar() {
     if (f.presMin && u.precio < +f.presMin) return false;
     if (f.recs.length) { const hit = f.recs.some(r => r === '3' ? u.rec >= 3 : u.rec === +r); if (!hit) return false; }
     if (f.banosMin && (Number(u.banos) || 0) < +f.banosMin) return false;
+    if (f.m2Min && (Number(u.m2_hab) || 0) < +f.m2Min) return false;
+    if (f.m2Max && (Number(u.m2_hab) || 0) > +f.m2Max) return false;
+    if (f.nivel) {
+      const n = Number(u.nivel);
+      if (u.nivel == null || u.nivel === '' || isNaN(n)) return false;
+      const ok = f.nivel === '0' ? n === 0 : f.nivel === 'bajo' ? (n >= 1 && n <= 3) : f.nivel === 'medio' ? (n >= 4 && n <= 8) : n >= 9;
+      if (!ok) return false;
+    }
+    if (f.engancheMax && (u.precio - montoFinanciar(u.precio, d)) > +f.engancheMax) return false;
+    if (f.mensMax && mensualidadHipoteca(u.precio, d) > +f.mensMax) return false;
     // Exteriores con lógica O: si el broker marca balcón y terraza, pasa la unidad que tenga cualquiera.
     if (f.ext.length) {
       const has = { balcon: (u.balcon_m2 || 0) > 0, terraza: (u.terraza_m2 || 0) > 0, roof: (u.roof_m2 || 0) > 0 };
@@ -134,7 +150,7 @@ export default function Buscar() {
     if (f.zona && d.alcaldia !== f.zona) return false;
     if (f.colonia && d.colonia !== f.colonia) return false;
     if (!skip.has('entrega') && !pasaEntrega(f.entrega, d)) return false;
-    if (!skip.has('comisionMin') && f.comisionMin && Math.round((d.comision_broker || 0) * 100) < +f.comisionMin) return false;
+    if (!skip.has('comisionMin') && f.comisionMin && (Math.round((d.comision_broker || 0) * 1000) / 10) < +f.comisionMin) return false;
     if (f.depaMuestra && !/s/i.test(d.depa_muestra || '')) return false;
     if (!skip.has('descuento') && f.descuento && !(d.descuentos && String(d.descuentos).trim())) return false;
     if (!skip.has('amenidades') && f.amenidades.length) {
@@ -144,9 +160,9 @@ export default function Buscar() {
     return true;
   }
 
-  const activo = f.recs.length || f.banosMin || f.ext.length || f.presMax || f.presMin || f.precioM2Max || f.zona || f.colonia || f.entrega || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.depaMuestra || f.descuento;
+  const activo = f.recs.length || f.banosMin || f.m2Min || f.m2Max || f.nivel || f.engancheMax || f.mensMax || f.ext.length || f.presMax || f.presMin || f.precioM2Max || f.zona || f.colonia || f.entrega || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.depaMuestra || f.descuento;
   // Filtros "avanzados" activos (los que viven en el drawer), para el badge de "Más filtros".
-  const nAdv = (f.banosMin ? 1 : 0) + f.ext.length + (f.cajonesMin ? 1 : 0) + (f.bodega ? 1 : 0) + f.amenidades.length + f.creditos.length + (f.comisionMin ? 1 : 0) + (f.precioM2Max ? 1 : 0) + (f.depaMuestra ? 1 : 0) + (f.descuento ? 1 : 0) + (f.entrega ? 1 : 0) + (f.colonia ? 1 : 0);
+  const nAdv = (f.banosMin ? 1 : 0) + (f.m2Min ? 1 : 0) + (f.m2Max ? 1 : 0) + (f.nivel ? 1 : 0) + (f.engancheMax ? 1 : 0) + (f.mensMax ? 1 : 0) + f.ext.length + (f.cajonesMin ? 1 : 0) + (f.bodega ? 1 : 0) + f.amenidades.length + f.creditos.length + (f.comisionMin ? 1 : 0) + (f.precioM2Max ? 1 : 0) + (f.depaMuestra ? 1 : 0) + (f.descuento ? 1 : 0) + (f.entrega ? 1 : 0) + (f.colonia ? 1 : 0);
 
   const { grupos, relajado, totalU } = useMemo(() => {
     if (!devs || !units) return { grupos: [], relajado: null, totalU: 0 };
@@ -187,6 +203,13 @@ export default function Buscar() {
       a.min - b.min);
     return { grupos: arr, relajado, totalU: ok.length };
   }, [devs, units, f, criterios, activo]);
+
+  // Lista plana de unidades (para la vista "Por unidad").
+  const unidadesFlat = useMemo(() => {
+    const arr = grupos.flatMap(g => g.us.map(u => ({ u, d: g.d })));
+    arr.sort((a, b) => f.sort === 'match' ? (b.u._fit || 0) - (a.u._fit || 0) : a.u.precio - b.u.precio);
+    return arr;
+  }, [grupos, f.sort]);
 
   // Conteos por faceta (recámaras) respetando los demás filtros.
   const recCounts = useMemo(() => {
@@ -243,11 +266,16 @@ export default function Buscar() {
     const recL = { '0': 'Loft', '1': '1 rec', '2': '2 rec', '3': '3+ rec' };
     f.recs.forEach(r => out.push({ k: 'recs:' + r, label: recL[r] || r, clear: () => toggleArr('recs', r) }));
     if (f.banosMin) out.push({ k: 'banos', label: f.banosMin + '+ baños', clear: () => set('banosMin', '') });
+    if (f.m2Min) out.push({ k: 'm2min', label: 'desde ' + f.m2Min + ' m²', clear: () => set('m2Min', '') });
+    if (f.m2Max) out.push({ k: 'm2max', label: 'hasta ' + f.m2Max + ' m²', clear: () => set('m2Max', '') });
+    if (f.nivel) out.push({ k: 'nivel', label: 'Piso ' + ((NIVELES.find(x => x[0] === f.nivel) || [, f.nivel])[1]), clear: () => set('nivel', '') });
+    if (f.engancheMax) out.push({ k: 'eng', label: 'enganche ≤ ' + MXN(+f.engancheMax), clear: () => set('engancheMax', '') });
+    if (f.mensMax) out.push({ k: 'mens', label: 'mensualidad ≤ ' + MXN(+f.mensMax), clear: () => set('mensMax', '') });
     if (f.presMin) out.push({ k: 'presMin', label: 'desde ' + MXN(+f.presMin), clear: () => set('presMin', '') });
     if (f.presMax) out.push({ k: 'presMax', label: 'hasta ' + MXN(+f.presMax), clear: () => set('presMax', '') });
     if (f.zona) out.push({ k: 'zona', label: f.zona, clear: () => { set('zona', ''); set('colonia', ''); } });
     if (f.colonia) out.push({ k: 'colonia', label: f.colonia, clear: () => set('colonia', '') });
-    if (f.entrega) { const el = { inmediata: 'Inmediata', '6': '≤ 6 meses', '12': '≤ 12 meses', '24': '≤ 24 meses', '36': '≤ 36 meses' }; out.push({ k: 'entrega', label: el[f.entrega] || 'Entrega', clear: () => set('entrega', '') }); }
+    if (f.entrega) { const el = { inmediata: 'Inmediata', '3': '≤ 3 meses', '6': '≤ 6 meses', '12': '≤ 12 meses', '18': '≤ 18 meses', '24': '≤ 24 meses', '36': '≤ 36 meses', plus36: 'Más de 36' }; out.push({ k: 'entrega', label: el[f.entrega] || 'Entrega', clear: () => set('entrega', '') }); }
     f.creditos.forEach(c => out.push({ k: 'cred:' + c, label: (CREDITOS.find(x => x[0] === c) || [, c])[1], clear: () => toggleArr('creditos', c) }));
     f.ext.forEach(x => out.push({ k: 'ext:' + x, label: (EXT.find(e => e[0] === x) || [, x])[1], clear: () => toggleArr('ext', x) }));
     if (f.cajonesMin) out.push({ k: 'cajones', label: f.cajonesMin + '+ cajón', clear: () => set('cajonesMin', '') });
@@ -329,9 +357,9 @@ export default function Buscar() {
           </div>
           <div className="bs-bar-f"><span className="bs-bar-l">Presupuesto</span>
             <div className="bs-money">
-              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={f.presMin} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={nfmt(f.presMin)} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
               <span className="bs-dash">—</span>
-              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={f.presMax} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={nfmt(f.presMax)} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
             </div>
           </div>
           <div className="bs-bar-f"><span className="bs-bar-l">Zona</span>
@@ -347,8 +375,8 @@ export default function Buscar() {
         {afOpen && (
           <div className="bs-af-bar">
             <span className="bs-af-h">💳 Búscalo por lo que puede pagar:</span>
-            <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Ingreso/mes" value={af.ingreso} onChange={e => setAf(a => ({ ...a, ingreso: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
-            <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Enganche" value={af.enganche} onChange={e => setAf(a => ({ ...a, enganche: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
+            <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Ingreso/mes" value={nfmt(af.ingreso)} onChange={e => setAf(a => ({ ...a, ingreso: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
+            <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Enganche" value={nfmt(af.enganche)} onChange={e => setAf(a => ({ ...a, enganche: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
             <select className="crit-sel sm" value={af.tipo} onChange={e => setAf(a => ({ ...a, tipo: e.target.value }))}><option>Bancario</option><option>Infonavit</option><option>FOVISSSTE</option></select>
             {preAf && <span className="bs-af-res">→ califica hasta <b>{MXN(preAf.maxPrecio)}</b> · ~{MXN(preAf.pago)}/mes</span>}
             <button className="btn lim sm" disabled={!preAf} onClick={aplicarPago}>Aplicar</button>
@@ -363,6 +391,10 @@ export default function Buscar() {
                 {relajado && <span className="relaja"> · aflojé <b>{relajado}</b></span>}
               </div>
               <div className="bs-head-act">
+                <div className="bs-toggle">
+                  <button className={vista === 'dev' ? 'on' : ''} onClick={() => setVista('dev')}>Desarrollo</button>
+                  <button className={vista === 'unidad' ? 'on' : ''} onClick={() => setVista('unidad')}>Unidad</button>
+                </div>
                 <select value={f.sort} onChange={e => set('sort', e.target.value)} className="crit-sel sm">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                 {activo && <button className="btn lim sm" onClick={() => setSaveOpen(true)}>💾 Guardar cliente</button>}
               </div>
@@ -381,7 +413,7 @@ export default function Buscar() {
               </EmptyState>
             ) : totalU === 0 ? (
               <EmptyState icon="🤔" title="Nada encaja">Sube el presupuesto o quita alguna amenidad con los chips de arriba.</EmptyState>
-            ) : (
+            ) : vista === 'dev' ? (
               <div className="res-grid bs-grid">
                 {grupos.map(({ d, us, best, bestFac, min, max, pm2, comPct, comMonto, mens, ingreso, m }) => {
                   const enSel = sel.includes(d.sku);
@@ -413,6 +445,54 @@ export default function Buscar() {
                           {why === d.sku && <div className="bs-why-list">{bestFac.slice(0, 4).map((fa, i) => <span key={i} className={'bs-fac' + (fa.pts < 0 ? ' neg' : '')}>{fa.pts > 0 ? '+' : ''}{fa.pts} {fa.label}</span>)}</div>}
                         </div>
                       )}
+                      <div className="bs-units">
+                        <button className="bs-units-t" onClick={() => setOpenUnits(openUnits === d.sku ? null : d.sku)}>{openUnits === d.sku ? '▾' : '▸'} Ver las {us.length} unidad{us.length === 1 ? '' : 'es'} que le quedan</button>
+                        {openUnits === d.sku && (
+                          <div className="bs-units-list">
+                            {us.slice(0, 8).map(u => (
+                              <div className="bs-unit" key={u.sku} onClick={() => router.push('/portal/' + d.sku)}>
+                                <span className="bs-unit-id">{u.prototipo || u.num_depto || u.sku}{u.torre ? ` · T${u.torre}` : ''}</span>
+                                <span className="bs-unit-spec">{u.rec === 0 ? 'Loft' : u.rec + ' rec'}{u.m2_hab ? ` · ${u.m2_hab} m²` : ''}</span>
+                                <span className="bs-unit-price">{MXN(u.precio)}</span>
+                              </div>
+                            ))}
+                            {us.length > 8 && <div className="fnote" style={{ margin: '.3rem 0 0' }}>+{us.length - 8} más — ábrelas en el desarrollo</div>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="bs-card-act">
+                        <button className="cotiz-mini" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
+                        <button className="cotiz-mini ghost" onClick={e => toggleSel(d.sku, e)}>{enSel ? '★ En propuesta' : '☆ A propuesta'}</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="res-grid bs-grid">
+                {unidadesFlat.map(({ u, d }) => {
+                  const enSel = sel.includes(d.sku);
+                  const fit = u._fit || 0;
+                  return (
+                    <article className={'match' + (enSel ? ' sel' : '')} key={u.sku}>
+                      <button className={'bs-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
+                      <div className="match-body" onClick={() => router.push('/portal/' + d.sku)}>
+                        <div className="match-h">
+                          <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
+                          {fit > 0 && <span className={'fit ' + (fit >= 80 ? 'hi' : fit >= 55 ? 'mid' : 'lo')}>{fit}%</span>}
+                        </div>
+                        <div className="bs-uunit">{u.prototipo || u.num_depto || 'Unidad'}{u.torre ? ` · T${u.torre}` : ''}{u.nivel != null && u.nivel !== '' ? ` · Piso ${u.nivel}` : ''}</div>
+                        <div className="match-price">{MXN(u.precio)}</div>
+                        <div className="match-calc">
+                          <span>🛏 {u.rec === 0 ? 'Loft' : u.rec + ' rec'}</span>
+                          <span>🛁 {u.banos || '—'}</span>
+                          <span>📐 {u.m2_hab || '—'} m²</span>
+                        </div>
+                        <div className="match-calc">
+                          <span title="Mensualidad estimada">🏦 ~{MXN(mensualidadHipoteca(u.precio, d))}/mes</span>
+                          {precioM2(u) && <span>💲 {MXN(precioM2(u))}/m²</span>}
+                        </div>
+                      </div>
                       <div className="bs-card-act">
                         <button className="cotiz-mini" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
                         <button className="cotiz-mini ghost" onClick={e => toggleSel(d.sku, e)}>{enSel ? '★ En propuesta' : '☆ A propuesta'}</button>
@@ -441,32 +521,72 @@ export default function Buscar() {
             <aside className="bs-drawer" onClick={e => e.stopPropagation()}>
               <div className="bs-drawer-h"><h2>⚙️ Más filtros{nAdv > 0 && <em className="bs-more-n">{nAdv}</em>}</h2><button className="x" onClick={() => setMasOpen(false)}>✕</button></div>
               <div className="bs-drawer-body">
+                <div className="bs-dsec">🎯 Lo que busca el cliente</div>
+                <div className="bs-dgroup"><label>Recámaras</label>
+                  <div className="bs-chips">{RECS.map(([v, l]) => <span key={v} className={'chip' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}{recCounts[v] != null && <em className="chip-n">{recCounts[v]}</em>}</span>)}</div>
+                </div>
                 <div className="bs-dgroup"><label>Baños</label>
                   <div className="bs-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Estacionamientos</label>
+                  <div className="bs-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Metros² (habitable)</label>
+                  <div className="bs-money">
+                    <div className="bs-money-in"><input inputMode="numeric" placeholder="Desde" value={f.m2Min} onChange={e => set('m2Min', e.target.value.replace(/[^0-9]/g, ''))} /><span>m²</span></div>
+                    <span className="bs-dash">—</span>
+                    <div className="bs-money-in"><input inputMode="numeric" placeholder="Hasta" value={f.m2Max} onChange={e => set('m2Max', e.target.value.replace(/[^0-9]/g, ''))} /><span>m²</span></div>
+                  </div>
+                </div>
+                <div className="bs-dgroup"><label>Nivel / piso</label>
+                  <div className="bs-chips"><span className={'chip' + (f.nivel === '' ? ' on' : '')} onClick={() => set('nivel', '')}>Cualquiera</span>{NIVELES.map(([v, l]) => <span key={v} className={'chip' + (f.nivel === v ? ' on' : '')} onClick={() => set('nivel', f.nivel === v ? '' : v)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Presupuesto</label>
+                  <div className="bs-money">
+                    <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={nfmt(f.presMin)} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+                    <span className="bs-dash">—</span>
+                    <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={nfmt(f.presMax)} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+                  </div>
+                  <div className="bs-chips" style={{ marginTop: '.45rem' }}>{PRESUP.map(([v, l]) => <span key={v} className={'chip sm' + (f.presMax === v ? ' on' : '')} onClick={() => set('presMax', f.presMax === v ? '' : v)}>≤ {l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Enganche máximo</label>
+                  <div className="bs-money"><div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Sin tope" value={nfmt(f.engancheMax)} onChange={e => set('engancheMax', e.target.value.replace(/[^0-9]/g, ''))} /></div></div>
+                </div>
+                <div className="bs-dgroup"><label>Mensualidad máxima</label>
+                  <div className="bs-money"><div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Sin tope" value={nfmt(f.mensMax)} onChange={e => set('mensMax', e.target.value.replace(/[^0-9]/g, ''))} /><span>/mes</span></div></div>
+                </div>
+                <div className="bs-dgroup"><label>Alcaldía</label>
+                  <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
                 </div>
                 {colonias.length > 0 && <div className="bs-dgroup"><label>Colonia</label>
                   <select value={f.colonia} onChange={e => set('colonia', e.target.value)} className="crit-sel"><option value="">Cualquier colonia</option>{colonias.map(z => <option key={z}>{z}</option>)}</select>
                 </div>}
+
+                <div className="bs-dsec">🗓️ Entrega y crédito</div>
                 <div className="bs-dgroup"><label>Entrega</label>
                   <div className="bs-chips"><span className={'chip' + (f.entrega === '' ? ' on' : '')} onClick={() => set('entrega', '')}>Cualquiera</span>{ENTREGA_BUCKETS.map(([v, l]) => <span key={v} className={'chip' + (f.entrega === v ? ' on' : '')} onClick={() => set('entrega', v)}>{l}</span>)}</div>
                 </div>
                 <div className="bs-dgroup"><label>Crédito</label>
                   <div className="bs-chips">{CREDITOS.map(([k, l]) => <span key={k} className={'chip' + (f.creditos.includes(k) ? ' on' : '')} onClick={() => toggleArr('creditos', k)}>{l}</span>)}</div>
                 </div>
+
+                <div className="bs-dsec">✨ Amenidades y exteriores</div>
                 <div className="bs-dgroup"><label>Exteriores</label>
                   <div className="bs-chips">{EXT.map(([v, l]) => <span key={v} className={'chip' + (f.ext.includes(v) ? ' on' : '')} onClick={() => toggleArr('ext', v)}>{l}</span>)}{f.ext.length > 1 && <span className="crit-nota">cualquiera</span>}</div>
                 </div>
-                <div className="bs-dgroup"><label>Cajones y bodega</label>
-                  <div className="bs-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}<span className={'chip' + (f.bodega ? ' on' : '')} onClick={() => set('bodega', !f.bodega)}>📦 Con bodega</span></div>
+                <div className="bs-dgroup"><label>Bodega</label>
+                  <div className="bs-chips"><span className={'chip' + (f.bodega ? ' on' : '')} onClick={() => set('bodega', !f.bodega)}>📦 Con bodega</span></div>
                 </div>
                 <div className="bs-dgroup"><label>Amenidades</label>
                   <div className="bs-chips">{AMENIDADES_CLAVE.map(([k, l]) => <span key={k} className={'chip' + (f.amenidades.includes(l) ? ' on' : '')} onClick={() => toggleArr('amenidades', l)}>{l}</span>)}</div>
                 </div>
-                <div className="bs-dgroup"><label>Comisión para ti</label>
-                  <div className="bs-chips"><span className={'chip' + (f.comisionMin === '4' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '4' ? '' : '4')}>≥ 4%</span><span className={'chip' + (f.comisionMin === '5' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '5' ? '' : '5')}>≥ 5%</span></div>
+
+                <div className="bs-dsec">💰 Oportunidad para ti</div>
+                <div className="bs-dgroup"><label>Comisión mínima</label>
+                  <div className="bs-chips">{COMIS.map(([v, l]) => <span key={v} className={'chip' + (f.comisionMin === v ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === v ? '' : v)}>{l}</span>)}</div>
                 </div>
                 <div className="bs-dgroup"><label>Precio/m² máx.</label>
-                  <div className="bs-chips">{[['60000', '≤ $60k'], ['80000', '≤ $80k'], ['100000', '≤ $100k']].map(([v, l]) => <span key={v} className={'chip' + (f.precioM2Max === v ? ' on' : '')} onClick={() => set('precioM2Max', f.precioM2Max === v ? '' : v)}>{l}</span>)}</div>
+                  <div className="bs-chips">{PM2.map(([v, l]) => <span key={v} className={'chip' + (f.precioM2Max === v ? ' on' : '')} onClick={() => set('precioM2Max', f.precioM2Max === v ? '' : v)}>{l}</span>)}</div>
                 </div>
                 <div className="bs-dgroup"><label>Extras</label>
                   <div className="bs-chips"><span className={'chip' + (f.depaMuestra ? ' on' : '')} onClick={() => set('depaMuestra', !f.depaMuestra)}>🏠 Depa muestra</span><span className={'chip' + (f.descuento ? ' on' : '')} onClick={() => set('descuento', !f.descuento)}>🔻 Promoción</span></div>
