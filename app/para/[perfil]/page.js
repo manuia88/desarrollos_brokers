@@ -229,8 +229,9 @@ export function generateStaticParams() {
   return Object.keys(PERFILES).map(perfil => ({ perfil }));
 }
 
-export default function Para({ params }) {
-  const d = PERFILES[params.perfil];
+export default async function Para({ params }) {
+  const { perfil } = await params;
+  const d = PERFILES[perfil];
   if (!d) notFound();
   const reg = `/registro?modo=${d.modo}`;
   const btn = d.btn || 'lp-btn-mag';
