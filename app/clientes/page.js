@@ -14,8 +14,24 @@ export default function Clientes() {
   const [devs, setDevs] = useState([]);
   const [units, setUnits] = useState([]);
   const [sel, setSel] = useState(null);
+  const [buscando, setBuscando] = useState(false);
+  const [novedades, setNovedades] = useState(null);
 
   async function recargar() { setCards(await listarCards()); }
+
+  // Dispara el reverse matching sólo para MIS tarjetas y avisa por el canal elegido.
+  async function buscarNovedades() {
+    if (buscando) return;
+    setBuscando(true); setNovedades(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/integraciones/waitlist', { method: 'POST', headers: { authorization: 'Bearer ' + (session?.access_token || '') } });
+      const j = await r.json();
+      if (j?.ok) { setNovedades(j); await recargar(); }
+      else setNovedades({ error: j?.error || 'No se pudo revisar' });
+    } catch (e) { setNovedades({ error: String(e?.message || e) }); }
+    setBuscando(false);
+  }
 
   useEffect(() => {
     (async () => {
@@ -68,10 +84,22 @@ export default function Clientes() {
     <>
       <Nav me={me} current="/clientes" logo="Clientes" />
       <main className="wrap">
-        <div className="buscar-intro">
-          <h1>Tus clientes y sus matches</h1>
-          <p>Cada tarjeta es la búsqueda de un cliente. Cuando entra o cambia inventario, aquí ves qué le queda ahora — sin volver a buscar.</p>
+        <div className="buscar-intro cc-intro">
+          <div>
+            <h1>Tus clientes y sus matches</h1>
+            <p>Cada tarjeta es la búsqueda de un cliente. Cuando entra o cambia inventario, aquí ves qué le queda ahora — sin volver a buscar.</p>
+          </div>
+          <button className="btn lim" onClick={buscarNovedades} disabled={buscando}>{buscando ? '⏳ Revisando…' : '🔔 Buscar novedades'}</button>
         </div>
+        {novedades && (
+          <div className={'cc-novedades' + (novedades.error ? ' err' : '')}>
+            {novedades.error
+              ? '⚠️ ' + novedades.error
+              : novedades.avisados > 0
+                ? `✅ ${novedades.avisados} cliente(s) con inventario nuevo${novedades.whatsapp ? ` · ${novedades.whatsapp} WhatsApp enviado(s)` : ''}${novedades.correos ? ` · ${novedades.correos} correo(s)` : ''}. Revisa sus tarjetas abajo.`
+                : `Sin novedades por ahora. Revisé ${novedades.tarjetas} tarjeta(s); te aviso en cuanto entre algo que le quede a alguno.`}
+          </div>
+        )}
 
         {enriquecidas.length === 0 ? (
           <EmptyState icon="🗂️" title="Aún no guardas clientes">

@@ -1066,6 +1066,34 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .vista i{font-style:normal;font-size:1rem}
 .chip-n{font-style:normal;font-size:.7rem;background:var(--panel);border-radius:99px;padding:.02rem .38rem;margin-left:.35rem;color:var(--dim);font-weight:600}
 .chip.on .chip-n{color:var(--lime)}
+.chip.off{opacity:.42}
+.chip.off .chip-n{color:var(--dim)}
+.bs-reanuda{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:0 0 .8rem;padding:.55rem .85rem;border-radius:12px;background:var(--lime-soft);border:1px solid var(--lime-line);color:var(--lime);font-size:.85rem;font-weight:600}
+.bs-reanuda button{background:transparent;border:1px solid var(--lime-line);color:var(--lime);border-radius:99px;padding:.22rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer}
+.bs-reanuda button:hover{background:var(--lime);color:#0a0b0f}
+/* Señal precio/m² vs. la zona */
+.zsig{display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.08rem .5rem;border-radius:99px;border:1px solid var(--line)}
+.zsig.bajo{color:#8bef8f;background:rgba(96,214,102,.12);border-color:rgba(96,214,102,.32)}
+.zsig.enlinea{color:var(--sub);background:var(--panel)}
+.zsig.sobre{color:#ff9db4;background:rgba(255,30,122,.1);border-color:var(--mag-line)}
+/* Tira de inversionista */
+.bs-inv{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem;margin:0 0 .8rem;padding:.6rem .85rem;border-radius:14px;background:linear-gradient(90deg,var(--lime-soft),transparent);border:1px solid var(--lime-line)}
+.bs-inv-h{font-weight:800;color:var(--lime);font-size:.9rem}
+.bs-inv-f{display:flex;align-items:center;gap:.4rem}
+.bs-inv-f label{font-size:.78rem;color:var(--sub);font-weight:600}
+.bs-money-in.sm{min-width:96px}
+.bs-money-in.sm input{width:56px}
+.bs-inv-nota{font-size:.72rem;color:var(--dim);flex:1 1 100%}
+/* Opt-in de alertas en Guardar cliente */
+.bs-alerta{margin:.7rem 0;padding:.7rem .85rem;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.bs-alerta-t{display:flex;align-items:center;gap:.5rem;font-size:.86rem;font-weight:600;color:var(--ink);cursor:pointer}
+.bs-alerta-t input{width:16px;height:16px;accent-color:var(--lime)}
+.bs-alerta-canal{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.55rem;padding-left:1.6rem}
+/* Clientes: encabezado con acción + banner de novedades */
+.cc-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.cc-intro>button{flex:0 0 auto;white-space:nowrap}
+.cc-novedades{margin:0 0 1rem;padding:.7rem 1rem;border-radius:12px;background:var(--lime-soft);border:1px solid var(--lime-line);color:var(--lime);font-size:.88rem;font-weight:600}
+.cc-novedades.err{background:rgba(255,30,122,.1);border-color:var(--mag-line);color:#ff9db4}
 .crit-sel.sm{max-width:180px}
 .crit-foot{align-items:center;justify-content:space-between;display:flex;flex-wrap:wrap;gap:.6rem}
 .relaja{color:var(--dim)}
