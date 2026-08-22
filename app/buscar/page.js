@@ -6,16 +6,19 @@ import Nav from '../../components/Nav';
 import { MXN, EmptyState } from '../../components/ui';
 import {
   meses, precioM2, pasaEntrega, ENTREGA_BUCKETS, creditosDe, cabeEnCredito,
-  CREDITOS, AMENIDADES_CLAVE, VISTAS, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo, parseConsulta,
+  CREDITOS, AMENIDADES_CLAVE, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo,
   precalifica, yieldEstimado, rentaEstimada, montoFinanciar,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
 import { generarPropuestaShortlist } from '../../lib/propuesta';
+import { esquemaPago } from '../../lib/finance';
 import { track } from '../../lib/track';
 
-const RECS = [['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5+']];
-const BANOS = [['1', '1+'], ['2', '2+'], ['3', '3+'], ['4', '4+']];
-const CAJONES = [['', 'Cualquiera'], ['1', '1+'], ['2', '2+'], ['3', '3+']];
+const RECS = [['0', 'Loft'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4+']];
+const BANOS = [['1', '1+'], ['2', '2+'], ['3', '3+']];
+const CAJONES = [['1', '1+'], ['2', '2+'], ['3', '3+']];
+const MOMENTO = [['inmediata', '⚡ Inmediata'], ['preventa', '🏗️ Preventa']];
+const LENS = [['', 'General'], ['inversion', 'Inversionista'], ['primer', 'Primer hogar'], ['upgrade', 'Upgrade familiar'], ['airbnb', 'Airbnb / rentas']];
 const COMIS = [['1', '≥ 1%'], ['2', '≥ 2%'], ['3', '≥ 3%'], ['3.5', '≥ 3.5%'], ['4', '≥ 4%'], ['5', '≥ 5%'], ['6', '≥ 6%']];
 const nfmt = v => v ? Number(v).toLocaleString('es-MX') : '';   // 3700000 -> 3,700,000
 const EXT = [['balcon', '🌿 Balcón'], ['terraza', '☀️ Terraza'], ['roof', '🏙️ Roof privado']];
@@ -23,7 +26,7 @@ const PRESUP = [['1500000', '$1.5M'], ['2000000', '$2M'], ['2500000', '$2.5M'], 
 const PRESUP_MIN = [['', 'Sin mínimo'], ['2000000', '$2M'], ['3000000', '$3M'], ['4000000', '$4M'], ['5000000', '$5M']];
 const SORTS = [['precio', 'Precio ↑'], ['precio_m2', 'Precio/m² ↑'], ['mensualidad', 'Mensualidad ↑'], ['comision', 'Comisión ↓'], ['entrega', 'Entrega ↑'], ['yield', 'Yield ↓'], ['match', 'Mejor match ↓']];
 
-const F0 = { recs: [], banosMin: '', m2Min: '', m2Max: '', nivelMin: '', nivelMax: '', engancheMax: '', mensMax: '', ext: [], presMax: '', presMin: '', precioM2Min: '', precioM2Max: '', zona: '', colonia: '', entrega: '', cajonesMin: '', bodega: false, amenidades: [], creditos: [], comisionMin: '', yieldMin: '', oportunidad: false, depaMuestra: false, descuento: false, sort: 'precio' };
+const F0 = { recs: [], banosMin: '', m2Min: '', m2Max: '', nivelMin: '', nivelMax: '', engancheMax: '', mensMax: '', ext: [], presMax: '', presMin: '', precioM2Min: '', precioM2Max: '', zona: '', colonia: '', entrega: '', momento: '', cajonesMin: '', bodega: false, amenidades: [], creditos: [], comisionMin: '', yieldMin: '', oportunidad: false, depaMuestra: false, descuento: false, sort: 'precio' };
 
 // Orden en que aflojamos filtros para no llegar a cero resultados.
 const RELAJA = [['oportunidad', 'oportunidad de zona'], ['yieldMin', 'yield mínimo'], ['precioM2Max', 'precio/m²'], ['comisionMin', 'comisión'], ['cajonesMin', 'cajones'], ['bodega', 'bodega'], ['amenidades', 'amenidades'], ['descuento', 'promoción'], ['entrega', 'fecha de entrega']];
@@ -39,7 +42,6 @@ export default function Buscar() {
   const [saved, setSaved] = useState(false);
   const [vistas, setVistas] = useState([]);       // vistas propias guardadas
   const [persona, setPersona] = useState(null);
-  const [nlq, setNlq] = useState('');             // búsqueda en lenguaje natural
   const [af, setAf] = useState({ ingreso: '', enganche: '', tipo: 'Bancario' });   // capacidad de pago
   const [sel, setSel] = useState([]);             // shortlist de desarrollos (skus)
   const [why, setWhy] = useState(null);           // sku con "¿por qué?" abierto
@@ -90,7 +92,7 @@ export default function Buscar() {
           if (q.get('ext')) next.ext = q.get('ext').split(',');
           if (q.get('creditos')) next.creditos = q.get('creditos').split(',');
           if (q.get('amenidades')) next.amenidades = q.get('amenidades').split(',');
-          ['presMax', 'presMin', 'banosMin', 'm2Min', 'm2Max', 'nivelMin', 'nivelMax', 'engancheMax', 'mensMax', 'precioM2Min', 'precioM2Max', 'yieldMin', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin', 'sort'].forEach(k => { if (q.get(k)) next[k] = q.get(k); });
+          ['presMax', 'presMin', 'banosMin', 'm2Min', 'm2Max', 'nivelMin', 'nivelMax', 'engancheMax', 'mensMax', 'precioM2Min', 'precioM2Max', 'yieldMin', 'zona', 'colonia', 'entrega', 'momento', 'cajonesMin', 'comisionMin', 'sort'].forEach(k => { if (q.get(k)) next[k] = q.get(k); });
           ['bodega', 'oportunidad', 'depaMuestra', 'descuento'].forEach(k => { if (q.get(k) === '1') next[k] = true; });
           setF(next);
         } else {
@@ -132,6 +134,8 @@ export default function Buscar() {
     if (a && a.avg) return { avg: a.avg, ambito: d.alcaldia };
     return null;
   }
+  // ¿El desarrollo es de entrega inmediata?
+  function esInmediata(d) { return d.etapa === 'Entrega inmediata' || (meses(d.fecha_entrega) ?? 99) <= 1; }
   // Señal de precio/m² frente al promedio de su zona.
   function zonaSignal(pm2, d) {
     if (!pm2 || !d) return null;
@@ -150,7 +154,7 @@ export default function Buscar() {
     if (f.ext.length) q.set('ext', f.ext.join(','));
     if (f.creditos.length) q.set('creditos', f.creditos.join(','));
     if (f.amenidades.length) q.set('amenidades', f.amenidades.join(','));
-    ['presMax', 'presMin', 'banosMin', 'm2Min', 'm2Max', 'nivelMin', 'nivelMax', 'engancheMax', 'mensMax', 'precioM2Min', 'precioM2Max', 'yieldMin', 'zona', 'colonia', 'entrega', 'cajonesMin', 'comisionMin'].forEach(k => { if (f[k]) q.set(k, f[k]); });
+    ['presMax', 'presMin', 'banosMin', 'm2Min', 'm2Max', 'nivelMin', 'nivelMax', 'engancheMax', 'mensMax', 'precioM2Min', 'precioM2Max', 'yieldMin', 'zona', 'colonia', 'entrega', 'momento', 'cajonesMin', 'comisionMin'].forEach(k => { if (f[k]) q.set(k, f[k]); });
     if (f.sort !== 'precio') q.set('sort', f.sort);
     ['bodega', 'oportunidad', 'depaMuestra', 'descuento'].forEach(k => { if (f[k]) q.set(k, '1'); });
     const s = q.toString();
@@ -174,7 +178,7 @@ export default function Buscar() {
   function unitPasa(u, d, skip) {
     if (!skip.has('presMax') && f.presMax && u.precio > +f.presMax) return false;
     if (f.presMin && u.precio < +f.presMin) return false;
-    if (f.recs.length) { const hit = f.recs.some(r => r === '5' ? u.rec >= 5 : u.rec === +r); if (!hit) return false; }
+    if (f.recs.length) { const hit = f.recs.some(r => r === '4' ? u.rec >= 4 : u.rec === +r); if (!hit) return false; }
     if (f.banosMin && (Number(u.banos) || 0) < +f.banosMin) return false;
     if (f.m2Min && (Number(u.m2_hab) || 0) < +f.m2Min) return false;
     if (f.m2Max && (Number(u.m2_hab) || 0) > +f.m2Max) return false;
@@ -202,6 +206,8 @@ export default function Buscar() {
   function devPasa(d, skip) {
     if (f.zona && d.alcaldia !== f.zona) return false;
     if (f.colonia && d.colonia !== f.colonia) return false;
+    if (f.momento === 'inmediata' && !esInmediata(d)) return false;
+    if (f.momento === 'preventa' && esInmediata(d)) return false;
     if (!skip.has('entrega') && !pasaEntrega(f.entrega, d)) return false;
     if (!skip.has('comisionMin') && f.comisionMin && (Math.round((d.comision_broker || 0) * 1000) / 10) < +f.comisionMin) return false;
     if (f.depaMuestra && !/s/i.test(d.depa_muestra || '')) return false;
@@ -213,7 +219,7 @@ export default function Buscar() {
     return true;
   }
 
-  const activo = f.recs.length || f.banosMin || f.m2Min || f.m2Max || f.nivelMin || f.nivelMax || f.engancheMax || f.mensMax || f.ext.length || f.presMax || f.presMin || f.precioM2Min || f.precioM2Max || f.zona || f.colonia || f.entrega || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.yieldMin || f.oportunidad || f.depaMuestra || f.descuento;
+  const activo = f.recs.length || f.banosMin || f.m2Min || f.m2Max || f.nivelMin || f.nivelMax || f.engancheMax || f.mensMax || f.ext.length || f.presMax || f.presMin || f.precioM2Min || f.precioM2Max || f.zona || f.colonia || f.entrega || f.momento || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.yieldMin || f.oportunidad || f.depaMuestra || f.descuento;
   // Filtros "avanzados" activos (los que viven en el drawer), para el badge de "Más filtros".
   const nAdv = (f.banosMin ? 1 : 0) + (f.m2Min ? 1 : 0) + (f.m2Max ? 1 : 0) + (f.nivelMin || f.nivelMax ? 1 : 0) + (f.engancheMax ? 1 : 0) + (f.mensMax ? 1 : 0) + f.ext.length + (f.cajonesMin ? 1 : 0) + (f.bodega ? 1 : 0) + f.amenidades.length + f.creditos.length + (f.comisionMin ? 1 : 0) + (f.precioM2Min || f.precioM2Max ? 1 : 0) + (f.yieldMin ? 1 : 0) + (f.oportunidad ? 1 : 0) + (f.depaMuestra ? 1 : 0) + (f.descuento ? 1 : 0) + (f.entrega ? 1 : 0) + (f.colonia ? 1 : 0);
 
@@ -286,7 +292,7 @@ export default function Buscar() {
     RECS.forEach(([v]) => {
       out[v] = units.filter(u => {
         const d = byId[u.dev_sku]; if (!d || !devPasa(d, new Set())) return false;
-        const hit = v === '5' ? u.rec >= 5 : u.rec === +v; if (!hit) return false;
+        const hit = v === '4' ? u.rec >= 4 : u.rec === +v; if (!hit) return false;
         // aplica los demás filtros de unidad salvo recámaras
         if (f.presMax && u.precio > +f.presMax) return false;
         if (f.cajonesMin && (u.n_estac || 0) < +f.cajonesMin) return false;
@@ -327,32 +333,10 @@ export default function Buscar() {
     return () => clearTimeout(t);
   }, [f, totalU, activo]);
 
-  function aplicarVista(v) {
-    setF(o => ({ ...F0, sort: v.sort || 'precio', ...v.patch, recs: v.patch.recs || [], creditos: v.patch.creditos || [], amenidades: v.patch.amenidades || [] }));
-  }
-
-  // Traduce lenguaje natural a filtros (ej. "2 rec en Coyoacán, hasta 3.7M, Infonavit").
-  function aplicarNL(e) {
-    if (e) e.preventDefault();
-    if (!nlq.trim()) return;
-    const { crit } = parseConsulta(nlq, zonas);
-    setF(o => ({
-      ...o,
-      recs: crit.recs && crit.recs.length ? crit.recs : o.recs,
-      presMax: crit.presupuestoMax ? String(crit.presupuestoMax) : o.presMax,
-      zona: (crit.zonas && crit.zonas[0]) || o.zona,
-      creditos: crit.creditos && crit.creditos.length ? crit.creditos : o.creditos,
-      amenidades: crit.amenidades && crit.amenidades.length ? crit.amenidades : o.amenidades,
-      cajonesMin: crit.cajonesMin ? String(crit.cajonesMin) : o.cajonesMin,
-      bodega: crit.bodega != null ? crit.bodega : o.bodega,
-      entrega: crit.entregaBucket || o.entrega,
-    }));
-  }
-
   // Chips de filtros activos (removibles) para que el broker vea y quite lo aplicado.
   const chipsActivos = useMemo(() => {
     const out = [];
-    const recL = { '0': 'Loft', '1': '1 rec', '2': '2 rec', '3': '3+ rec' };
+    const recL = { '0': 'Loft', '1': '1 rec', '2': '2 rec', '3': '3 rec', '4': '4+ rec' };
     f.recs.forEach(r => out.push({ k: 'recs:' + r, label: recL[r] || r, clear: () => toggleArr('recs', r) }));
     if (f.banosMin) out.push({ k: 'banos', label: f.banosMin + '+ baños', clear: () => set('banosMin', '') });
     if (f.m2Min) out.push({ k: 'm2min', label: 'desde ' + f.m2Min + ' m²', clear: () => set('m2Min', '') });
@@ -365,6 +349,7 @@ export default function Buscar() {
     if (f.presMax) out.push({ k: 'presMax', label: 'hasta ' + MXN(+f.presMax), clear: () => set('presMax', '') });
     if (f.zona) out.push({ k: 'zona', label: f.zona, clear: () => { set('zona', ''); set('colonia', ''); } });
     if (f.colonia) out.push({ k: 'colonia', label: f.colonia, clear: () => set('colonia', '') });
+    if (f.momento) out.push({ k: 'momento', label: f.momento === 'inmediata' ? '⚡ Entrega inmediata' : '🏗️ Preventa', clear: () => set('momento', '') });
     if (f.entrega) { const el = { inmediata: 'Inmediata', '3': '≤ 3 meses', '6': '≤ 6 meses', '12': '≤ 12 meses', '18': '≤ 18 meses', '24': '≤ 24 meses', '36': '≤ 36 meses', plus36: 'Más de 36' }; out.push({ k: 'entrega', label: el[f.entrega] || 'Entrega', clear: () => set('entrega', '') }); }
     f.creditos.forEach(c => out.push({ k: 'cred:' + c, label: (CREDITOS.find(x => x[0] === c) || [, c])[1], clear: () => toggleArr('creditos', c) }));
     f.ext.forEach(x => out.push({ k: 'ext:' + x, label: (EXT.find(e => e[0] === x) || [, x])[1], clear: () => toggleArr('ext', x) }));
@@ -403,20 +388,97 @@ export default function Buscar() {
     if (typeof window !== 'undefined') window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
   }
   function compararShortlist() { if (sel.length) router.push('/comparar?skus=' + sel.join(',')); }
+  // Titular vendedor por desarrollo, según el perfil del cliente.
+  function headlineDe(g) {
+    const d = g.d, col = d.colonia || d.alcaldia || 'la zona';
+    if (persona?.id === 'inversion') {
+      if (g.renta != null) return `Renta estimada ~${MXN(g.renta)}/mes en ${col}`;
+      return `Plusvalía y renta en ${col}`;
+    }
+    if (persona?.id === 'primer') return `Tu primer hogar en ${col}, con mensualidad de ~${MXN(g.mens)}`;
+    if (persona?.id === 'upgrade') return `Más espacio para tu familia en ${col}`;
+    if (persona?.id === 'airbnb') return `Ubicación para renta corta en ${col}`;
+    if (d.etapa === 'Entrega inmediata') return `Múdate ya: entrega inmediata en ${col}`;
+    const r = (d.rec_min === 0 ? 'Loft' : d.rec_min) + (d.rec_max && d.rec_max !== d.rec_min ? '–' + d.rec_max : '');
+    return `${r} recámaras en ${col} desde ${MXN(g.min)}`;
+  }
+  // Razones hiperpersonalizadas de por qué le queda al cliente.
+  function porqueDe(g) {
+    const d = g.d, out = [];
+    const CRED = Object.fromEntries(CREDITOS);
+    const recL = r => r === '0' ? 'loft' : r === '5' ? '5+' : r;
+    if (f.recs.length) out.push(`Tiene las ${f.recs.map(recL).join('/')} recámaras que pediste`);
+    if (f.presMax && g.min <= +f.presMax) out.push(`Entra en tu presupuesto: desde ${MXN(g.min)} (tu tope: ${MXN(+f.presMax)})`);
+    else if (!f.presMax) out.push(`Desde ${MXN(g.min)}, con mensualidad estimada de ~${MXN(g.mens)}`);
+    if (f.zona && d.alcaldia === f.zona) out.push(`En ${d.colonia || d.alcaldia}, justo la zona que buscas`);
+    if (f.creditos.length) {
+      const cd = creditosDe(d);
+      const ok = f.creditos.filter(k => cd.has(k) || k === 'infonavit' || k === 'fovissste');
+      if (ok.length) out.push(`Acepta ${ok.map(k => CRED[k] || k).join(', ')}`);
+    }
+    if (persona?.id === 'inversion') {
+      if (g.yld != null) out.push(`Renta estimada ~${MXN(g.renta)}/mes · ${g.yld}% yield bruto`);
+      if (g.zonaSig?.cls === 'bajo') out.push(`Precio/m² ${g.zonaSig.txt} — margen de plusvalía`);
+    } else if (persona?.id === 'primer') {
+      out.push(`Enganche desde ${MXN(Math.round(g.min * (d.esq_enganche || 0.1)))} y mensualidad pensada para tu primer crédito`);
+    } else if (persona?.id === 'upgrade') {
+      out.push(`Espacio de sobra: ${d.rec_min}–${d.rec_max} recámaras y ${d.estac_min}–${d.estac_max} cajones`);
+    }
+    if (d.etapa === 'Entrega inmediata') out.push('Entrega inmediata: puedes mudarte —o rentar— ya');
+    else if (g.m != null) out.push(`Entrega en ~${g.m} meses, tiempo para juntar el resto del enganche`);
+    if (f.amenidades.length) {
+      const am = (d.amenidades || '').toLowerCase();
+      const hit = f.amenidades.filter(a => am.includes(a.toLowerCase()));
+      if (hit.length) out.push(`Con ${hit.join(', ')}, como pediste`);
+    }
+    if (g.us.length <= 3) out.push(`Quedan solo ${g.us.length} unidad${g.us.length === 1 ? '' : 'es'} que cumplen tus criterios`);
+    if (d.descuentos && String(d.descuentos).trim()) out.push(`Promoción vigente: ${String(d.descuentos).trim()}`);
+    return out.slice(0, 5);
+  }
   async function descargarPropuesta() {
     const elegidos = grupos.filter(g => sel.includes(g.d.sku));
     if (!elegidos.length || genProp) return;
     const cliente = (typeof window !== 'undefined') ? (window.prompt('Nombre del cliente para la propuesta (opcional):') || '') : '';
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const items = elegidos.map(g => ({
-      nombre: g.d.nombre, colonia: g.d.colonia, alcaldia: g.d.alcaldia,
-      min: g.min, max: g.max, mens: g.mens, pm2: g.pm2,
-      rec_min: g.d.rec_min, rec_max: g.d.rec_max, m2_min: g.d.m2_min, m2_max: g.d.m2_max,
-      meses: g.m, entrega: g.d.etapa === 'Entrega inmediata' ? 'Entrega inmediata' : null,
-    }));
+    const CRED = Object.fromEntries(CREDITOS);
+    const items = elegidos.map(g => {
+      const d = g.d;
+      const reco = g.us.reduce((b, u) => (u._fit || 0) > (b._fit || 0) ? u : b, g.us[0]);
+      const esq = esquemaPago(g.min, { enganchePct: d.esq_enganche || 0, obraPct: d.esq_mensualidades || 0, escrituraPct: d.esq_escritura || 0, apartado: d.apartado || 0, meses: g.m || 0 });
+      const creditos = [...creditosDe(d)].map(k => CRED[k] || k);
+      return {
+        nombre: d.nombre, colonia: d.colonia, alcaldia: d.alcaldia,
+        headline: headlineDe(g),
+        min: g.min, max: g.max, pm2: g.pm2, mens: g.mens, ingreso: g.ingreso, meses: g.m,
+        entrega: d.etapa === 'Entrega inmediata' ? 'Entrega inmediata' : null,
+        rec_min: d.rec_min, rec_max: d.rec_max, banos_min: d.banos_min, banos_max: d.banos_max,
+        estac_min: d.estac_min, estac_max: d.estac_max, m2_min: d.m2_min, m2_max: d.m2_max,
+        amenidades: (d.amenidades || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 12),
+        esq: { enganche: esq.enganche, enganchePct: Math.round((d.esq_enganche || 0) * 100), apartado: esq.apartado, mensualidadObra: esq.mensualidadObra, saldoEscritura: esq.saldoEscritura, meses: g.m || 0 },
+        creditos,
+        disponibles: g.us.length,
+        descuento: d.descuentos && String(d.descuentos).trim() ? String(d.descuentos).trim() : null,
+        reco: reco ? { prototipo: reco.prototipo, num: reco.num_depto, torre: reco.torre, nivel: reco.nivel, rec: reco.rec, banos: reco.banos, m2: reco.m2_hab, precio: reco.precio } : null,
+        renta: g.renta, yld: g.yld, zonaTxt: g.zonaSig?.txt || null,
+        porque: porqueDe(g),
+      };
+    });
+    const inversor = persona?.id === 'inversion';
+    const critTxt = [
+      f.recs.length ? f.recs.map(r => r === '0' ? 'loft' : r === '5' ? '5+' : r).join('/') + ' rec' : null,
+      (f.presMin || f.presMax) ? ((f.presMin ? 'desde ' + MXN(+f.presMin) : '') + (f.presMax ? (f.presMin ? ' ' : '') + 'hasta ' + MXN(+f.presMax) : '')) : null,
+      f.zona || null,
+      f.creditos.length ? f.creditos.map(k => CRED[k] || k).join('/') : null,
+      f.amenidades.length ? f.amenidades.join(', ') : null,
+    ].filter(Boolean).join('   ·   ');
+    const sub = inversor
+      ? 'Opciones para poner tu capital a trabajar: zonas con demanda de renta y potencial de plusvalía, con sus números claros.'
+      : persona?.id === 'primer'
+        ? 'Pensadas para tu primer crédito: mensualidad accesible, enganche alcanzable y el trámite resuelto por mí.'
+        : 'Seleccioné estas opciones a partir de lo que me dijiste. Cada una viene con sus números claros para que decidas con confianza.';
     setGenProp(true);
     try {
-      await generarPropuestaShortlist({ asesor: brand || {}, cliente: cliente.trim(), items, link: origin + '/buscar' });
+      await generarPropuestaShortlist({ asesor: brand || {}, cliente: cliente.trim(), items, inversor, critTxt, sub, link: origin + '/buscar' });
     } catch { /* noop */ }
     setGenProp(false);
   }
@@ -437,60 +499,47 @@ export default function Buscar() {
           <p>Define sus criterios y te digo qué le queda de {devs.length} desarrollos y {units.length.toLocaleString('es-MX')} unidades — con mensualidad, ingreso mínimo y comisión ya calculados.</p>
         </div>
 
-        {/* Búsqueda en lenguaje natural */}
-        <form className="bs-nl" onSubmit={aplicarNL}>
-          <span className="bs-nl-ic">🗣️</span>
-          <input className="bs-nl-in" value={nlq} onChange={e => setNlq(e.target.value)} placeholder="Dilo como tu cliente: “2 recámaras en Coyoacán, hasta 3.7M, con Infonavit”" />
-          <button className="btn lim sm" type="submit">Traducir a filtros</button>
-        </form>
-
-        {/* Quick-start: perfil + atajos + mis vistas */}
-        <div className="bs-quick">
-          <div className="bs-qrow"><span className="bs-qlbl">Perfil</span>
-            {PERSONAS.map(p => <button key={p.id} className={'chip' + (persona?.id === p.id ? ' on' : '')} onClick={() => setPersona(persona?.id === p.id ? null : p)}>{p.label}</button>)}
-          </div>
-          <div className="bs-qrow"><span className="bs-qlbl">Atajos</span>
-            {VISTAS.map(v => <button key={v.id} className="chip" onClick={() => aplicarVista(v)}><i className="bs-qic">{v.icon}</i>{v.label}</button>)}
-          </div>
-          {vistas.length > 0 && (
-            <div className="bs-qrow"><span className="bs-qlbl">Mis vistas</span>
-              {vistas.map(v => <span key={v.nombre} className="saved-chip"><button onClick={() => aplicarVistaPropia(v)}>{v.nombre}</button><i onClick={() => borrarVista(v.nombre)}>✕</i></span>)}
+        {/* Panel esencial en rejilla alineada */}
+        <div className="bsf">
+          <div className="bsf-row r1">
+            <div className="bsf-f"><span className="bsf-l">Ubicación</span>
+              <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
             </div>
-          )}
-        </div>
-        {persona && <div className="pers-pitch">💡 <b>{persona.label}:</b> {persona.pitch}</div>}
-
-        {/* Tira de inversionista: yield mínimo + oportunidades de zona */}
-        {persona?.id === 'inversion' && (
-          <div className="bs-inv">
-            <span className="bs-inv-h">📈 Modo inversionista</span>
-            <div className="bs-inv-f"><label>Yield bruto mínimo</label>
-              <div className="bs-money-in sm"><input inputMode="numeric" placeholder="ej. 6" value={f.yieldMin} onChange={e => set('yieldMin', e.target.value.replace(/[^0-9.]/g, ''))} /><span>%</span></div>
+            <div className="bsf-f"><span className="bsf-l">Presupuesto</span>
+              <div className="bs-money">
+                <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={nfmt(f.presMin)} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+                <span className="bs-dash">—</span>
+                <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={nfmt(f.presMax)} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+              </div>
             </div>
-            <button className={'chip' + (f.oportunidad ? ' on' : '')} onClick={() => set('oportunidad', !f.oportunidad)}>🟢 Solo bajo el promedio de su zona</button>
-            <button className={'chip' + (f.sort === 'yield' ? ' on' : '')} onClick={() => set('sort', f.sort === 'yield' ? 'precio' : 'yield')}>Ordenar por yield ↓</button>
-            <span className="bs-inv-nota">Renta y yield son estimaciones para orientar; no son valuación.</span>
-          </div>
-        )}
-
-        {/* Barra compacta: sólo lo esencial (recámaras, presupuesto, zona) */}
-        <div className="bs-bar">
-          <div className="bs-bar-f"><span className="bs-bar-l">Recámaras</span>
-            <div className="bs-chips">{RECS.map(([v, l]) => <span key={v} className={'chip sm' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}</span>)}</div>
-          </div>
-          <div className="bs-bar-f"><span className="bs-bar-l">Presupuesto</span>
-            <div className="bs-money">
-              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={nfmt(f.presMin)} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
-              <span className="bs-dash">—</span>
-              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={nfmt(f.presMax)} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+            <div className="bsf-f"><span className="bsf-l">Metros²</span>
+              <div className="bs-money">
+                <div className="bs-money-in"><input inputMode="numeric" placeholder="Desde" value={f.m2Min} onChange={e => set('m2Min', e.target.value.replace(/[^0-9]/g, ''))} /><span>m²</span></div>
+                <span className="bs-dash">—</span>
+                <div className="bs-money-in"><input inputMode="numeric" placeholder="Hasta" value={f.m2Max} onChange={e => set('m2Max', e.target.value.replace(/[^0-9]/g, ''))} /><span>m²</span></div>
+              </div>
             </div>
           </div>
-          <div className="bs-bar-f"><span className="bs-bar-l">Zona</span>
-            <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
+          <div className="bsf-row r2">
+            <div className="bsf-f"><span className="bsf-l">Recámaras</span>
+              <div className="bsf-chips">{RECS.map(([v, l]) => <span key={v} className={'chip sm' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}</span>)}</div>
+            </div>
+            <div className="bsf-f"><span className="bsf-l">Baños</span>
+              <div className="bsf-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip sm' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
+            </div>
+            <div className="bsf-f"><span className="bsf-l">Estac.</span>
+              <div className="bsf-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip sm' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', f.cajonesMin === v ? '' : v)}>{l}</span>)}</div>
+            </div>
+            <div className="bsf-f"><span className="bsf-l">Entrega</span>
+              <div className="bsf-chips">{MOMENTO.map(([v, l]) => <span key={v} className={'chip sm' + (f.momento === v ? ' on' : '')} onClick={() => set('momento', f.momento === v ? '' : v)}>{l}</span>)}</div>
+            </div>
           </div>
-          <div className="bs-bar-act">
-            <button className={'btn ghost sm' + (afOpen ? ' bs-on' : '')} onClick={() => setAfOpen(v => !v)}>💳 Por lo que puede pagar</button>
-            <button className="btn ghost sm" onClick={() => setMasOpen(true)}>⚙️ Más filtros{nAdv > 0 && <em className="bs-more-n">{nAdv}</em>}</button>
+          <div className="bsf-foot">
+            <div className="bsf-foot-l">
+              <button className={'btn ghost sm' + (afOpen ? ' bs-on' : '')} onClick={() => setAfOpen(v => !v)}>💳 Por lo que puede pagar</button>
+              <button className="btn ghost sm" onClick={() => setMasOpen(true)}>⚙️ Más filtros{nAdv > 0 && <em className="bs-more-n">{nAdv}</em>}</button>
+            </div>
+            <div className="bsf-count">{activo ? <>→ <b>{totalU}</b> unidad{totalU === 1 ? '' : 'es'} · <b>{grupos.length}</b> desarrollo{grupos.length === 1 ? '' : 's'}</> : <>{devs.length} desarrollos · {units.length.toLocaleString('es-MX')} unidades</>}</div>
           </div>
         </div>
 
@@ -513,8 +562,9 @@ export default function Buscar() {
         {/* RESULTADOS a todo el ancho */}
         <div className="bs-results">
             <div className="bs-results-head">
-              <div className="bs-count">
-                {activo ? <><b>{totalU}</b> unidad{totalU === 1 ? '' : 'es'} · <b>{grupos.length}</b> desarrollo{grupos.length === 1 ? '' : 's'}</> : 'Elige criterios para ver opciones'}
+              <div className="bs-lens">
+                <label>Optimizar para</label>
+                <select value={persona?.id || ''} onChange={e => setPersona(PERSONAS.find(p => p.id === e.target.value) || null)}>{LENS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
                 {relajado && <span className="relaja"> · aflojé <b>{relajado}</b></span>}
               </div>
               <div className="bs-head-act">
@@ -527,6 +577,8 @@ export default function Buscar() {
               </div>
             </div>
 
+            {persona && <div className="bs-lens-note">💡 {persona.pitch}</div>}
+
             {chipsActivos.length > 0 && (
               <div className="bs-active">
                 {chipsActivos.map(c => <span key={c.k} className="bs-active-chip" onClick={c.clear}>{c.label} <i>✕</i></span>)}
@@ -536,7 +588,7 @@ export default function Buscar() {
 
             {!activo ? (
               <EmptyState icon="🔎" title="Empieza por lo esencial">
-                Elige recámaras y presupuesto, escribe la búsqueda en lenguaje natural, o toca un atajo — te muestro las mejores opciones con match %.
+                Elige ubicación, presupuesto y recámaras arriba — te muestro las mejores opciones con match %, mensualidad y tu comisión ya calculados.
               </EmptyState>
             ) : totalU === 0 ? (
               <EmptyState icon="🤔" title="Nada encaja">Sube el presupuesto o quita alguna amenidad con los chips de arriba.</EmptyState>
@@ -546,59 +598,40 @@ export default function Buscar() {
                   const enSel = sel.includes(d.sku);
                   const inv = persona?.id === 'inversion';
                   return (
-                    <article className={'match' + (enSel ? ' sel' : '')} key={d.sku}>
-                      <button className={'bs-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
-                      <div className="match-body" onClick={() => router.push('/portal/' + d.sku)}>
-                        <div className="match-h">
-                          <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
-                          {best > 0 && <span className={'fit ' + (best >= 80 ? 'hi' : best >= 55 ? 'mid' : 'lo')}>{best}%</span>}
+                    <article className={'mc' + (enSel ? ' sel' : '')} key={d.sku}>
+                      <button className={'mc-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
+                      <div className="mc-body" onClick={() => router.push('/portal/' + d.sku)}>
+                        <div className="mc-name">{d.nombre}</div>
+                        <div className="mc-loc">📍 {d.colonia}, {d.alcaldia}</div>
+                        {d.direccion && <div className="mc-addr">{d.direccion}</div>}
+                        <div className="mc-price">{min === max ? MXN(min) : `${MXN(min)} – ${MXN(max)}`}</div>
+                        <div className="mc-stats">{inv
+                          ? [yld != null ? `${yld}% yield` : null, renta != null ? `renta ~${MXN(renta)}` : null, pm2 ? `${MXN(pm2)}/m²` : null].filter(Boolean).join('   ·   ')
+                          : [`Mensualidad ${MXN(mens)}`, pm2 ? `${MXN(pm2)}/m²` : null].filter(Boolean).join('   ·   ')}</div>
+                        <div className="mc-meta">
+                          {best > 0 && <span className="mc-flag">{best}% match</span>}
+                          <span>{d.etapa === 'Entrega inmediata' ? 'Inmediata' : (m != null ? `~${m} meses` : 'Preventa')}</span>
+                          {us.length <= 3 ? <span className="mc-flag hot">🔥 Solo {us.length}</span> : <span>{us.length} disp.</span>}
+                          {inv && zonaSig && <span className={'zsig ' + zonaSig.cls}>{zonaSig.icon} {zonaSig.txt}</span>}
                         </div>
-                        <div className="match-price">{min === max ? MXN(min) : `${MXN(min)} – ${MXN(max)}`}</div>
-                        <div className="match-calc">
-                          {inv
-                            ? <>
-                                {yld != null && <span className="lim" title="Yield bruto anual estimado">📈 {yld}% yield</span>}
-                                {renta != null && <span title="Renta mensual estimada">🔑 ~{MXN(renta)}/mes renta</span>}
-                                {pm2 && <span title="Precio por m² desde">📐 {MXN(pm2)}/m²</span>}
-                              </>
-                            : <>
-                                <span title="Mensualidad hipotecaria estimada">🏦 ~{MXN(mens)}/mes</span>
-                                <span title="Ingreso mensual mínimo para calificar">💵 ingreso {MXN(ingreso)}</span>
-                                {pm2 && <span title="Precio por m² desde">📐 {MXN(pm2)}/m²</span>}
-                              </>}
-                          {zonaSig && <span className={'zsig ' + zonaSig.cls} title={'Precio/m² ' + zonaSig.txt}>{zonaSig.icon} {zonaSig.txt}</span>}
-                        </div>
-                        <div className="match-meta">
-                          <span>{d.etapa === 'Entrega inmediata' ? '⚡ Inmediata' : (m != null ? `🕑 ${m} meses` : 'Preventa')}</span>
-                          {us.length <= 3 ? <span className="escaso">🔥 Solo {us.length}</span> : <span>🏠 {us.length} disp.</span>}
-                          {comMonto ? <span className="lim">💰 {comPct}% · {MXN(comMonto)}</span> : (comPct ? <span className="lim">💰 {comPct}%</span> : null)}
-                        </div>
+                        {comPct ? <div className="mc-com"><span className="mc-com-l">Tu comisión</span><span className="mc-com-v">{comPct}%{comMonto ? ` · desde ${MXN(comMonto)}` : ''}</span></div> : null}
                       </div>
-                      {best > 0 && bestFac && bestFac.length > 0 && (
-                        <div className="bs-why">
-                          <button className="bs-why-t" onClick={() => setWhy(why === d.sku ? null : d.sku)}>{why === d.sku ? '▾' : '▸'} ¿Por qué {best}%?</button>
-                          {why === d.sku && <div className="bs-why-list">{bestFac.slice(0, 4).map((fa, i) => <span key={i} className={'bs-fac' + (fa.pts < 0 ? ' neg' : '')}>{fa.pts > 0 ? '+' : ''}{fa.pts} {fa.label}</span>)}</div>}
+                      <div className="mc-foot">
+                        <button className="mc-more" onClick={() => setOpenUnits(openUnits === d.sku ? null : d.sku)}>{openUnits === d.sku ? 'Ocultar unidades' : `Ver ${us.length} unidad${us.length === 1 ? '' : 'es'}`} ›</button>
+                        <button className="mc-cta" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
+                      </div>
+                      {openUnits === d.sku && (
+                        <div className="mc-units">
+                          {us.slice(0, 8).map(u => (
+                            <div className="mc-unit" key={u.sku} onClick={() => router.push('/portal/' + d.sku)}>
+                              <span>{u.prototipo || u.num_depto || u.sku}{u.torre ? ` · T${u.torre}` : ''}</span>
+                              <span className="mc-unit-spec">{u.rec === 0 ? 'Loft' : u.rec + ' rec'}{u.m2_hab ? ` · ${u.m2_hab} m²` : ''}</span>
+                              <span className="mc-unit-price">{MXN(u.precio)}</span>
+                            </div>
+                          ))}
+                          {us.length > 8 && <div className="fnote" style={{ margin: '.3rem 0 0' }}>+{us.length - 8} más — ábrelas en el desarrollo</div>}
                         </div>
                       )}
-                      <div className="bs-units">
-                        <button className="bs-units-t" onClick={() => setOpenUnits(openUnits === d.sku ? null : d.sku)}>{openUnits === d.sku ? '▾' : '▸'} Ver las {us.length} unidad{us.length === 1 ? '' : 'es'} que le quedan</button>
-                        {openUnits === d.sku && (
-                          <div className="bs-units-list">
-                            {us.slice(0, 8).map(u => (
-                              <div className="bs-unit" key={u.sku} onClick={() => router.push('/portal/' + d.sku)}>
-                                <span className="bs-unit-id">{u.prototipo || u.num_depto || u.sku}{u.torre ? ` · T${u.torre}` : ''}</span>
-                                <span className="bs-unit-spec">{u.rec === 0 ? 'Loft' : u.rec + ' rec'}{u.m2_hab ? ` · ${u.m2_hab} m²` : ''}</span>
-                                <span className="bs-unit-price">{MXN(u.precio)}</span>
-                              </div>
-                            ))}
-                            {us.length > 8 && <div className="fnote" style={{ margin: '.3rem 0 0' }}>+{us.length - 8} más — ábrelas en el desarrollo</div>}
-                          </div>
-                        )}
-                      </div>
-                      <div className="bs-card-act">
-                        <button className="cotiz-mini" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
-                        <button className="cotiz-mini ghost" onClick={e => toggleSel(d.sku, e)}>{enSel ? '★ En propuesta' : '☆ A propuesta'}</button>
-                      </div>
                     </article>
                   );
                 })}
@@ -612,34 +645,30 @@ export default function Buscar() {
                   const uSig = zonaSignal(precioM2(u), d);
                   const uYld = yieldEstimado(u), uRenta = rentaEstimada(u);
                   return (
-                    <article className={'match' + (enSel ? ' sel' : '')} key={u.sku}>
-                      <button className={'bs-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
-                      <div className="match-body" onClick={() => router.push('/portal/' + d.sku)}>
-                        <div className="match-h">
-                          <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
-                          {fit > 0 && <span className={'fit ' + (fit >= 80 ? 'hi' : fit >= 55 ? 'mid' : 'lo')}>{fit}%</span>}
-                        </div>
-                        <div className="bs-uunit">{u.prototipo || u.num_depto || 'Unidad'}{u.torre ? ` · T${u.torre}` : ''}{u.nivel != null && u.nivel !== '' ? ` · Piso ${u.nivel}` : ''}</div>
-                        <div className="match-price">{MXN(u.precio)}</div>
-                        <div className="match-calc">
-                          <span>🛏 {u.rec === 0 ? 'Loft' : u.rec + ' rec'}</span>
-                          <span>🛁 {u.banos || '—'}</span>
-                          <span>📐 {u.m2_hab || '—'} m²</span>
-                        </div>
-                        <div className="match-calc">
-                          {inv
-                            ? <>
-                                {uYld != null && <span className="lim" title="Yield bruto anual estimado">📈 {uYld}% yield</span>}
-                                {uRenta != null && <span title="Renta mensual estimada">🔑 ~{MXN(uRenta)}/mes</span>}
-                              </>
-                            : <span title="Mensualidad estimada">🏦 ~{MXN(mensualidadHipoteca(u.precio, d))}/mes</span>}
-                          {precioM2(u) && <span>💲 {MXN(precioM2(u))}/m²</span>}
-                          {uSig && <span className={'zsig ' + uSig.cls} title={'Precio/m² ' + uSig.txt}>{uSig.icon} {uSig.txt}</span>}
+                    <article className={'mc' + (enSel ? ' sel' : '')} key={u.sku}>
+                      <button className={'mc-star' + (enSel ? ' on' : '')} title={enSel ? 'Quitar de la propuesta' : 'Agregar a la propuesta'} onClick={e => toggleSel(d.sku, e)}>{enSel ? '★' : '☆'}</button>
+                      <div className="mc-body" onClick={() => router.push('/portal/' + d.sku)}>
+                        <div className="mc-name">{d.nombre}</div>
+                        <div className="mc-loc">📍 {d.colonia}, {d.alcaldia}</div>
+                        <div className="mc-addr">{u.prototipo || u.num_depto || 'Unidad'}{u.torre ? ` · T${u.torre}` : ''}{u.nivel != null && u.nivel !== '' ? ` · Piso ${u.nivel}` : ''}</div>
+                        <div className="mc-price">{MXN(u.precio)}</div>
+                        <div className="mc-stats">{[
+                          u.rec === 0 ? 'Loft' : `${u.rec} rec`,
+                          u.banos ? `${u.banos} baños` : null,
+                          u.m2_hab ? `${u.m2_hab} m²` : null,
+                        ].filter(Boolean).join('   ·   ')}</div>
+                        <div className="mc-stats">{inv
+                          ? [uYld != null ? `${uYld}% yield` : null, uRenta != null ? `renta ~${MXN(uRenta)}` : null, precioM2(u) ? `${MXN(precioM2(u))}/m²` : null].filter(Boolean).join('   ·   ')
+                          : [`Mensualidad ${MXN(mensualidadHipoteca(u.precio, d))}`, precioM2(u) ? `${MXN(precioM2(u))}/m²` : null].filter(Boolean).join('   ·   ')}</div>
+                        <div className="mc-meta">
+                          {fit > 0 && <span className="mc-flag">{fit}% match</span>}
+                          <span>{esInmediata(d) ? 'Inmediata' : 'Preventa'}</span>
+                          {inv && uSig && <span className={'zsig ' + uSig.cls}>{uSig.icon} {uSig.txt}</span>}
                         </div>
                       </div>
-                      <div className="bs-card-act">
-                        <button className="cotiz-mini" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
-                        <button className="cotiz-mini ghost" onClick={e => toggleSel(d.sku, e)}>{enSel ? '★ En propuesta' : '☆ A propuesta'}</button>
+                      <div className="mc-foot">
+                        <button className="mc-more" onClick={e => { e.stopPropagation(); toggleSel(d.sku, e); }}>{enSel ? '★ En propuesta' : '☆ A propuesta'}</button>
+                        <button className="mc-cta" onClick={e => { e.stopPropagation(); router.push('/portal/' + d.sku); }}>Ver / cotizar</button>
                       </div>
                     </article>
                   );
@@ -666,23 +695,7 @@ export default function Buscar() {
             <aside className="bs-drawer" onClick={e => e.stopPropagation()}>
               <div className="bs-drawer-h"><h2>⚙️ Más filtros{nAdv > 0 && <em className="bs-more-n">{nAdv}</em>}</h2><button className="x" onClick={() => setMasOpen(false)}>✕</button></div>
               <div className="bs-drawer-body">
-                <div className="bs-dsec">🎯 Lo que busca el cliente</div>
-                <div className="bs-dgroup"><label>Recámaras</label>
-                  <div className="bs-chips">{RECS.map(([v, l]) => <span key={v} className={'chip' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}{recCounts[v] != null && <em className="chip-n">{recCounts[v]}</em>}</span>)}</div>
-                </div>
-                <div className="bs-dgroup"><label>Baños</label>
-                  <div className="bs-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
-                </div>
-                <div className="bs-dgroup"><label>Estacionamientos</label>
-                  <div className="bs-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}</div>
-                </div>
-                <div className="bs-dgroup"><label>Metros² (habitable)</label>
-                  <div className="bs-money">
-                    <div className="bs-money-in"><input inputMode="numeric" placeholder="Desde" value={f.m2Min} onChange={e => set('m2Min', e.target.value.replace(/[^0-9]/g, ''))} /><span>m²</span></div>
-                    <span className="bs-dash">—</span>
-                    <div className="bs-money-in"><input inputMode="numeric" placeholder="Hasta" value={f.m2Max} onChange={e => set('m2Max', e.target.value.replace(/[^0-9]/g, ''))} /><span>m²</span></div>
-                  </div>
-                </div>
+                <div className="bs-dsec">🎯 Detalle del inmueble <span className="crit-nota">recámaras, baños, m² y estacionamientos están arriba</span></div>
                 <div className="bs-dgroup"><label>Nivel / piso</label>
                   <div className="bs-money">
                     <div className="bs-money-in"><input inputMode="numeric" placeholder="Desde" value={f.nivelMin} onChange={e => set('nivelMin', e.target.value.replace(/[^0-9]/g, ''))} /><span>piso</span></div>
@@ -694,22 +707,11 @@ export default function Buscar() {
                     <span className={'chip sm' + (f.nivelMin === '1' && f.nivelMax === '2' ? ' on' : '')} onClick={() => { const on = f.nivelMin === '1' && f.nivelMax === '2'; set('nivelMin', on ? '' : '1'); set('nivelMax', on ? '' : '2'); }}>🚶 Bajos (1–2)</span>
                   </div>
                 </div>
-                <div className="bs-dgroup"><label>Presupuesto</label>
-                  <div className="bs-money">
-                    <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={nfmt(f.presMin)} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
-                    <span className="bs-dash">—</span>
-                    <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={nfmt(f.presMax)} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
-                  </div>
-                  <div className="bs-chips" style={{ marginTop: '.45rem' }}>{PRESUP.map(([v, l]) => <span key={v} className={'chip sm' + (f.presMax === v ? ' on' : '')} onClick={() => set('presMax', f.presMax === v ? '' : v)}>≤ {l}</span>)}</div>
-                </div>
                 <div className="bs-dgroup"><label>Enganche máximo</label>
                   <div className="bs-money"><div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Sin tope" value={nfmt(f.engancheMax)} onChange={e => set('engancheMax', e.target.value.replace(/[^0-9]/g, ''))} /></div></div>
                 </div>
                 <div className="bs-dgroup"><label>Mensualidad máxima</label>
                   <div className="bs-money"><div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Sin tope" value={nfmt(f.mensMax)} onChange={e => set('mensMax', e.target.value.replace(/[^0-9]/g, ''))} /><span>/mes</span></div></div>
-                </div>
-                <div className="bs-dgroup"><label>Alcaldía</label>
-                  <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
                 </div>
                 {colonias.length > 0 && <div className="bs-dgroup"><label>Colonia</label>
                   <select value={f.colonia} onChange={e => set('colonia', e.target.value)} className="crit-sel"><option value="">Cualquier colonia</option>{colonias.map(z => <option key={z}>{z}</option>)}</select>
