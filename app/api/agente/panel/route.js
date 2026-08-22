@@ -32,9 +32,15 @@ export async function POST(req) {
   const esSuper = p.rol === 'super_admin';
 
   // Toda acción sobre una conversación valida que sea de la org del usuario.
+  const esGestor = esSuper || ['director', 'gerente'].includes(p.rol);
   async function conv(id) {
     const { data } = await db.from('agente_conversaciones').select('*').eq('id', id).maybeSingle();
     if (!data || (!esSuper && data.org_id !== p.org_id)) return null;
+    // Aislamiento por asesor: fuera de gestores, solo las propias o sin asignar.
+    if (!esGestor && data.lead_id) {
+      const { data: l } = await db.from('leads').select('asesor_id').eq('id', data.lead_id).maybeSingle();
+      if (l && l.asesor_id && l.asesor_id !== p.uid) return null;
+    }
     return data;
   }
 
@@ -52,6 +58,10 @@ export async function POST(req) {
   if (b.accion === 'aprobar' || b.accion === 'descartar') {
     const { data: m } = await db.from('wa_mensajes').select('*').eq('id', b.msg_id).eq('estado', 'borrador').maybeSingle();
     if (!m || (!esSuper && m.org_id !== p.org_id)) return NextResponse.json({ error: 'borrador no encontrado' }, { status: 404 });
+    if (!esGestor) {
+      const { data: c0 } = await db.from('agente_conversaciones').select('lead_id').eq('org_id', m.org_id).eq('canal', m.canal).eq('contacto', m.telefono).maybeSingle();
+      if (c0?.lead_id) { const { data: l } = await db.from('leads').select('asesor_id').eq('id', c0.lead_id).maybeSingle(); if (l?.asesor_id && l.asesor_id !== p.uid) return NextResponse.json({ error: 'borrador no encontrado' }, { status: 404 }); }
+    }
     if (b.accion === 'descartar') {
       await db.from('wa_mensajes').update({ estado: 'descartado' }).eq('id', m.id);
       return NextResponse.json({ ok: true });

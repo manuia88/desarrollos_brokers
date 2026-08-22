@@ -67,3 +67,10 @@ alter table public.ia_cuota_dia
 -- cliente identificado (client card) abre su ficha compartida — dedupe 1/hora por
 -- cliente+desarrollo (migraciones liga_abierta_aviso + liga_abierta_texto_limpio).
 -- Nota: el aviso usa desarrollos.nombre crudo (el mapa de títulos vive en JS, no se duplica en SQL).
+
+-- (seguridad) Bandeja aislada por asesor (migración bandeja_aislada_asesor):
+-- conv_select / wa_select — director/gerente/super ven todo el org; el asesor ve sus
+-- conversaciones (lead asignado a él) + las sin asignar (lead_id null). El panel API
+-- (service role) replica el candado en conv() y en aprobar/descartar borrador.
+-- ponytail: wa_select usa subconsulta correlacionada; si el volumen de mensajes crece
+-- mucho, denormalizar asesor_id en wa_mensajes.
