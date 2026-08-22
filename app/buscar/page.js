@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase, selectAll } from '../../lib/supabase';
 import Nav from '../../components/Nav';
 import { MXN, EmptyState } from '../../components/ui';
 import {
@@ -81,7 +81,8 @@ export default function Buscar() {
       })();
       const [{ data: d }, { data: u }] = await Promise.all([
         supabase.from('desarrollos').select('*').order('nombre'),
-        supabase.from('unidades').select('sku,dev_sku,torre,nivel,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,balcon_m2,terraza_m2,roof_m2,estatus').eq('estatus', 'Disponible'),
+        // Paginado: PostgREST corta en 1000 filas y ya hay más de 1000 unidades.
+        selectAll('unidades', q => q.select('sku,dev_sku,torre,nivel,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,balcon_m2,terraza_m2,roof_m2,estatus').eq('estatus', 'Disponible')),
       ]);
       setDevs(d || []); setUnits(u || []);
       // Restaurar facetas desde la URL (link compartible) o, si no hay, la última búsqueda del broker.
