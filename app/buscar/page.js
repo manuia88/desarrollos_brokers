@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, selectAll } from '../../lib/supabase';
 import Nav from '../../components/Nav';
-import { MXN, EmptyState } from '../../components/ui';
+import { MXN, EmptyState, ErrorCarga } from '../../components/ui';
 import {
   meses, precioM2, pasaEntrega, ENTREGA_BUCKETS, creditosDe, cabeEnCredito,
   CREDITOS, AMENIDADES_CLAVE, PERSONAS, fitScore, mensualidadHipoteca, ingresoMinimo,
@@ -36,6 +36,7 @@ export default function Buscar() {
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [devs, setDevs] = useState(null);
+  const [errCarga, setErrCarga] = useState(false);
   const [units, setUnits] = useState(null);
   const [f, setF] = useState(F0);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -79,11 +80,12 @@ export default function Buscar() {
         if (prof?.org_id) { const { data: o } = await supabase.from('orgs').select('nombre,logo_url').eq('id', prof.org_id).maybeSingle(); org = o; }
         setBrand({ id: session.user.id, nombre: prof?.nombre, telefono: prof?.telefono, org_nombre: org?.nombre, org_logo: org?.logo_url });
       })();
-      const [{ data: d }, { data: u }] = await Promise.all([
+      const [{ data: d, error: e1 }, { data: u, error: e2 }] = await Promise.all([
         supabase.from('desarrollos').select('*').order('nombre'),
         // Paginado: PostgREST corta en 1000 filas y ya hay más de 1000 unidades.
         selectAll('unidades', q => q.select('sku,dev_sku,torre,nivel,num_depto,rec,banos,n_estac,m2_hab,m2_total,precio,prototipo,bodega_m2,sku_bodega,tipo_estac,balcon_m2,terraza_m2,roof_m2,estatus').eq('estatus', 'Disponible')),
       ]);
+      if (e1 || e2) setErrCarga(true);
       setDevs(d || []); setUnits(u || []);
       // Restaurar facetas desde la URL (link compartible) o, si no hay, la última búsqueda del broker.
       try {
@@ -496,6 +498,7 @@ export default function Buscar() {
     <>
       <Nav me={me} current="/buscar" />
       <main className="wrap bs-wrap">
+        {errCarga && <ErrorCarga />}
         <div className="buscar-intro">
           <h1>¿Qué busca tu cliente?</h1>
           <p>Define sus criterios y te digo qué le queda de {devs.length} desarrollos y {units.length.toLocaleString('es-MX')} unidades — con mensualidad, ingreso mínimo y comisión ya calculados.</p>

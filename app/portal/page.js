@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
+import { ErrorCarga } from '../../components/ui';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 function meses(fecha) {
@@ -17,6 +18,7 @@ export default function Portal() {
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [devs, setDevs] = useState(null);
+  const [errCarga, setErrCarga] = useState(false);
   const [fZona, setFZona] = useState('');
   const [fEtapa, setFEtapa] = useState('');
   const [fRec, setFRec] = useState('');
@@ -32,6 +34,7 @@ export default function Portal() {
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ email: session.user.email, ...(prof || {}) });
       const { data, error } = await supabase.from('desarrollos').select('*').order('nombre');
+      if (error) setErrCarga(true);
       if (!error) setDevs(data || []);
       else setDevs([]);
     })();
@@ -68,6 +71,7 @@ export default function Portal() {
       <Nav me={me} current="/portal" />
 
       <main className="wrap">
+        {errCarga && <ErrorCarga />}
         <div className="filters">
           <input className="buscador-dev" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Buscar por nombre de proyecto…" aria-label="Buscar desarrollo" />
           <select value={fZona} onChange={e => setFZona(e.target.value)}><option value="">Zona</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>

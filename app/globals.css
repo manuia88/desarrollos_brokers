@@ -1566,3 +1566,7 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .cmb-det{color:var(--sub);text-align:right}
 .cmb-det b{color:var(--ink)}
 @media(max-width:700px){.cmb-row{grid-template-columns:auto 1fr;row-gap:.1rem}.cmb-det{text-align:left;grid-column:2}.cmb-sku{display:none}}
+
+/* aviso de fallo de carga */
+.err-carga{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;background:var(--mag-soft);border:1px solid var(--mag-line);color:var(--ink);border-radius:12px;padding:.7rem 1rem;margin:0 0 1rem;font-size:.9rem;font-weight:600}
+.err-carga button{background:none;border:none;color:var(--lime);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline;padding:0}

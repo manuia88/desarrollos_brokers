@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
+import { ErrorCarga } from '../../components/ui';
 import { scoreLead, accionSugerida, diasSin } from '../../lib/leadscore';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
@@ -20,6 +21,7 @@ export default function Seguimiento() {
   const router = useRouter();
   const [me, setMe] = useState(null);
   const [leads, setLeads] = useState(null);
+  const [errCarga, setErrCarga] = useState(false);
   const [units, setUnits] = useState([]);
   const [devs, setDevs] = useState([]);
   const [citas, setCitas] = useState([]);
@@ -43,6 +45,7 @@ export default function Seguimiento() {
         supabase.from('desarrollos').select('sku,nombre,direccion,alcaldia'),
         supabase.from('citas').select('*').gte('fecha', hoy()).order('fecha').order('hora').limit(60),
       ]);
+      if (l.error || u.error || d.error || c.error) setErrCarga(true);
       setLeads(l.data || []); setUnits(u.data || []); setDevs(d.data || []);
       setCitas((c.data || []).filter(x => !/cancel/i.test(x.estatus || '')));
     })();
@@ -106,6 +109,7 @@ export default function Seguimiento() {
     <>
       <Nav me={me} current="/seguimiento" logo="Seguimiento" />
       <main className="wrap">
+        {errCarga && <ErrorCarga />}
         <div className="buscar-intro">
           <h1>Seguimiento inteligente</h1>
           <p>Tus clientes priorizados por qué tan trabajables están hoy. Empieza por los de arriba: la IA te redacta el WhatsApp y te prepara para cada cita.</p>

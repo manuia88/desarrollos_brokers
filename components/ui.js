@@ -27,3 +27,14 @@ export function EmptyState({ icon, title, children }) {
     </div>
   );
 }
+
+// Aviso de fallo de carga: los datos de Supabase llegaron con error (red caída, etc.).
+// Uso: const [errCarga, setErrCarga] = useState(false) ... {errCarga && <ErrorCarga />}
+export function ErrorCarga() {
+  return (
+    <div className="err-carga" role="alert">
+      ⚠️ No se pudo cargar parte de la información. Revisa tu conexión e
+      <button onClick={() => window.location.reload()}>reintenta</button>.
+    </div>
+  );
+}
