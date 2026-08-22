@@ -105,6 +105,10 @@ export default function Comparar() {
     { l: 'Estacionamiento', get: o => estacTxt(o.u), num: o => o.u.n_estac || 0, best: 'max' },
     { l: 'Bodega', get: o => bodegaTxt(o.u) },
     { l: 'Entrega', get: o => entregaInfo(o.d).txt, num: o => entregaInfo(o.d).m, best: 'min' },
+    { l: 'Apartado', get: o => o.d.apartado ? MXN(o.d.apartado) : '—' },
+    { l: 'Enganche', get: o => o.d.esq_enganche ? `${Math.round(o.d.esq_enganche * 100)}% · ${MXN(Math.round(o.d.esq_enganche * o.u.precio))}` : '—' },
+    { l: 'Mensualidades en obra', get: o => { const ei = entregaInfo(o.d); const n = ei.m && ei.m !== 9999 ? ei.m : 0; const monto = (o.d.esq_mensualidades || 0) * o.u.precio; return o.d.esq_mensualidades ? `${Math.round(o.d.esq_mensualidades * 100)}%${n ? ` · ~${MXN(Math.round(monto / n))}/mes × ${n}` : ` · ${MXN(Math.round(monto))}`}` : '—'; } },
+    { l: 'Contra escritura', get: o => o.d.esq_escritura ? `${Math.round(o.d.esq_escritura * 100)}% · ${MXN(Math.round(o.d.esq_escritura * o.u.precio))}` : '—' },
     { l: 'Comisión', get: o => o.d.comision_broker ? Math.round(o.d.comision_broker * 100) + '% · ' + MXN(Math.round(o.d.comision_broker * o.u.precio)) : '—', num: o => o.d.comision_broker ? o.d.comision_broker * o.u.precio : 0, best: 'max' },
     { l: 'Amenidades', get: o => amenidadesShort(o.d) },
     { l: 'Zona', get: o => `${o.d.colonia}, ${o.d.alcaldia}` },
@@ -153,7 +157,12 @@ export default function Comparar() {
       descuento: d.descuentos && String(d.descuentos).trim() ? String(d.descuentos).trim() : null,
       reco: { prototipo: u.prototipo, num: u.num_depto, torre: u.torre, nivel: u.nivel, rec: u.rec, banos: u.banos, m2: u.m2_hab, precio: u.precio },
       renta: rentaEstimada(u), yld: yieldEstimado(u), zonaTxt: null,
-      porque: [ei.txt, precioM2(u) ? MXN(precioM2(u)) + '/m²' : null].filter(Boolean).join(' · '),
+      porque: [
+        `Entrega ${ei.txt}`,
+        precioM2(u) ? `Precio por m²: ${MXN(precioM2(u))}` : null,
+        yieldEstimado(u) != null ? `Rendimiento estimado ~${yieldEstimado(u)}% anual` : null,
+        d.comision_broker ? `Comisión para ti: ${MXN(Math.round(d.comision_broker * u.precio))}` : null,
+      ].filter(Boolean),
     };
   }
 
