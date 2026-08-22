@@ -40,6 +40,8 @@ export default function Buscar() {
   const [af, setAf] = useState({ ingreso: '', enganche: '', tipo: 'Bancario' });   // capacidad de pago
   const [sel, setSel] = useState([]);             // shortlist de desarrollos (skus)
   const [why, setWhy] = useState(null);           // sku con "¿por qué?" abierto
+  const [masOpen, setMasOpen] = useState(false);  // drawer de filtros avanzados
+  const [afOpen, setAfOpen] = useState(false);    // panel de capacidad de pago
 
   useEffect(() => { try { setVistas(JSON.parse(localStorage.getItem('qc_vistas') || '[]')); } catch { setVistas([]); } }, []);
   function guardarVista() {
@@ -143,6 +145,8 @@ export default function Buscar() {
   }
 
   const activo = f.recs.length || f.banosMin || f.ext.length || f.presMax || f.presMin || f.precioM2Max || f.zona || f.colonia || f.entrega || f.cajonesMin || f.bodega || f.amenidades.length || f.creditos.length || f.comisionMin || f.depaMuestra || f.descuento;
+  // Filtros "avanzados" activos (los que viven en el drawer), para el badge de "Más filtros".
+  const nAdv = (f.banosMin ? 1 : 0) + f.ext.length + (f.cajonesMin ? 1 : 0) + (f.bodega ? 1 : 0) + f.amenidades.length + f.creditos.length + (f.comisionMin ? 1 : 0) + (f.precioM2Max ? 1 : 0) + (f.depaMuestra ? 1 : 0) + (f.descuento ? 1 : 0) + (f.entrega ? 1 : 0) + (f.colonia ? 1 : 0);
 
   const { grupos, relajado, totalU } = useMemo(() => {
     if (!devs || !units) return { grupos: [], relajado: null, totalU: 0 };
@@ -318,92 +322,41 @@ export default function Buscar() {
         </div>
         {persona && <div className="pers-pitch">💡 <b>{persona.label}:</b> {persona.pitch}</div>}
 
-        <div className="bs-layout">
-          {/* FILTROS por secciones */}
-          <aside className="bs-filters">
-            <details open className="bs-sec">
-              <summary>🎯 Lo esencial</summary>
-              <div className="bs-field"><label>Recámaras</label>
-                <div className="bs-chips">{RECS.map(([v, l]) => <span key={v} className={'chip' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}{recCounts[v] != null && <em className="chip-n">{recCounts[v]}</em>}</span>)}</div>
-              </div>
-              <div className="bs-field"><label>Baños</label>
-                <div className="bs-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
-              </div>
-              <div className="bs-field"><label>Presupuesto del cliente</label>
-                <div className="bs-money">
-                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={f.presMin} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
-                  <span className="bs-dash">—</span>
-                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={f.presMax} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
-                </div>
-                <input type="range" className="bs-range" min="1000000" max="15000000" step="100000" value={f.presMax || 15000000} onChange={e => set('presMax', e.target.value === '15000000' ? '' : e.target.value)} />
-                <div className="bs-hint">{(f.presMin || f.presMax) ? `${f.presMin ? MXN(+f.presMin) : '$0'} — ${f.presMax ? MXN(+f.presMax) : 'sin tope'}` : 'Escribe el rango exacto, no solo botones'}</div>
-                <div className="bs-chips">{PRESUP.filter(([v]) => v).map(([v, l]) => <span key={v} className={'chip sm' + (f.presMax === v ? ' on' : '')} onClick={() => set('presMax', f.presMax === v ? '' : v)}>≤ {l}</span>)}</div>
-              </div>
-              <div className="bs-af">
-                <div className="bs-af-h">💳 ¿No sabes su presupuesto? Búscalo por lo que puede pagar</div>
-                <div className="bs-af-grid">
-                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Ingreso/mes" value={af.ingreso} onChange={e => setAf(a => ({ ...a, ingreso: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
-                  <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Enganche" value={af.enganche} onChange={e => setAf(a => ({ ...a, enganche: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
-                  <select className="crit-sel sm" value={af.tipo} onChange={e => setAf(a => ({ ...a, tipo: e.target.value }))}><option>Bancario</option><option>Infonavit</option><option>FOVISSSTE</option></select>
-                </div>
-                {preAf && <div className="bs-af-res">Califica hasta <b>{MXN(preAf.maxPrecio)}</b> · pago ~{MXN(preAf.pago)}/mes <button className="chip on sm" onClick={aplicarPago}>Aplicar</button></div>}
-              </div>
-            </details>
-
-            <details open className="bs-sec">
-              <summary>📍 Ubicación</summary>
-              <div className="bs-field"><label>Alcaldía</label>
-                <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
-              </div>
-              {colonias.length > 0 && <div className="bs-field"><label>Colonia</label>
-                <select value={f.colonia} onChange={e => set('colonia', e.target.value)} className="crit-sel"><option value="">Cualquier colonia</option>{colonias.map(z => <option key={z}>{z}</option>)}</select>
-              </div>}
-            </details>
-
-            <details className="bs-sec">
-              <summary>🗓️ Entrega y crédito</summary>
-              <div className="bs-field"><label>Entrega</label>
-                <div className="bs-chips"><span className={'chip' + (f.entrega === '' ? ' on' : '')} onClick={() => set('entrega', '')}>Cualquiera</span>{ENTREGA_BUCKETS.map(([v, l]) => <span key={v} className={'chip' + (f.entrega === v ? ' on' : '')} onClick={() => set('entrega', v)}>{l}</span>)}</div>
-              </div>
-              <div className="bs-field"><label>Crédito</label>
-                <div className="bs-chips">{CREDITOS.map(([k, l]) => <span key={k} className={'chip' + (f.creditos.includes(k) ? ' on' : '')} onClick={() => toggleArr('creditos', k)}>{l}</span>)}</div>
-              </div>
-            </details>
-
-            <details className="bs-sec">
-              <summary>🛋️ Espacios y amenidades</summary>
-              <div className="bs-field"><label>Exteriores</label>
-                <div className="bs-chips">{EXT.map(([v, l]) => <span key={v} className={'chip' + (f.ext.includes(v) ? ' on' : '')} onClick={() => toggleArr('ext', v)}>{l}</span>)}{f.ext.length > 1 && <span className="crit-nota">cualquiera</span>}</div>
-              </div>
-              <div className="bs-field"><label>Cajones</label>
-                <div className="bs-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}<span className={'chip' + (f.bodega ? ' on' : '')} onClick={() => set('bodega', !f.bodega)}>📦 Con bodega</span></div>
-              </div>
-              <div className="bs-field"><label>Amenidades</label>
-                <div className="bs-chips">{AMENIDADES_CLAVE.map(([k, l]) => <span key={k} className={'chip' + (f.amenidades.includes(l) ? ' on' : '')} onClick={() => toggleArr('amenidades', l)}>{l}</span>)}</div>
-              </div>
-            </details>
-
-            <details className="bs-sec">
-              <summary>💰 Oportunidad para ti</summary>
-              <div className="bs-field"><label>Comisión mínima</label>
-                <div className="bs-chips"><span className={'chip' + (f.comisionMin === '4' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '4' ? '' : '4')}>≥ 4%</span><span className={'chip' + (f.comisionMin === '5' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '5' ? '' : '5')}>≥ 5%</span></div>
-              </div>
-              <div className="bs-field"><label>Precio/m² máx.</label>
-                <div className="bs-chips">{[['60000', '≤ $60k'], ['80000', '≤ $80k'], ['100000', '≤ $100k']].map(([v, l]) => <span key={v} className={'chip' + (f.precioM2Max === v ? ' on' : '')} onClick={() => set('precioM2Max', f.precioM2Max === v ? '' : v)}>{l}</span>)}</div>
-              </div>
-              <div className="bs-field"><label>Extras</label>
-                <div className="bs-chips"><span className={'chip' + (f.depaMuestra ? ' on' : '')} onClick={() => set('depaMuestra', !f.depaMuestra)}>🏠 Depa muestra</span><span className={'chip' + (f.descuento ? ' on' : '')} onClick={() => set('descuento', !f.descuento)}>🔻 Promoción</span></div>
-              </div>
-            </details>
-
-            <div className="bs-filters-foot">
-              {activo && <button className="btn ghost sm" onClick={guardarVista}>☆ Guardar vista</button>}
-              {activo && <button className="btn ghost sm" onClick={() => setF(F0)}>Limpiar todo</button>}
+        {/* Barra compacta: sólo lo esencial (recámaras, presupuesto, zona) */}
+        <div className="bs-bar">
+          <div className="bs-bar-f"><span className="bs-bar-l">Recámaras</span>
+            <div className="bs-chips">{RECS.map(([v, l]) => <span key={v} className={'chip sm' + (f.recs.includes(v) ? ' on' : '')} onClick={() => toggleArr('recs', v)}>{l}</span>)}</div>
+          </div>
+          <div className="bs-bar-f"><span className="bs-bar-l">Presupuesto</span>
+            <div className="bs-money">
+              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Desde" value={f.presMin} onChange={e => set('presMin', e.target.value.replace(/[^0-9]/g, ''))} /></div>
+              <span className="bs-dash">—</span>
+              <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Hasta" value={f.presMax} onChange={e => set('presMax', e.target.value.replace(/[^0-9]/g, ''))} /></div>
             </div>
-          </aside>
+          </div>
+          <div className="bs-bar-f"><span className="bs-bar-l">Zona</span>
+            <select value={f.zona} onChange={e => { set('zona', e.target.value); set('colonia', ''); }} className="crit-sel"><option value="">Cualquier alcaldía</option>{zonas.map(z => <option key={z}>{z}</option>)}</select>
+          </div>
+          <div className="bs-bar-act">
+            <button className={'btn ghost sm' + (afOpen ? ' bs-on' : '')} onClick={() => setAfOpen(v => !v)}>💳 Por lo que puede pagar</button>
+            <button className="btn ghost sm" onClick={() => setMasOpen(true)}>⚙️ Más filtros{nAdv > 0 && <em className="bs-more-n">{nAdv}</em>}</button>
+          </div>
+        </div>
 
-          {/* RESULTADOS */}
-          <div className="bs-results">
+        {/* Capacidad de pago (oculto por defecto) */}
+        {afOpen && (
+          <div className="bs-af-bar">
+            <span className="bs-af-h">💳 Búscalo por lo que puede pagar:</span>
+            <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Ingreso/mes" value={af.ingreso} onChange={e => setAf(a => ({ ...a, ingreso: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
+            <div className="bs-money-in"><span>$</span><input inputMode="numeric" placeholder="Enganche" value={af.enganche} onChange={e => setAf(a => ({ ...a, enganche: e.target.value.replace(/[^0-9]/g, '') }))} /></div>
+            <select className="crit-sel sm" value={af.tipo} onChange={e => setAf(a => ({ ...a, tipo: e.target.value }))}><option>Bancario</option><option>Infonavit</option><option>FOVISSSTE</option></select>
+            {preAf && <span className="bs-af-res">→ califica hasta <b>{MXN(preAf.maxPrecio)}</b> · ~{MXN(preAf.pago)}/mes</span>}
+            <button className="btn lim sm" disabled={!preAf} onClick={aplicarPago}>Aplicar</button>
+          </div>
+        )}
+
+        {/* RESULTADOS a todo el ancho */}
+        <div className="bs-results">
             <div className="bs-results-head">
               <div className="bs-count">
                 {activo ? <><b>{totalU}</b> unidad{totalU === 1 ? '' : 'es'} · <b>{grupos.length}</b> desarrollo{grupos.length === 1 ? '' : 's'}</> : 'Elige criterios para ver opciones'}
@@ -469,7 +422,6 @@ export default function Buscar() {
                 })}
               </div>
             )}
-          </div>
         </div>
 
         {/* Barra flotante de shortlist / propuesta */}
@@ -480,6 +432,52 @@ export default function Buscar() {
             <button className="btn lim sm" onClick={compartirShortlist}>📲 Enviar por WhatsApp</button>
             <button className="bs-sl-x" onClick={() => setSel([])} aria-label="Vaciar">✕</button>
           </div>
+        )}
+
+        {/* Drawer: filtros avanzados (todo lo que el broker usa a veces) */}
+        {masOpen && (
+          <>
+            <div className="drawer-bg" onClick={() => setMasOpen(false)} />
+            <aside className="bs-drawer" onClick={e => e.stopPropagation()}>
+              <div className="bs-drawer-h"><h2>⚙️ Más filtros{nAdv > 0 && <em className="bs-more-n">{nAdv}</em>}</h2><button className="x" onClick={() => setMasOpen(false)}>✕</button></div>
+              <div className="bs-drawer-body">
+                <div className="bs-dgroup"><label>Baños</label>
+                  <div className="bs-chips">{BANOS.map(([v, l]) => <span key={v} className={'chip' + (f.banosMin === v ? ' on' : '')} onClick={() => set('banosMin', f.banosMin === v ? '' : v)}>{l}</span>)}</div>
+                </div>
+                {colonias.length > 0 && <div className="bs-dgroup"><label>Colonia</label>
+                  <select value={f.colonia} onChange={e => set('colonia', e.target.value)} className="crit-sel"><option value="">Cualquier colonia</option>{colonias.map(z => <option key={z}>{z}</option>)}</select>
+                </div>}
+                <div className="bs-dgroup"><label>Entrega</label>
+                  <div className="bs-chips"><span className={'chip' + (f.entrega === '' ? ' on' : '')} onClick={() => set('entrega', '')}>Cualquiera</span>{ENTREGA_BUCKETS.map(([v, l]) => <span key={v} className={'chip' + (f.entrega === v ? ' on' : '')} onClick={() => set('entrega', v)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Crédito</label>
+                  <div className="bs-chips">{CREDITOS.map(([k, l]) => <span key={k} className={'chip' + (f.creditos.includes(k) ? ' on' : '')} onClick={() => toggleArr('creditos', k)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Exteriores</label>
+                  <div className="bs-chips">{EXT.map(([v, l]) => <span key={v} className={'chip' + (f.ext.includes(v) ? ' on' : '')} onClick={() => toggleArr('ext', v)}>{l}</span>)}{f.ext.length > 1 && <span className="crit-nota">cualquiera</span>}</div>
+                </div>
+                <div className="bs-dgroup"><label>Cajones y bodega</label>
+                  <div className="bs-chips">{CAJONES.map(([v, l]) => <span key={v} className={'chip' + (f.cajonesMin === v ? ' on' : '')} onClick={() => set('cajonesMin', v)}>{l}</span>)}<span className={'chip' + (f.bodega ? ' on' : '')} onClick={() => set('bodega', !f.bodega)}>📦 Con bodega</span></div>
+                </div>
+                <div className="bs-dgroup"><label>Amenidades</label>
+                  <div className="bs-chips">{AMENIDADES_CLAVE.map(([k, l]) => <span key={k} className={'chip' + (f.amenidades.includes(l) ? ' on' : '')} onClick={() => toggleArr('amenidades', l)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Comisión para ti</label>
+                  <div className="bs-chips"><span className={'chip' + (f.comisionMin === '4' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '4' ? '' : '4')}>≥ 4%</span><span className={'chip' + (f.comisionMin === '5' ? ' on' : '')} onClick={() => set('comisionMin', f.comisionMin === '5' ? '' : '5')}>≥ 5%</span></div>
+                </div>
+                <div className="bs-dgroup"><label>Precio/m² máx.</label>
+                  <div className="bs-chips">{[['60000', '≤ $60k'], ['80000', '≤ $80k'], ['100000', '≤ $100k']].map(([v, l]) => <span key={v} className={'chip' + (f.precioM2Max === v ? ' on' : '')} onClick={() => set('precioM2Max', f.precioM2Max === v ? '' : v)}>{l}</span>)}</div>
+                </div>
+                <div className="bs-dgroup"><label>Extras</label>
+                  <div className="bs-chips"><span className={'chip' + (f.depaMuestra ? ' on' : '')} onClick={() => set('depaMuestra', !f.depaMuestra)}>🏠 Depa muestra</span><span className={'chip' + (f.descuento ? ' on' : '')} onClick={() => set('descuento', !f.descuento)}>🔻 Promoción</span></div>
+                </div>
+              </div>
+              <div className="bs-drawer-foot">
+                <button className="btn ghost sm" onClick={() => setF(F0)}>Limpiar todo</button>
+                <button className="btn lim" onClick={() => setMasOpen(false)}>Ver {activo ? `${totalU} resultado${totalU === 1 ? '' : 's'}` : 'resultados'}</button>
+              </div>
+            </aside>
+          </>
         )}
 
         {/* Guardar como client card */}
