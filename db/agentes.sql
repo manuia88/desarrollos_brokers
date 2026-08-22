@@ -59,3 +59,6 @@ alter table public.ia_cuota_dia
 -- cuota_select: cada org puede leer su propia fila 'org:<uuid>'.
 
 -- Retención (pg_cron 'agente-retencion', diario): wa_mensajes >90d, conversaciones muertas >180d.
+
+-- (auditoría funcional) Las policies no bastan sin GRANT de tabla — migración agente_grants:
+-- grant select on agente_conversaciones, wa_mensajes, ia_cuota_dia to authenticated;
