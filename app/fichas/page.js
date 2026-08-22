@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -29,7 +30,7 @@ export default function CargarFichas() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       if (prof?.rol !== 'super_admin') return;
       const { data } = await supabase.from('desarrollos').select('sku,nombre,ficha');
-      const map = {}; (data || []).forEach(d => { map[d.sku] = { nombre: d.nombre, ficha: d.ficha || {} }; });
+      const map = {}; (data || []).forEach(d => { map[d.sku] = { nombre: tituloDev(d), ficha: d.ficha || {} }; });
       setFichasActuales(map);
     })();
   }, [router]);
@@ -109,7 +110,7 @@ export default function CargarFichas() {
     setRes(data);
     // refresca fichas actuales
     const { data: fresh } = await supabase.from('desarrollos').select('sku,nombre,ficha');
-    const map = {}; (fresh || []).forEach(d => { map[d.sku] = { nombre: d.nombre, ficha: d.ficha || {} }; });
+    const map = {}; (fresh || []).forEach(d => { map[d.sku] = { nombre: tituloDev(d), ficha: d.ficha || {} }; });
     setFichasActuales(map);
     setItems(null); setArchivo('');
   }

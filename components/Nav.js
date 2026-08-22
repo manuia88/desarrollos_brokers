@@ -30,6 +30,7 @@ const BASE = [
   { t: 'Análisis', items: [
     ['/metricas', 'Métricas', '📈'],
     ['/calor', 'Interés', '🔥'],
+    ['/cambios', 'Cambios', '🔁'],
   ] },
   { t: 'Recursos', items: [
     ['/materiales', 'Materiales', '🎨'],

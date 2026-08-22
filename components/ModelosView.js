@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../lib/nombre';
 import { useMemo, useState } from 'react';
 
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
@@ -79,7 +80,7 @@ export default function ModelosView({ dev, units, medios = [], asesorId, onUnit 
                     <div className="urow-price">{MXN(u.precio)}</div>
                     <div className="urow-acts">
                       <button className="cotiz-mini" onClick={() => { setSel(null); onUnit(u); }}>+ info</button>
-                      {link(u) && <a className="cotiz-mini" href={'https://wa.me/?text=' + encodeURIComponent(`Depa T${u.torre} ${u.num_depto} de ${dev.nombre}: ${link(u)}`)} target="_blank" rel="noopener">Compartir</a>}
+                      {link(u) && <a className="cotiz-mini" href={'https://wa.me/?text=' + encodeURIComponent(`Depa T${u.torre} ${u.num_depto} de ${tituloDev(dev)}: ${link(u)}`)} target="_blank" rel="noopener">Compartir</a>}
                     </div>
                   </div>
                 ))}

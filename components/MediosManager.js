@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import {
@@ -138,7 +139,7 @@ export default function MediosManager({ dev, units = [], onClose, onChange }) {
       <div className="drawer-bg" onClick={onClose} />
       <aside className="drawer rc" onClick={e => e.stopPropagation()}>
         <div className="dw-h">
-          <div><span className="dw-tag">Gestionar medios</span><h2>{dev.nombre}</h2></div>
+          <div><span className="dw-tag">Gestionar medios</span><h2>{tituloDev(dev)}</h2></div>
           <button className="x" onClick={onClose}>✕</button>
         </div>
         {msg && <div className={'msg ' + msg.t}>{msg.m}</div>}

@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -126,13 +127,13 @@ export default function Clientes() {
                 </div>
                 {matches.slice(0, 3).map(({ u, d, score }) => (
                   <div className="cc-row" key={u.sku} onClick={() => router.push('/portal/' + d.sku)}>
-                    <div><b>{d.nombre}</b><span className="cc-rowsub">T{u.torre}·{u.num_depto} · {u.rec === 0 ? 'Loft' : u.rec + ' rec'}</span></div>
+                    <div><b>{tituloDev(d)}</b><span className="cc-rowsub">T{u.torre}·{u.num_depto} · {u.rec === 0 ? 'Loft' : u.rec + ' rec'}</span></div>
                     <div className="cc-rowr"><span>{MXN(u.precio)}</span><em className={score >= 80 ? 'hi' : score >= 55 ? 'mid' : 'lo'}>{score}%</em></div>
                   </div>
                 ))}
                 <div className="cc-acts">
                   <button className="cotiz-mini" onClick={() => abrirBusqueda(c)}>Abrir búsqueda</button>
-                  {matches[0] && <a className="cotiz-mini" href={waCliente(c, matches[0].d.sku, matches[0].d.nombre)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>Compartir top</a>}
+                  {matches[0] && <a className="cotiz-mini" href={waCliente(c, matches[0].d.sku, tituloDev(matches[0].d))} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}>Compartir top</a>}
                   <button className="cotiz-mini" onClick={() => setSel(c)}>Detalle</button>
                 </div>
               </article>
@@ -154,7 +155,7 @@ export default function Clientes() {
                 <div className="ulist">
                   {info.matches.map(({ u, d, score, reasons }) => (
                     <div className="urow" key={u.sku}>
-                      <div><b>{d.nombre} · T{u.torre}·{u.num_depto}</b>
+                      <div><b>{tituloDev(d)} · T{u.torre}·{u.num_depto}</b>
                         <span className="urow-piso">{u.rec === 0 ? 'Loft' : u.rec + ' rec'} · {reasons.filter(r => r.m >= 1).slice(0, 2).map(r => r.label).join(' · ')}</span></div>
                       <div className="urow-price">{MXN(u.precio)}<em className={'fit-mini ' + (score >= 80 ? 'hi' : score >= 55 ? 'mid' : 'lo')}> {score}%</em></div>
                     </div>

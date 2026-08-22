@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { llamarIA, resolverIA } from '../../../../lib/ia';
@@ -29,7 +30,7 @@ export async function POST(req) {
   if (lead.asesor_id !== uid && lead.org_id !== prof?.org_id) return NextResponse.json({ error: 'sin permiso' }, { status: 403 });
 
   let dev = null;
-  if (lead.dev_sku) { const { data: d } = await db.from('desarrollos').select('nombre,colonia,alcaldia,precio_min,precio_max,rec_min,rec_max,etapa,fecha_entrega,amenidades').eq('sku', lead.dev_sku).maybeSingle(); dev = d; }
+  if (lead.dev_sku) { const { data: d } = await db.from('desarrollos').select('nombre,direccion,colonia,alcaldia,precio_min,precio_max,rec_min,rec_max,etapa,fecha_entrega,amenidades').eq('sku', lead.dev_sku).maybeSingle(); dev = d; }
 
   const presu = lead.presupuesto_max || lead.presupuesto || null;
   const perfil = [
@@ -42,7 +43,7 @@ export async function POST(req) {
     lead.mensaje && `Comentó: "${String(lead.mensaje).slice(0, 200)}"`,
     lead.etapa && `Etapa en el CRM: ${lead.etapa}`,
   ].filter(Boolean).join('\n');
-  const ctxDev = dev ? `Desarrollo de interés: ${dev.nombre} (${[dev.colonia, dev.alcaldia].filter(Boolean).join(', ')}), desde ${MXN(dev.precio_min)}, ${dev.rec_min}–${dev.rec_max} rec, ${dev.etapa}${dev.amenidades ? `. Amenidades: ${dev.amenidades}` : ''}.` : 'Sin desarrollo específico asociado.';
+  const ctxDev = dev ? `Desarrollo de interés: ${tituloDev(dev)} (${[dev.colonia, dev.alcaldia].filter(Boolean).join(', ')}), desde ${MXN(dev.precio_min)}, ${dev.rec_min}–${dev.rec_max} rec, ${dev.etapa}${dev.amenidades ? `. Amenidades: ${dev.amenidades}` : ''}.` : 'Sin desarrollo específico asociado.';
 
   const system = `Eres asesor inmobiliario en México y escribes un mensaje de WhatsApp para un cliente. Reglas:
 - Español de México, cálido y natural, de tú, SIN markdown ni asteriscos.

@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -31,10 +32,10 @@ export default function Hoy() {
       const [{ data: l }, { data: c }, { data: d }] = await Promise.all([
         supabase.from('leads').select('*').order('actualizado', { ascending: true }),
         supabase.from('citas').select('*').gte('fecha', hoyStr()).order('fecha').order('hora'),
-        supabase.from('desarrollos').select('sku,nombre,alcaldia'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,alcaldia'),
       ]);
       setLeads(l || []); setCitas(c || []);
-      setDevName(Object.fromEntries((d || []).map(x => [x.sku, x.nombre])));
+      setDevName(Object.fromEntries((d || []).map(x => [x.sku, tituloDev(x)])));
       setDevById(Object.fromEntries((d || []).map(x => [x.sku, x])));
     })();
   }, [router]);

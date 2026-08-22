@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -39,7 +40,7 @@ export default function Seguimiento() {
       const [l, u, d, c] = await Promise.all([
         supabase.from('leads').select('*').order('creado', { ascending: false }).limit(400),
         supabase.from('unidades').select('dev_sku,rec,precio').eq('estatus', 'Disponible'),
-        supabase.from('desarrollos').select('sku,nombre,alcaldia'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,alcaldia'),
         supabase.from('citas').select('*').gte('fecha', hoy()).order('fecha').order('hora').limit(60),
       ]);
       setLeads(l.data || []); setUnits(u.data || []); setDevs(d.data || []);
@@ -120,7 +121,7 @@ export default function Seguimiento() {
                   <div className="sg-cita-fecha"><b>{new Date(c.fecha + 'T12:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</b><span>{(c.hora || '').slice(0, 5)}</span></div>
                   <div className="sg-cita-info">
                     <b>{c.nombre || 'Cliente'}</b>
-                    <span>{devById[c.dev_sku]?.nombre || c.dev_sku || '—'} · {c.modalidad || 'Presencial'}</span>
+                    <span>{(devById[c.dev_sku] ? tituloDev(devById[c.dev_sku]) : null) || c.dev_sku || '—'} · {c.modalidad || 'Presencial'}</span>
                   </div>
                   <button className="btn ghost sm" onClick={() => verBriefing(c)}>🧠 Briefing</button>
                 </div>

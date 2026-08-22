@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -44,7 +45,7 @@ export default function Portal() {
     if (!devs) return [];
     const t = q.trim().toLowerCase();
     let r = devs.filter(d =>
-      (!t || `${d.nombre || ''} ${d.colonia || ''} ${d.alcaldia || ''} ${d.desarrollador || ''} ${d.sku || ''}`.toLowerCase().includes(t)) &&
+      (!t || `${d.nombre || ''} ${tituloDev(d)} ${d.colonia || ''} ${d.alcaldia || ''} ${d.desarrollador || ''} ${d.sku || ''}`.toLowerCase().includes(t)) &&
       (!fZona || d.alcaldia === fZona) &&
       (!fEtapa || d.etapa === fEtapa) &&
       (!fRec || (fRec === '3' ? d.rec_max >= 3 : (d.rec_min <= +fRec && d.rec_max >= +fRec))) &&
@@ -93,7 +94,7 @@ export default function Portal() {
                   <span className={'badge ' + (d.etapa === 'Entrega inmediata' ? 'inm' : 'pre')}>{d.etapa === 'Entrega inmediata' ? 'Inmediata' : (m != null ? `Preventa · ${m}m` : 'Preventa')}</span>
                 </div>
                 <div className="cbody">
-                  <h3>{d.nombre}</h3>
+                  <h3>{tituloDev(d)}</h3>
                   <span className="loc">📍 {d.colonia}, {d.alcaldia} · {d.desarrollador}</span>
                   <div className="price"><span>desde</span><b>{MXN(d.precio_min)}</b></div>
                   <div className="specs">

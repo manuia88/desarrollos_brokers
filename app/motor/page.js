@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -26,7 +27,7 @@ export default function Motor() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       if (prof?.rol !== 'super_admin') { setDevs([]); return; }
       const [d, u, l, c] = await Promise.all([
-        supabase.from('desarrollos').select('sku,nombre,alcaldia,colonia,precio_min,m2_min,m2_max,unidades_totales,ficha'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,alcaldia,colonia,precio_min,m2_min,m2_max,unidades_totales,ficha'),
         supabase.from('unidades').select('dev_sku,rec,precio,m2_hab').eq('estatus', 'Disponible'),
         supabase.from('leads').select('zona_interes,rec_interes,presupuesto,presupuesto_max,creado'),
         supabase.from('client_cards').select('zonas,recamaras,presupuesto_max,criterios').eq('activo', true),
@@ -96,7 +97,7 @@ export default function Motor() {
       hs = Math.max(0, Math.min(100, Math.round(hs)));
       factores.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts));
       const top = factores[0];
-      return { sku: d.sku, nombre: d.nombre, zona: d.alcaldia, disp, vendPct, absorb, precioVs, demMatch, hs, factores, top };
+      return { sku: d.sku, nombre: tituloDev(d), zona: d.alcaldia, disp, vendPct, absorb, precioVs, demMatch, hs, factores, top };
     }).sort((a, b) => a.hs - b.hs); // los que más necesitan atención primero
 
     const valorInv = units.reduce((s, u) => s + (u.precio || 0), 0);

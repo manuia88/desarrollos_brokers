@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, selectAll } from '../../lib/supabase';
@@ -10,7 +11,6 @@ import {
   precalifica, yieldEstimado, rentaEstimada, montoFinanciar,
 } from '../../lib/matching';
 import { guardarCard } from '../../lib/clientcards';
-import { tituloDev } from '../../lib/nombre';
 import { generarPropuestaShortlist } from '../../lib/propuesta';
 import { esquemaPago } from '../../lib/finance';
 import { track } from '../../lib/track';
@@ -386,7 +386,7 @@ export default function Buscar() {
     const elegidos = grupos.filter(g => sel.includes(g.d.sku));
     if (!elegidos.length) return;
     const txt = 'Hola, te comparto algunas opciones que te pueden servir:\n\n' + elegidos.map(g =>
-      `• ${g.d.nombre} — ${g.d.colonia}, ${g.d.alcaldia}\n  ${g.min === g.max ? MXN(g.min) : MXN(g.min) + '–' + MXN(g.max)} · aprox. ${MXN(g.mens)}/mes`).join('\n\n');
+      `• ${tituloDev(g.d)} — ${g.d.colonia}, ${g.d.alcaldia}\n  ${g.min === g.max ? MXN(g.min) : MXN(g.min) + '–' + MXN(g.max)} · aprox. ${MXN(g.mens)}/mes`).join('\n\n');
     if (typeof window !== 'undefined') window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
   }
   function compararShortlist() { if (sel.length) router.push('/comparar?skus=' + sel.join(',')); }
@@ -449,7 +449,7 @@ export default function Buscar() {
       const esq = esquemaPago(g.min, { enganchePct: d.esq_enganche || 0, obraPct: d.esq_mensualidades || 0, escrituraPct: d.esq_escritura || 0, apartado: d.apartado || 0, meses: g.m || 0 });
       const creditos = [...creditosDe(d)].map(k => CRED[k] || k);
       return {
-        nombre: d.nombre, colonia: d.colonia, alcaldia: d.alcaldia,
+        nombre: tituloDev(d), colonia: d.colonia, alcaldia: d.alcaldia,
         headline: headlineDe(g),
         min: g.min, max: g.max, pm2: g.pm2, mens: g.mens, ingreso: g.ingreso, meses: g.m,
         entrega: d.etapa === 'Entrega inmediata' ? 'Entrega inmediata' : null,

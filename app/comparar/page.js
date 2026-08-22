@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -101,7 +102,7 @@ export default function Comparar() {
                   <div className={'mia-row' + (cmp.includes(u.sku) ? ' sel' : '')} key={u.sku}>
                     <span className={'fit ' + (score >= 80 ? 'hi' : score >= 55 ? 'mid' : 'lo')}>{score}%</span>
                     <div className="mia-row-main" onClick={() => router.push('/portal/' + d.sku)}>
-                      <b>{d.nombre}</b><span className="mia-row-sub">T{u.torre}·{u.num_depto} · {u.rec === 0 ? 'Loft' : u.rec + ' rec'} · {u.m2_hab} m² · {d.alcaldia}</span>
+                      <b>{tituloDev(d)}</b><span className="mia-row-sub">T{u.torre}·{u.num_depto} · {u.rec === 0 ? 'Loft' : u.rec + ' rec'} · {u.m2_hab} m² · {d.alcaldia}</span>
                     </div>
                     <div className="mia-row-price">{MXN(u.precio)}<em>~{MXN(mensualidadHipoteca(u.precio, d))}/mes</em></div>
                     <button className={'cmp-btn' + (cmp.includes(u.sku) ? ' on' : '')} onClick={() => toggleCmp(u.sku)}>{cmp.includes(u.sku) ? '✓' : '＋'}</button>
@@ -119,7 +120,7 @@ export default function Comparar() {
             <div className="cmp-h"><h2>Comparación</h2><button className="crit-clear" onClick={() => setCmp([])}>Limpiar</button></div>
             <div className="cmp-tbl-wrap">
               <table className="cmp-tbl">
-                <thead><tr><th></th>{comparados.map(o => <th key={o.u.sku}><b>{o.d.nombre}</b><span>T{o.u.torre}·{o.u.num_depto}</span></th>)}</tr></thead>
+                <thead><tr><th></th>{comparados.map(o => <th key={o.u.sku}><b>{tituloDev(o.d)}</b><span>T{o.u.torre}·{o.u.num_depto}</span></th>)}</tr></thead>
                 <tbody>
                   {filas.map(([l, fn]) => (
                     <tr key={l}><td className="cmp-lbl">{l}</td>

@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../lib/nombre';
 import { useState, useEffect } from 'react';
 import { esquemaPago } from '../lib/finance';
 
@@ -26,7 +27,7 @@ export default function UnitDrawer({ dev, unidad: u, medios = [], asesorId = nul
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   const shareLink = (typeof window !== 'undefined' && asesorId) ? `${window.location.origin}/f/${dev.sku}?a=${asesorId}&u=${u.sku}` : '';
-  const waShare = shareLink ? 'https://wa.me/?text=' + encodeURIComponent(`Te comparto el depa T${u.torre} ${u.num_depto} de ${dev.nombre}: ${shareLink}`) : '';
+  const waShare = shareLink ? 'https://wa.me/?text=' + encodeURIComponent(`Te comparto el depa T${u.torre} ${u.num_depto} de ${tituloDev(dev)}: ${shareLink}`) : '';
   function copiar() { if (navigator.clipboard && shareLink) { navigator.clipboard.writeText(shareLink); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } }
   const meses = mesesEntrega(dev.fecha_entrega);
   const medioDe = tipo => medios.find(x => x.tipo === tipo && (x.unidad_sku === u.sku || (x.prototipo && x.prototipo === u.prototipo)));

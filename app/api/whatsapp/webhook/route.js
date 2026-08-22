@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
 import { resolverIA, llamarIA } from '../../../../lib/ia';
@@ -69,7 +70,7 @@ async function procesar(body) {
   const { data: devs } = await db.from('desarrollos')
     .select('nombre,alcaldia,precio_min,precio_max,rec_min,rec_max,etapa')
     .eq('publicado', true).limit(40);
-  const inv = (devs || []).map(d => `${d.nombre} (${d.alcaldia}): ${MXN(d.precio_min)}–${MXN(d.precio_max)}, ${d.rec_min}–${d.rec_max} rec, ${d.etapa}`).join('\n');
+  const inv = (devs || []).map(d => `${tituloDev(d)} (${d.alcaldia}): ${MXN(d.precio_min)}–${MXN(d.precio_max)}, ${d.rec_min}–${d.rec_max} rec, ${d.etapa}`).join('\n');
 
   // Llave de IA del asesor/org (NUNCA la de la plataforma en un canal público).
   const ia = await resolverIA(db, lead?.asesor_id || null, { permitirPlataforma: false });

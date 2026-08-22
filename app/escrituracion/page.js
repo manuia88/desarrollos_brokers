@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -29,10 +30,10 @@ export default function Escrituracion() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: ld }, { data: dv }] = await Promise.all([
         supabase.from('leads').select('id,nombre'),
-        supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion'),
       ]);
       setLeadName(Object.fromEntries((ld || []).map(l => [l.id, l.nombre])));
-      setDevName(Object.fromEntries((dv || []).map(d => [d.sku, d.nombre])));
+      setDevName(Object.fromEntries((dv || []).map(d => [d.sku, tituloDev(d)])));
       await recargar();
     })();
   }, [router]);

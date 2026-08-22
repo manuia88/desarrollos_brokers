@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -27,7 +28,7 @@ export default function Kpis() {
         supabase.from('leads').select('id,creado,asignado_en,asesor_id,dev_sku,fuente,estatus'),
         supabase.from('citas').select('id,creado,fecha,asesor_id,dev_sku,lead_id,estatus'),
         supabase.from('apartados').select('id,creado,asesor_id,dev_sku,estatus,precio,comision_monto,fecha_escritura'),
-        supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion'),
         supabase.from('profiles').select('id,nombre'),
       ]);
       setData({ leads: l.data || [], citas: c.data || [], apartados: a.data || [], devs: d.data || [], people: p.data || [] });
@@ -43,7 +44,7 @@ export default function Kpis() {
     const C = citas.filter(x => enRango(x.creado));
     const A = apartados.filter(x => enRango(x.creado));
     const escritos = A.filter(x => x.fecha_escritura || /escritur|cerrad/i.test(x.estatus || ''));
-    const nombreDev = Object.fromEntries(devs.map(d => [d.sku, d.nombre]));
+    const nombreDev = Object.fromEntries(devs.map(d => [d.sku, tituloDev(d)]));
     const nombrePers = Object.fromEntries(people.map(p => [p.id, p.nombre]));
 
     // SLA de asignación (horas) y días a primera cita

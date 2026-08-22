@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc, userFromToken, googleConfigured, citaDateTime, masterUserId, createGoogleEvent } from '../../../../lib/googleServer';
 
@@ -43,7 +44,7 @@ export async function POST(req) {
     // quien agenda): se evita el email-bombing. El cliente recibe su liga de calendario en la UI.
     const attendees = (uid ? [cita.email, ase?.email] : [ase?.email]).filter(Boolean).map(e => ({ email: e }));
     const eventBody = {
-      summary: `Cita — ${dev?.nombre || 'Desarrollo'}${cita.notas ? ' · ' + cita.notas : ''}`,
+      summary: `Cita — ${(dev ? tituloDev(dev) : null) || 'Desarrollo'}${cita.notas ? ' · ' + cita.notas : ''}`,
       description: `Cliente: ${cita.nombre || ''} · Tel ${cita.telefono || ''}${cita.email ? ' · ' + cita.email : ''}\nAsesor: ${ase?.nombre || ''} · ${ase?.telefono || ''}\nModalidad: ${cita.modalidad || ''}`,
       location: [dev?.direccion, dev?.colonia, dev?.alcaldia].filter(Boolean).join(', '),
       start: { dateTime: citaDateTime(cita.fecha, cita.hora), timeZone: 'America/Mexico_City' },

@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -79,7 +80,7 @@ export default function Publicador() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       setToken(session.access_token);
       const [{ data: d }, { data: u }] = await Promise.all([
-        supabase.from('desarrollos').select('sku,nombre,alcaldia,permite_eb,permite_portales').order('nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,alcaldia,permite_eb,permite_portales').order('nombre'),
         supabase.from('unidades').select('sku,dev_sku,rec,banos,n_estac,m2_hab,precio,prototipo,torre,num_depto,estatus').eq('estatus', 'Disponible'),
       ]);
       // CONVENIO: solo se muestra/publica lo que el desarrollador autorizó a EasyBroker.
@@ -134,7 +135,7 @@ export default function Publicador() {
           <div className="crit-row"><label>Desarrollos</label>
             <div className="crit-chips scroll">
               <span className={'chip' + (base.devs.length === 0 ? ' on' : '')} onClick={() => setB('devs', [])}>Todos</span>
-              {devs.map(d => <span key={d.sku} className={'chip' + (base.devs.includes(d.sku) ? ' on' : '')} onClick={() => togB('devs', d.sku)}>{d.nombre}</span>)}
+              {devs.map(d => <span key={d.sku} className={'chip' + (base.devs.includes(d.sku) ? ' on' : '')} onClick={() => togB('devs', d.sku)}>{tituloDev(d)}</span>)}
             </div>
           </div>
           {prototipos.length > 0 && <div className="crit-row"><label>Prototipo</label>

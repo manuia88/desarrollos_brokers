@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { llamarIA, resolverIA } from '../../../../lib/ia';
@@ -39,7 +40,7 @@ export async function POST(req) {
   if (!lead && !cita) return NextResponse.json({ error: 'falta leadId o citaId' }, { status: 400 });
 
   let dev = null;
-  if (devSku) { const { data: d } = await db.from('desarrollos').select('nombre,colonia,alcaldia,precio_min,precio_max,rec_min,rec_max,etapa,fecha_entrega,amenidades,comision_broker,credito_ion,credito_hir,credito_bancario').eq('sku', devSku).maybeSingle(); dev = d; }
+  if (devSku) { const { data: d } = await db.from('desarrollos').select('nombre,direccion,colonia,alcaldia,precio_min,precio_max,rec_min,rec_max,etapa,fecha_entrega,amenidades,comision_broker,credito_ion,credito_hir,credito_bancario').eq('sku', devSku).maybeSingle(); dev = d; }
 
   const presu = lead?.presupuesto_max || lead?.presupuesto || null;
   const perfil = [
@@ -53,7 +54,7 @@ export async function POST(req) {
     lead?.mensaje && `Comentó: "${String(lead.mensaje).slice(0, 240)}"`,
     cita && `Cita: ${cita.fecha} ${cita.hora || ''} (${cita.modalidad || 'presencial'}).`,
   ].filter(Boolean).join('\n');
-  const ctxDev = dev ? `DESARROLLO DE LA CITA: ${dev.nombre} (${[dev.colonia, dev.alcaldia].filter(Boolean).join(', ')}). Precios ${MXN(dev.precio_min)}–${MXN(dev.precio_max)}, ${dev.rec_min}–${dev.rec_max} rec, ${dev.etapa}${dev.fecha_entrega ? `, entrega ${dev.fecha_entrega}` : ''}. Amenidades: ${dev.amenidades || '—'}. Créditos: ${[dev.credito_bancario && 'Bancario', dev.credito_ion && 'ION', dev.credito_hir && 'HIR'].filter(Boolean).join(', ') || '—'}.` : 'Sin desarrollo asociado.';
+  const ctxDev = dev ? `DESARROLLO DE LA CITA: ${tituloDev(dev)} (${[dev.colonia, dev.alcaldia].filter(Boolean).join(', ')}). Precios ${MXN(dev.precio_min)}–${MXN(dev.precio_max)}, ${dev.rec_min}–${dev.rec_max} rec, ${dev.etapa}${dev.fecha_entrega ? `, entrega ${dev.fecha_entrega}` : ''}. Amenidades: ${dev.amenidades || '—'}. Créditos: ${[dev.credito_bancario && 'Bancario', dev.credito_ion && 'ION', dev.credito_hir && 'HIR'].filter(Boolean).join(', ') || '—'}.` : 'Sin desarrollo asociado.';
 
   const system = `Eres un coach de ventas inmobiliarias en México. Prepara a un asesor para una cita con un cliente. Devuelve un briefing BREVE y accionable de UNA pantalla, en español de México, sin markdown pesado (usa títulos cortos en mayúscula y guiones). Estructura EXACTA:
 QUIÉN ES: 1-2 líneas.

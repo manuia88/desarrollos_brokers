@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -22,7 +23,7 @@ export default function Materiales() {
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: d }, { data: m }] = await Promise.all([
-        supabase.from('desarrollos').select('sku,nombre,colonia,alcaldia,portada,liga_disponibilidad,links,whatsapp').order('nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,colonia,alcaldia,portada,liga_disponibilidad,links,whatsapp').order('nombre'),
         supabase.from('media').select('dev_sku,tipo,url,titulo,area,prototipo'),
       ]);
       setDevs(d || []); setMedios(m || []);
@@ -36,7 +37,7 @@ export default function Materiales() {
   const lista = useMemo(() => {
     if (!devs) return [];
     const t = q.trim().toLowerCase();
-    return t ? devs.filter(d => (d.nombre + d.colonia + d.alcaldia).toLowerCase().includes(t)) : devs;
+    return t ? devs.filter(d => (d.nombre + tituloDev(d) + d.colonia + d.alcaldia).toLowerCase().includes(t)) : devs;
   }, [devs, q]);
 
   function link(sku) {
@@ -102,7 +103,7 @@ export default function Materiales() {
               return (
                 <article className="mat" key={d.sku}>
                   <div className="mat-h">
-                    <div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
+                    <div><h3>{tituloDev(d)}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div>
                     <span className="mat-count">{imgs.length} img</span>
                   </div>
 
@@ -112,7 +113,7 @@ export default function Materiales() {
                     <div className="mat-link">{link(d.sku)}</div>
                     <div className="mat-btns">
                       <button className="btn lim sm" onClick={() => copiar(d.sku)}>{copiado === d.sku ? '¡Copiado!' : 'Copiar link'}</button>
-                      <a className="btn ghost sm" href={wa(d.sku, d.nombre)} target="_blank" rel="noopener">WhatsApp</a>
+                      <a className="btn ghost sm" href={wa(d.sku, tituloDev(d))} target="_blank" rel="noopener">WhatsApp</a>
                       <button className="btn ghost sm" onClick={() => router.push('/portal/' + d.sku)}>Abrir ficha</button>
                     </div>
                   </div>

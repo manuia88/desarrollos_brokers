@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { mapEasyBroker, pushEasyBroker, elegirConexionEB } from '../../../../lib/integraciones';
@@ -55,8 +56,8 @@ async function reconciliarCampana(db, camp, mode) {
       const d = byId[u.dev_sku]; if (!d) continue;
       const prev = (pubs || []).find(p => p.ref === u.sku);
       const body = mapEasyBroker({
-        ref: u.sku, title: `${d.nombre}${u.prototipo ? ' · ' + u.prototipo : ''}`,
-        description: d.notas || `${d.nombre} en ${d.colonia}, ${d.alcaldia}. ${u.rec === 0 ? 'Loft' : u.rec + ' recámaras'}.`,
+        ref: u.sku, title: `${tituloDev(d)}${u.prototipo ? ' · ' + u.prototipo : ''}`,
+        description: d.notas || `${tituloDev(d)} en ${d.colonia}, ${d.alcaldia}. ${u.rec === 0 ? 'Loft' : u.rec + ' recámaras'}.`,
         propertyType: d.tipo || 'Departamento', status: camp.status === 'published' ? 'published' : 'not_published',
         price: u.precio, bedrooms: u.rec || 0, bathrooms: Math.floor(u.banos || 0), parking: u.n_estac || 0,
         construction: u.m2_total || u.m2_hab || null, locationName: [d.colonia, d.alcaldia, d.estado].filter(Boolean).join(', '),

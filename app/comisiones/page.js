@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -37,12 +38,12 @@ export default function Comisiones() {
       const [{ data: ap }, { data: ld }, { data: dv }, { data: pf }] = await Promise.all([
         supabase.from('apartados').select('*').order('creado', { ascending: false }),
         supabase.from('leads').select('id,nombre'),
-        supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion'),
         supabase.from('profiles').select('id,nombre'),
       ]);
       setAps(ap || []);
       const lm = {}; (ld || []).forEach(l => { lm[l.id] = l.nombre; }); setLeadName(lm);
-      const dm = {}; (dv || []).forEach(d => { dm[d.sku] = d.nombre; }); setDevName(dm);
+      const dm = {}; (dv || []).forEach(d => { dm[d.sku] = tituloDev(d); }); setDevName(dm);
       const pm = {}; (pf || []).forEach(p => { pm[p.id] = p.nombre; }); setPersName(pm);
       setPeople(pf || []);
     })();

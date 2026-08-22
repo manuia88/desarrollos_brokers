@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -30,13 +31,13 @@ export default function Calor() {
       const [{ data: e }, { data: c }, { data: d }] = await Promise.all([
         supabase.from('eventos').select('*').order('creado', { ascending: false }).limit(1000),
         supabase.from('client_cards').select('id,nombre,telefono'),
-        supabase.from('desarrollos').select('sku,nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion'),
       ]);
       setEv(e || []); setCards(c || []); setDevs(d || []);
     })();
   }, [router]);
 
-  const devName = useMemo(() => Object.fromEntries(devs.map(d => [d.sku, d.nombre])), [devs]);
+  const devName = useMemo(() => Object.fromEntries(devs.map(d => [d.sku, tituloDev(d)])), [devs]);
   const cardById = useMemo(() => Object.fromEntries(cards.map(c => [String(c.id), c])), [cards]);
 
   const { porDev, porCliente, feed, totalVistas } = useMemo(() => {

@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { fitScore } from '../../../../lib/matching';
@@ -65,7 +66,7 @@ async function correr(scope) {
     const nuevos = matches.filter(m => !yaSet.has(m.u.sku)).sort((a, b) => b.score - a.score);
     if (nuevos.length && c.asesor_id) {
       const top = nuevos[0];
-      const resumen = `${nuevos.length} unidad(es) que le quedan: ${top.d.nombre} desde ${MXN(top.u.precio)} (${top.score}% match).`;
+      const resumen = `${nuevos.length} unidad(es) que le quedan: ${tituloDev(top.d)} desde ${MXN(top.u.precio)} (${top.score}% match).`;
       // 1) In-app (siempre).
       await db.from('notificaciones').insert({
         org_id: c.org_id, user_id: c.asesor_id, tipo: 'waitlist',

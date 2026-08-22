@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { mapEasyBroker, pushEasyBroker, elegirConexionEB } from '../../../../lib/integraciones';
@@ -80,8 +81,8 @@ export async function POST(req) {
     const stItem = (status === 'published' && d.permite_portales) ? 'published' : 'not_published';
     const body = mapEasyBroker({
       ref: it.ref,
-      title: `${d.nombre}${u.prototipo ? ' · ' + u.prototipo : ''}`,
-      description: d.notas || `${d.nombre} en ${d.colonia}, ${d.alcaldia}. ${u.rec === 0 ? 'Loft' : u.rec + ' recámaras'}.`,
+      title: `${tituloDev(d)}${u.prototipo ? ' · ' + u.prototipo : ''}`,
+      description: d.notas || `${tituloDev(d)} en ${d.colonia}, ${d.alcaldia}. ${u.rec === 0 ? 'Loft' : u.rec + ' recámaras'}.`,
       propertyType: d.tipo || 'Departamento',
       status: stItem,
       price: precio,

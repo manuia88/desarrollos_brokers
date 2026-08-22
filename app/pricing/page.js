@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -55,7 +56,7 @@ export default function Pricing() {
       if (disponibles > 0 && (absor >= 40 || (interes >= 10 && disponibles <= 8))) { rec = 'subir'; razon = `Alta demanda (${v} vistas, ${l} leads) vs poco inventario (${disponibles} disp., ${absor}% colocado).`; }
       else if ((interes <= 1 && disponibles >= 15) || diasProm >= 90) { rec = 'bajar'; razon = `Baja tracción (${v} vistas, ${l} leads) con ${disponibles} disponibles${diasProm >= 90 ? ` y ${diasProm} días en inventario` : ''}.`; }
       const dv = devName[sku] || {};
-      return { sku, nombre: dv.nombre || sku, disponibles, absor, v, l, diasProm, rec, razon, com: dv.comision_broker ? Math.round(dv.comision_broker * 100) : null, desde: disponibles ? Math.min(...o.disp.map(x => x.precio || Infinity)) : null };
+      return { sku, nombre: tituloDev(dv) || sku, disponibles, absor, v, l, diasProm, rec, razon, com: dv.comision_broker ? Math.round(dv.comision_broker * 100) : null, desde: disponibles ? Math.min(...o.disp.map(x => x.precio || Infinity)) : null };
     }).sort((a, b) => ({ subir: 0, bajar: 1, mantener: 2 }[a.rec] - { subir: 0, bajar: 1, mantener: 2 }[b.rec]) || b.v - a.v);
   }, [d]);
 

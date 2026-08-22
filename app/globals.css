@@ -1543,3 +1543,26 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
   .bs-grid{grid-template-columns:1fr}
   .bsf-foot{flex-direction:column;align-items:flex-start}
 }
+
+/* /cambios — diario de inventario */
+.cmb-filtro{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem}
+.cmb-dia{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:.7rem;overflow:hidden}
+.cmb-dia summary{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding:.85rem 1.1rem;cursor:pointer;list-style:none}
+.cmb-dia summary::-webkit-details-marker{display:none}
+.cmb-dia summary b{text-transform:capitalize}
+.cmb-dia[open] summary{border-bottom:1px solid var(--line)}
+.cmb-resumen{display:flex;gap:.5rem;flex-wrap:wrap;margin-left:auto}
+.cmb-tag{font-style:normal;font-size:.78rem;font-weight:700;color:var(--sub);background:var(--panel2);border:1px solid var(--line);border-radius:99px;padding:.15rem .55rem}
+.cmb-tag.alta{color:var(--lime);border-color:var(--lime-line);background:var(--lime-soft)}
+.cmb-tag.baja{color:var(--mag);border-color:var(--mag-line);background:var(--mag-soft)}
+.cmb-tag.precio{color:var(--ink)}
+.cmb-devs{font-style:normal;font-size:.78rem;color:var(--dim)}
+.cmb-devchips{display:flex;flex-wrap:wrap;gap:.35rem;padding:.7rem 1.1rem 0}
+.cmb-rows{padding:.5rem .6rem .7rem}
+.cmb-row{display:grid;grid-template-columns:auto minmax(140px,1fr) auto 1fr;gap:.7rem;align-items:center;padding:.42rem .5rem;border-radius:8px;font-size:.86rem}
+.cmb-row:hover{background:rgba(255,255,255,.04)}
+.cmb-dev{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmb-sku{font-size:.72rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.cmb-det{color:var(--sub);text-align:right}
+.cmb-det b{color:var(--ink)}
+@media(max-width:700px){.cmb-row{grid-template-columns:auto 1fr;row-gap:.1rem}.cmb-det{text-align:left;grid-column:2}.cmb-sku{display:none}}

@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -18,7 +19,7 @@ export default function Inventario() {
   const [puede, setPuede] = useState(true);
 
   async function cargarDevs(m) {
-    let q = supabase.from('desarrollos').select('sku,nombre,publicado,etapa,estado,dev_org_id').order('nombre');
+    let q = supabase.from('desarrollos').select('sku,nombre,direccion,publicado,etapa,estado,dev_org_id').order('nombre');
     const { data } = await q;
     let list = data || [];
     if (m.rol !== 'super_admin' && m.org_id) list = list.filter(d => d.dev_org_id === m.org_id);
@@ -116,7 +117,7 @@ export default function Inventario() {
                   <article className="alta" key={d.sku}>
                     <div className="alta-h">
                       <div>
-                        <h3>{d.nombre}</h3>
+                        <h3>{tituloDev(d)}</h3>
                         <span className="loc">{d.etapa || '—'} · {c.total} unidad{c.total === 1 ? '' : 'es'} · {c.disp} disponible{c.disp === 1 ? '' : 's'}</span>
                       </div>
                       <button

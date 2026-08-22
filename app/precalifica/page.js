@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -25,7 +26,7 @@ export default function Precalifica() {
       const { data: prof } = await supabase.from('profiles').select('nombre,rol,org_id').eq('id', session.user.id).single();
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: d }, { data: u }] = await Promise.all([
-        supabase.from('desarrollos').select('sku,nombre,colonia,alcaldia,etapa,fecha_entrega,comision_broker').order('nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,colonia,alcaldia,etapa,fecha_entrega,comision_broker').order('nombre'),
         supabase.from('unidades').select('sku,dev_sku,rec,m2_hab,precio,prototipo,estatus').eq('estatus', 'Disponible'),
       ]);
       setDevs(d || []); setUnits(u || []);
@@ -95,7 +96,7 @@ export default function Precalifica() {
               <div className="res-grid">
                 {elegibles.slice(0, 12).map(({ d, n, min }) => (
                   <article className="match" key={d.sku} onClick={() => router.push('/portal/' + d.sku)}>
-                    <div className="match-h"><div><h3>{d.nombre}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div></div>
+                    <div className="match-h"><div><h3>{tituloDev(d)}</h3><span className="loc">📍 {d.colonia}, {d.alcaldia}</span></div></div>
                     <div className="match-price">desde {MXN(min)}</div>
                     <div className="match-meta">
                       <span>{d.etapa === 'Entrega inmediata' ? '⚡ Inmediata' : (meses(d.fecha_entrega) != null ? `🕑 ${meses(d.fecha_entrega)} meses` : 'Preventa')}</span>

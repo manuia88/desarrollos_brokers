@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -169,7 +170,7 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
     if (onDone) onDone();
   }
 
-  const devSel = dev ? dev.nombre : (devs || []).find(d => d.sku === f.dev_sku)?.nombre;
+  const devSelObj = dev || (devs || []).find(d => d.sku === f.dev_sku); const devSel = devSelObj ? tituloDev(devSelObj) : null;
 
   return (
     <>
@@ -263,7 +264,7 @@ export default function RegistroCliente({ me, dev = null, unidad = null, onClose
               <div className="dw-field"><label>Desarrollo de interés</label>
                 <select value={f.dev_sku} onChange={e => set('dev_sku', e.target.value)}>
                   <option value="">Aún no lo define</option>
-                  {(devs || []).map(d => <option key={d.sku} value={d.sku}>{d.nombre}</option>)}
+                  {(devs || []).map(d => <option key={d.sku} value={d.sku}>{tituloDev(d)}</option>)}
                 </select>
               </div>
             ) : (

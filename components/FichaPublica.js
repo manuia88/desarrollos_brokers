@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { googleCalUrl, descargarIcs, crearEventoGoogle, calcomUrl } from '../lib/calendario';
@@ -193,7 +194,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
   const cMensualidad = mensualidadCredito(cEscritura, cotTasa, cotPlazo);
   const cIngreso = cMensualidad ? Math.round(cMensualidad / 0.30) : null;
   const telDig = ase?.telefono ? soloDig(ase.telefono) : '';
-  const waAse = telDig ? 'https://wa.me/' + (telDig.length === 10 ? '52' : '') + telDig + '?text=' + encodeURIComponent(`Hola ${ase?.nombre || ''}, me interesa ${dev.nombre}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`) : null;
+  const waAse = telDig ? 'https://wa.me/' + (telDig.length === 10 ? '52' : '') + telDig + '?text=' + encodeURIComponent(`Hola ${ase?.nombre || ''}, me interesa ${tituloDev(dev)}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`) : null;
   const planoUrl = unitMedio('plano')?.url;
   const plantaUrl = unitMedio('planta')?.url;
 
@@ -225,9 +226,9 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
     if (modo === 'cita') {
       if (citaId) crearEventoGoogle(citaId);
       const cal = {
-        titulo: `Cita — ${dev.nombre}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`,
+        titulo: `Cita — ${tituloDev(dev)}${selUnit ? ` (T${selUnit.torre} ${selUnit.num_depto})` : ''}`,
         fecha: form.fecha, hora: form.hora,
-        detalles: `Cliente: ${form.nombre} · Tel ${form.telefono}. Asesor: ${ase?.nombre || ''} ${ase?.telefono || ''}. ${dev.nombre}${selUnit ? ' · T' + selUnit.torre + ' ' + selUnit.num_depto : ''}.`,
+        detalles: `Cliente: ${form.nombre} · Tel ${form.telefono}. Asesor: ${ase?.nombre || ''} ${ase?.telefono || ''}. ${tituloDev(dev)}${selUnit ? ' · T' + selUnit.torre + ' ' + selUnit.num_depto : ''}.`,
         ubicacion: [dev.direccion, dev.colonia, dev.alcaldia].filter(Boolean).join(', '),
       };
       setDone({ cita: true, cal, fecha: form.fecha, hora: form.hora });
@@ -244,7 +245,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
       <div className="fp-hero" style={portada ? { backgroundImage: `linear-gradient(180deg,rgba(10,10,12,.15),rgba(10,10,12,.75)),url(${portada.url})` } : undefined}>
         <div className="fp-hero-in">
           <span className="fp-badge">{dev.etapa === 'Entrega inmediata' ? 'Entrega inmediata' : (m != null ? `Preventa · ${m} meses` : 'Preventa')}</span>
-          <h1>{dev.nombre}</h1>
+          <h1>{tituloDev(dev)}</h1>
           <p className="fp-loc">📍 {[dev.colonia, dev.alcaldia, dev.estado].filter(Boolean).join(', ')}</p>
           <div className="fp-price">{selUnit ? 'Precio de la unidad' : 'Desde'} <b>{MXN(selUnit ? selUnit.precio : dev.precio_min)}</b></div>
         </div>
@@ -391,7 +392,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
 
           {ase?.calcom && !done && (
             <a className="btn mag block fp-calcom" target="_blank" rel="noopener"
-              href={calcomUrl(ase.calcom, { nombre: form.nombre, email: form.email, notas: `Interés: ${dev.nombre}${selUnit ? ' · T' + selUnit.torre + ' ' + selUnit.num_depto : ''}` })}>
+              href={calcomUrl(ase.calcom, { nombre: form.nombre, email: form.email, notas: `Interés: ${tituloDev(dev)}${selUnit ? ' · T' + selUnit.torre + ' ' + selUnit.num_depto : ''}` })}>
               📅 Reservar un horario disponible (en vivo)
             </a>
           )}
@@ -466,7 +467,7 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
       {!chatOpen && <button className="fp-chat-fab" onClick={() => setChatOpen(true)}>💬 Pregúntame</button>}
       {chatOpen && (
         <div className="fp-chat">
-          <div className="fp-chat-h"><b>💬 Asistente · {dev.nombre}</b><button onClick={() => setChatOpen(false)} aria-label="Cerrar">✕</button></div>
+          <div className="fp-chat-h"><b>💬 Asistente · {tituloDev(dev)}</b><button onClick={() => setChatOpen(false)} aria-label="Cerrar">✕</button></div>
           <div className="fp-chat-body">
             {chat.length === 0 && <div className="fp-chat-hint">Pregúntame lo que quieras: precios, créditos, cuánto pagarías al mes, qué hay cerca, cuándo entregan…</div>}
             {chat.map((m, i) => <div key={i} className={'fp-chat-msg ' + m.role}>{m.content}</div>)}

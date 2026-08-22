@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../lib/nombre';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
@@ -65,11 +66,11 @@ export default function CRM() {
       setMe({ id: session.user.id, email: session.user.email, ...(prof || {}) });
       const [{ data: ppl }, { data: devs }] = await Promise.all([
         supabase.from('profiles').select('id,nombre,rol,org_id').order('nombre'),
-        supabase.from('desarrollos').select('sku,nombre,comision_broker').order('nombre'),
+        supabase.from('desarrollos').select('sku,nombre,direccion,comision_broker').order('nombre'),
       ]);
       setTeam(ppl || []);
       setDevsFull(devs || []);
-      const m = {}; (devs || []).forEach(d => { m[d.sku] = d.nombre; });
+      const m = {}; (devs || []).forEach(d => { m[d.sku] = tituloDev(d); });
       setDevName(m);
       await load();
     })();

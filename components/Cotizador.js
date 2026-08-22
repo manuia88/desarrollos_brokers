@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { esquemaPago, resumenCredito, BANCOS } from '../lib/finance';
@@ -77,8 +78,8 @@ export default function Cotizador({ dev, unidad, portadaUrl = null, onClose }) {
   }
 
   const titulo = unidad
-    ? `${dev.nombre} · T${unidad.torre} ${unidad.num_depto}`
-    : dev.nombre;
+    ? `${tituloDev(dev)} · T${unidad.torre} ${unidad.num_depto}`
+    : tituloDev(dev);
 
   const resumenTxt =
     `Cotización — ${titulo}\n` +

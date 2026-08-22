@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
 import { llamarIA, resolverIA, contextoDesarrollo } from '../../../../lib/ia';
@@ -39,7 +40,7 @@ export async function POST(req) {
   if (!d) return NextResponse.json({ error: 'desarrollo no encontrado' }, { status: 404 });
   const { data: us } = await db.from('unidades').select('rec,precio,m2_hab').eq('dev_sku', sku).eq('estatus', 'Disponible');
 
-  const system = `Eres el asistente virtual de ventas del desarrollo inmobiliario "${d.nombre}" en México. Respondes a clientes interesados.
+  const system = `Eres el asistente virtual de ventas del desarrollo inmobiliario "${tituloDev(d)}" en México. Respondes a clientes interesados.
 REGLAS:
 - Responde SOLO con la información de abajo. Si te preguntan algo que no está, dilo con honestidad e invita a agendar una visita con el asesor.
 - Sé cálido, claro y breve (2-4 frases). Español de México. Sin markdown ni listas largas.

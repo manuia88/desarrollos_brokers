@@ -1,3 +1,4 @@
+import { tituloDev } from '../../../../lib/nombre';
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
 import { sendWhatsApp, sendEmail } from '../../../../lib/notificaciones';
@@ -38,9 +39,9 @@ async function correr() {
       if (claimErr || !claim) continue;   // ya reclamado por otra corrida (o carrera perdida)
 
       const { data: ase } = await db.from('profiles').select('nombre,telefono,email').eq('id', c.asesor_id).maybeSingle();
-      const { data: dev } = await db.from('desarrollos').select('nombre').eq('sku', c.dev_sku).maybeSingle();
+      const { data: dev } = await db.from('desarrollos').select('nombre,direccion').eq('sku', c.dev_sku).maybeSingle();
       const cuando = new Date(start).toLocaleString('es-MX', { timeZone: 'America/Mexico_City', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-      const devN = dev?.nombre || 'tu desarrollo';
+      const devN = (dev ? tituloDev(dev) : null) || 'tu desarrollo';
       const msgCli = `Hola ${c.nombre || ''}, te recordamos tu cita para ${devN} el ${cuando}.${ase?.nombre ? ' Te atiende ' + ase.nombre + (ase.telefono ? ' (' + ase.telefono + ')' : '') + '.' : ''}`;
       const msgBrk = `Recordatorio: cita con ${c.nombre || 'cliente'}${c.telefono ? ' (' + c.telefono + ')' : ''} para ${devN} el ${cuando}.`;
 

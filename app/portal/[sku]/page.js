@@ -1,4 +1,5 @@
 'use client';
+import { tituloDev } from '../../../lib/nombre';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -175,19 +176,19 @@ export default function Detalle() {
           <span className="badge2">{d.etapa==='Entrega inmediata'?'Entrega inmediata':(m!=null?`Preventa · entrega en ${m} meses`:'Preventa')}</span>
         </div>
         <div className="dhead">
-          <div><h1>{d.nombre}</h1><p className="loc">📍 {d.direccion} · {d.colonia}, {d.alcaldia}, {d.estado}</p></div>
+          <div><h1>{tituloDev(d)}</h1><p className="loc">📍 {d.colonia}, {d.alcaldia}, {d.estado}</p></div>
           <div className="pricebox"><span>Precio desde</span><b>{MXN(d.precio_min)}</b><small>hasta {MXN(d.precio_max)}</small></div>
         </div>
         <div className="dactions">
           <button className="btn mag" onClick={()=>setCotizar('dev')}>Cotizar</button>
           <button className="btn lim" onClick={()=>abrirReg(null)}>Registrar cliente</button>
           <a className="btn wa" style={{background:'#25D366',color:'#0a2e18',border:'none',fontWeight:700}} target="_blank" rel="noopener"
-             href={'https://wa.me/?text='+encodeURIComponent(`Te comparto ${d.nombre} (${d.colonia}, ${d.alcaldia}) — desde ${MXN(d.precio_min)}:\n${(typeof window!=='undefined'?window.location.origin:'')}/f/${sku}?a=${me?.id||''}&utm_source=broker&utm_medium=whatsapp&utm_campaign=${sku}`)}>
+             href={'https://wa.me/?text='+encodeURIComponent(`Te comparto ${tituloDev(d)} (${d.colonia}, ${d.alcaldia}) — desde ${MXN(d.precio_min)}:\n${(typeof window!=='undefined'?window.location.origin:'')}/f/${sku}?a=${me?.id||''}&utm_source=broker&utm_medium=whatsapp&utm_campaign=${sku}`)}>
             📲 Enviar al cliente
           </a>
           <button className="btn ghost" onClick={()=>setShowShare(true)}>🔗 Compartir ficha{vistas>0?` · 👁 ${vistas}`:''}</button>
           <button className="btn ghost" onClick={descargarBrochure} disabled={genBro}>{genBro?'Generando…':'⬇ Brochure'}</button>
-          {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+d.nombre)}`} target="_blank" rel="noopener">WhatsApp</a>}
+          {waNum && <a className="btn ghost" href={`${waNum}?text=${encodeURIComponent('Hola, me interesa '+tituloDev(d))}`} target="_blank" rel="noopener">WhatsApp</a>}
           {d.liga_disponibilidad && d.liga_disponibilidad.startsWith('http') && <a className="btn ghost" href={d.liga_disponibilidad} target="_blank" rel="noopener">Sitio oficial</a>}
           {me?.rol==='super_admin' && <button className="btn ghost" onClick={()=>setShowMedios(true)}>🖼️ Gestionar medios</button>}
         </div>
@@ -473,12 +474,12 @@ export default function Detalle() {
 
         {showShare && (() => {
           const link = typeof window !== 'undefined' ? `${window.location.origin}/f/${sku}?a=${me?.id}` : '';
-          const wa = 'https://wa.me/?text=' + encodeURIComponent(`Te comparto la ficha de ${d.nombre}: ${link}`);
+          const wa = 'https://wa.me/?text=' + encodeURIComponent(`Te comparto la ficha de ${tituloDev(d)}: ${link}`);
           return (
             <>
               <div className="drawer-bg" onClick={() => setShowShare(false)} />
               <aside className="drawer" onClick={e => e.stopPropagation()}>
-                <div className="dw-h"><div><span className="dw-tag">Compartir ficha</span><h2>{d.nombre}</h2></div>
+                <div className="dw-h"><div><span className="dw-tag">Compartir ficha</span><h2>{tituloDev(d)}</h2></div>
                   <button className="x" onClick={() => setShowShare(false)}>✕</button></div>
                 <p className="fnote" style={{ marginTop: 0 }}>Link público (sin login), sale con tu marca. Cuando el cliente llena el formulario, el lead cae directo en tu CRM, a tu nombre.</p>
                 <div className="share-link">{link}</div>
