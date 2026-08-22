@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
-import { resolverIA } from '../../../../lib/ia';
+import { resolverIAPublica } from '../../../../lib/ia';
 import { responderAgente, transcribirAudio } from '../../../../lib/agente';
 import { enviarWhatsAppCloud, resolverWhatsAppOrg, descargarMediaWhatsApp } from '../../../../lib/whatsapp';
 import { verificarFirmaMeta } from '../../../../lib/webhookseg';
@@ -10,6 +10,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const dig = s => String(s || '').replace(/[^0-9]/g, '');
 const IA_MAX_DIA = Number(process.env.IA_MAX_DIA || 500);
+const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 50);
 
 // Verificación del webhook (Meta / WhatsApp Cloud). Sin token por defecto: hay que configurarlo.
 export async function GET(req) {
@@ -56,7 +57,7 @@ async function procesar(body) {
   const { data: cand } = await db.from('leads').select('id,asesor_id,dev_sku,nombre,telefono')
     .eq('org_id', orgId).ilike('telefono', '%' + tel10.slice(-8) + '%').limit(20);
   const lead = (cand || []).find(l => dig(l.telefono).slice(-10) === tel10) || null;
-  const ia = await resolverIA(db, lead?.asesor_id || null, { permitirPlataforma: false });
+  const ia = await resolverIAPublica(db, lead?.asesor_id || null, orgId);
 
   // Texto entrante (nota de voz -> transcripción si hay llave OpenAI).
   let texto = (msg.text?.body || '').trim();
@@ -85,8 +86,10 @@ async function procesar(body) {
     await enviarWhatsAppCloud(wa, from, `Hola${lead?.nombre ? ' ' + String(lead.nombre).split(' ')[0] : ''}, gracias por tu mensaje. En un momento te contacta un asesor. 🙂`);
     return;
   }
-  if (!(await cuotaIA(db, 'org:' + orgId, IA_MAX_DIA))) {
+  const cap = ia.trial ? { clave: 'trial:' + orgId, max: IA_TRIAL_DIA } : { clave: 'org:' + orgId, max: IA_MAX_DIA };
+  if (!(await cuotaIA(db, cap.clave, cap.max))) {
     await enviarWhatsAppCloud(wa, from, 'Gracias por tu mensaje. En un momento te contacta un asesor. 🙂');
+    if (ia.trial) await avisarAsesor(db, orgId, lead, 'ia_trial', 'Prueba del asistente agotada', 'Conecta tu llave de IA en Conexiones para que el asistente siga respondiendo a tus clientes.');
     return;
   }
 

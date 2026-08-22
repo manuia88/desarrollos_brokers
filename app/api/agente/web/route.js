@@ -3,7 +3,7 @@
 // La org sale del asesor que compartió (ficha) o del data-org del widget.
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
-import { resolverIA, resolverIAOrg } from '../../../../lib/ia';
+import { resolverIAPublica } from '../../../../lib/ia';
 import { responderAgente } from '../../../../lib/agente';
 import { tituloDev } from '../../../../lib/nombre';
 import { rateLimit, cuotaIA, clientIp } from '../../../../lib/ratelimit';
@@ -11,6 +11,7 @@ import { rateLimit, cuotaIA, clientIp } from '../../../../lib/ratelimit';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const IA_MAX_DIA = Number(process.env.IA_MAX_DIA || 500);
+const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 50);
 const UUID = /^[0-9a-f-]{36}$/i;
 
 export async function POST(req) {
@@ -25,20 +26,21 @@ export async function POST(req) {
   let db;
   try { db = svc(); } catch { return NextResponse.json({ answer: 'El asistente no está disponible por ahora. 🙂', disabled: true }); }
   // Org: por asesor (ficha compartida) o directa (widget con data-org).
-  let orgId = null, asesorId = null, ia = null;
+  let orgId = null, asesorId = null;
   if (b.asesor && UUID.test(b.asesor)) {
     const { data: prof } = await db.from('profiles').select('id,org_id').eq('id', b.asesor).maybeSingle();
-    if (prof) { asesorId = prof.id; orgId = prof.org_id; ia = await resolverIA(db, prof.id, { permitirPlataforma: false }); }
+    if (prof) { asesorId = prof.id; orgId = prof.org_id; }
   } else if (b.org && UUID.test(b.org)) {
     orgId = b.org;
-    ia = await resolverIAOrg(db, orgId);
   }
+  const ia = orgId ? await resolverIAPublica(db, asesorId, orgId) : null;
   const sinAsesor = { answer: 'El asistente todavía no está activado. Deja tus datos y un asesor te contacta enseguida. 🙂', disabled: true };
   if (!orgId) return NextResponse.json(sinAsesor);
 
   const { data: org } = await db.from('orgs').select('nombre,agente_modo').eq('id', orgId).maybeSingle();
   if (!org || org.agente_modo === 'off' || !ia) return NextResponse.json(sinAsesor);
-  if (!(await cuotaIA(db, 'org:' + orgId, IA_MAX_DIA))) {
+  const cap = ia.trial ? { clave: 'trial:' + orgId, max: IA_TRIAL_DIA } : { clave: 'org:' + orgId, max: IA_MAX_DIA };
+  if (!(await cuotaIA(db, cap.clave, cap.max))) {
     return NextResponse.json({ answer: 'Por hoy alcanzamos el límite del asistente. Deja tus datos y te contactamos enseguida. 🙂', disabled: true });
   }
 

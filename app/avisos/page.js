@@ -6,7 +6,7 @@ import Nav from '../../components/Nav';
 import { EmptyState } from '../../components/ui';
 import { listarAvisos, marcarLeido, marcarTodo } from '../../lib/notif';
 
-const ICON = { lead_asignado: '🎯', lead_sla: '⏱️', apartado: '📌', liga_abierta: '👀', cita: '📅', agente_borrador: '✍️', agente_cadencia: '🔁', agente_precio: '📉', agente_noshow: '🪃', wa_handoff: '🙋', default: '🔔' };
+const ICON = { lead_asignado: '🎯', lead_sla: '⏱️', apartado: '📌', liga_abierta: '👀', cita: '📅', agente_borrador: '✍️', agente_cadencia: '🔁', agente_precio: '📉', agente_noshow: '🪃', wa_handoff: '🙋', ia_trial: '🔑', default: '🔔' };
 const hace = ts => { if (!ts) return ''; const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000); if (s < 60) return 'ahora'; if (s < 3600) return `hace ${Math.floor(s / 60)} min`; if (s < 86400) return `hace ${Math.floor(s / 3600)} h`; return `hace ${Math.floor(s / 86400)} d`; };
 
 export default function Avisos() {

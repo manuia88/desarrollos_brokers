@@ -2,7 +2,7 @@
 // (el hash viaja en la URL que registró setWebhook; el token nunca sale de conexiones).
 import { NextResponse } from 'next/server';
 import { svc } from '../../../../lib/googleServer';
-import { resolverIA } from '../../../../lib/ia';
+import { resolverIAPublica } from '../../../../lib/ia';
 import { responderAgente } from '../../../../lib/agente';
 import { resolverTelegramPorHash, enviarTelegram } from '../../../../lib/telegram';
 import { rateLimit, cuotaIA } from '../../../../lib/ratelimit';
@@ -10,6 +10,7 @@ import { rateLimit, cuotaIA } from '../../../../lib/ratelimit';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const IA_MAX_DIA = Number(process.env.IA_MAX_DIA || 500);
+const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 50);
 
 export async function POST(req) {
   let ok = { ok: true };
@@ -46,9 +47,10 @@ async function procesar(req) {
 
   let lead = null;
   if (conv?.lead_id) { const { data } = await db.from('leads').select('id,asesor_id,dev_sku,nombre').eq('id', conv.lead_id).maybeSingle(); lead = data; }
-  const ia = await resolverIA(db, lead?.asesor_id || null, { permitirPlataforma: false });
+  const ia = await resolverIAPublica(db, lead?.asesor_id || null, orgId);
   if (!ia) { await enviarTelegram(tg, chatId, 'Gracias por tu mensaje, en un momento te contacta un asesor. 🙂'); return; }
-  if (!(await cuotaIA(db, 'org:' + orgId, IA_MAX_DIA))) { await enviarTelegram(tg, chatId, 'Gracias por tu mensaje, en un momento te contacta un asesor. 🙂'); return; }
+  const cap = ia.trial ? { clave: 'trial:' + orgId, max: IA_TRIAL_DIA } : { clave: 'org:' + orgId, max: IA_MAX_DIA };
+  if (!(await cuotaIA(db, cap.clave, cap.max))) { await enviarTelegram(tg, chatId, 'Gracias por tu mensaje, en un momento te contacta un asesor. 🙂'); return; }
 
   const { data: hist } = await db.from('wa_mensajes').select('rol,texto').eq('org_id', orgId).eq('telefono', chatId)
     .eq('canal', 'telegram').eq('estado', 'enviado').order('creado', { ascending: false }).limit(10);
