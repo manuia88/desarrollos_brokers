@@ -78,7 +78,7 @@ son para **sincronizar leads e inventario**, no para reemplazar ese flujo.
 | Variable | Default | Qué controla |
 |---|---|---|
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | (ninguna) | Llave de la PLATAFORMA. Si la pones (con tope de gasto en el proveedor), una inmobiliaria nueva SIN llave propia recibe una **prueba gratis**. Si no la pones, el bot le dice "conecta tu llave" desde el primer mensaje. |
-| `IA_TRIAL_DIA` | 50 | Respuestas de prueba/día por inmobiliaria con la llave de la plataforma. Al agotarse, el bot invita a conectar su propia llave (aviso 🔑 al asesor). |
+| `IA_TRIAL_DIA` | 25 | Respuestas de prueba/día por inmobiliaria con la llave de la plataforma. Al agotarse, el bot invita a conectar su propia llave (aviso 🔑 al asesor). |
 | `IA_MAX_DIA` | 500 | Tope anti-abuso/día por inmobiliaria cuando ya usa SU propia llave (protege su factura de un DoS; su uso normal casi nunca lo alcanza). |
 
-Flujo: una inmobiliaria prueba gratis (≤ `IA_TRIAL_DIA`) → conecta su llave en **/conexiones** → de ahí corre con su cuenta (BYOK, hasta `IA_MAX_DIA`/día). El cobro con margen (tú facturas a la inmobiliaria) es la Fase F (Stripe), aún no implementada.
+Flujo: una inmobiliaria prueba gratis (≤ `IA_TRIAL_DIA` (25 por defecto)) → conecta su llave en **/conexiones** → de ahí corre con su cuenta (BYOK, hasta `IA_MAX_DIA`/día). El cobro con margen (tú facturas a la inmobiliaria) es la Fase F (Stripe), aún no implementada.

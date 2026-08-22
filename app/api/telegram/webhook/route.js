@@ -10,7 +10,7 @@ import { rateLimit, cuotaIA } from '../../../../lib/ratelimit';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const IA_MAX_DIA = Number(process.env.IA_MAX_DIA || 500);
-const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 50);
+const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 25);
 
 export async function POST(req) {
   let ok = { ok: true };

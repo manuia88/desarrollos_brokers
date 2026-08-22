@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node scripts/finance.test.mjs && node scripts/agente.test.mjs"
+    "test": "node scripts/finance.test.mjs && node scripts/agente.test.mjs && node scripts/agente-cache.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",

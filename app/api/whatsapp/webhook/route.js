@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 const dig = s => String(s || '').replace(/[^0-9]/g, '');
 const IA_MAX_DIA = Number(process.env.IA_MAX_DIA || 500);
-const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 50);
+const IA_TRIAL_DIA = Number(process.env.IA_TRIAL_DIA || 25);
 
 // Verificación del webhook (Meta / WhatsApp Cloud). Sin token por defecto: hay que configurarlo.
 export async function GET(req) {
