@@ -1,15 +1,26 @@
-# desarrollos_brokers — Portal de Brokers (Quiero Casa)
+# DesarrollosMX — Portal de Brokers
 
-Next.js (App Router) + Supabase (Postgres con RLS). Diseño dark: negro / magenta / verde lima.
+Next.js 16 (App Router, Turbopack) + React 19 + Supabase (Postgres con RLS). Deploy: Vercel (push a `main` = producción).
 
-## Rutas
-- `/` landing del programa de brokers
-- `/login` · `/registro` (Supabase Auth)
-- `/portal` catálogo con filtros y vistas inteligentes (requiere sesión)
-- `/portal/[sku]` ficha del desarrollo + registrar cliente (CRM)
+## Mapa rápido
+- **Público:** `/` landing · `/para/[perfil]` sub-landings · `/f/[sku]` ficha pública con cotizador · `/login` · `/registro` · `/unirme`
+- **Broker:** `/hoy` resumen del día · `/buscar` búsqueda con filtros y propuestas · `/portal` catálogo · `/comparar` · `/clientes` · `/crm` · `/seguimiento` · `/copiloto` (IA) · `/precalifica` · `/escrituracion` · `/comisiones` · `/materiales` · `/marca` · `/academia` · `/conexiones`
+- **Análisis:** `/metricas` · `/calor` interés · `/cambios` diario de inventario (triggers en Postgres)
+- **Admin:** `/kpis` · `/motor` · `/captura` · `/fichas` · `/publicador` · `/pricing` · `/integraciones` · `/altas`
+- **API:** `app/api/*` (IA, Google Calendar, WhatsApp Cloud, integraciones, webhooks) — usan `SUPABASE_SERVICE_ROLE_KEY`
 
-## Backend
-Supabase proyecto `toqgeimczebtndkatczn`: tenancy multi-inmobiliaria, RLS fail-closed,
-anti-fraude en leads, audit_log inmutable. La llave anon (pública) está en `lib/supabase.js`.
+## Datos
+Supabase `toqgeimczebtndkatczn`. El inventario entra por Google Apps Script ([db/edge/sync-sheet-a-supabase.gs](db/edge/sync-sheet-a-supabase.gs)) → edge function `sync-desarrollos` (upsert por SKU, espejo). Los `db/*.sql` son el registro versionado de migraciones ya aplicadas.
 
-Deploy: Vercel (framework Next.js autodetectado).
+## Convenciones
+- Título de desarrollo en UI: SIEMPRE `tituloDev(d)` de `lib/nombre.js` — nunca `d.nombre` crudo (ese es la llave del sync).
+- Consultas >1000 filas: `selectAll()` de `lib/supabase.js`.
+- Primitivas UI en `components/ui.js`; tokens de diseño en `app/globals.css` (`--mag` / `--lime` sobre fondo oscuro).
+
+## Desarrollo
+```bash
+npm install
+npm test        # golden tests de lib/finance.js (rutas de dinero)
+npm run dev
+```
+CI (GitHub Actions): `npm test` + `npm run build` en cada push. Ver también SEGURIDAD.md y SETUP-*.md.
