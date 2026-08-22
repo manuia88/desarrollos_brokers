@@ -67,7 +67,7 @@ export default function Conexiones() {
       });
       const j = await r.json();
       if (j.error) setIaMsg({ t: 'err', m: j.error });
-      else { setIaMsg({ t: 'ok', m: j.valida ? '✓ Llave de IA conectada y validada. El concierge y el copiloto ya usan tu cuenta.' : '⚠ Guardada, pero no validó — revisa que la llave sea correcta.' }); setIaForm(f => ({ ...f, api_key: '' })); cargar(); }
+      else { setIaMsg({ t: 'ok', m: j.valida ? '✓ Llave de IA conectada y validada. Tu Asesor Digital (chat de fichas, WhatsApp, Telegram) y el copiloto ya usan tu cuenta.' : '⚠ Guardada, pero no validó — revisa que la llave sea correcta.' }); setIaForm(f => ({ ...f, api_key: '' })); cargar(); }
     } catch (e) { setIaMsg({ t: 'err', m: String(e?.message || e) }); }
   }
   async function conectarWA() {
@@ -155,7 +155,7 @@ export default function Conexiones() {
         {(scope === 'org' ? esDirectivo && me.rol !== 'super_admin' : true) && (
           <section className="sec">
             <h2>Asistente de IA <span className="fnote" style={{ fontWeight: 400 }}>· opcional, tu cuenta paga el uso</span></h2>
-            <p className="fnote" style={{ marginTop: 0 }}>Conecta tu llave para prender el <b>concierge</b> en las fichas de tus clientes y el <b>copiloto</b> del broker. {scope === 'org' ? 'Esta llave la usarán todos tus asesores.' : 'Solo tú la usarás.'} Se guarda cifrada y nunca se muestra de vuelta.</p>
+            <p className="fnote" style={{ marginTop: 0 }}>Conecta tu llave para prender a tu <b>Asesor Digital</b> (el chat de tus fichas y tus canales) y el <b>copiloto</b> del broker. {scope === 'org' ? 'Esta llave la usarán todos tus asesores.' : 'Solo tú la usarás.'} Se guarda cifrada y nunca se muestra de vuelta.</p>
             <div className="crit-chips" style={{ marginBottom: '.6rem' }}>
               <span className={'chip' + (iaForm.proveedor === 'anthropic' ? ' on' : '')} onClick={() => setIaForm(f => ({ ...f, proveedor: 'anthropic' }))}>Anthropic (Claude)</span>
               <span className={'chip' + (iaForm.proveedor === 'openai' ? ' on' : '')} onClick={() => setIaForm(f => ({ ...f, proveedor: 'openai' }))}>OpenAI</span>
@@ -164,7 +164,7 @@ export default function Conexiones() {
             <input className="inp" type="password" value={iaForm.api_key} onChange={e => setIaForm(f => ({ ...f, api_key: e.target.value }))} placeholder={iaForm.proveedor === 'openai' ? 'sk-...' : 'sk-ant-...'} />
             <button className="btn mag block" style={{ marginTop: '.8rem' }} disabled={!iaForm.api_key || iaMsg?.t === 'load'} onClick={conectarIA}>{iaMsg?.t === 'load' ? 'Validando…' : 'Conectar IA'}</button>
             {iaMsg && iaMsg.t !== 'load' && <div className={'cap-msg ' + (iaMsg.t === 'ok' ? 'ok' : 'err')} style={{ marginTop: '.7rem' }}>{iaMsg.m}</div>}
-            <p className="fnote">Sin llave todo funciona igual: el concierge invita al cliente a dejar sus datos y compartes por WhatsApp normal. La llave la sacas de console.anthropic.com o platform.openai.com, donde también pones tus topes de gasto.</p>
+            <p className="fnote">Sin llave todo funciona igual: el asistente invita al cliente a dejar sus datos y compartes por WhatsApp normal. La llave la sacas de console.anthropic.com o platform.openai.com, donde también pones tus topes de gasto.</p>
           </section>
         )}
 

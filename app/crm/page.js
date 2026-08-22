@@ -42,6 +42,7 @@ export default function CRM() {
   const [mine, setMine] = useState(false);
   const [q, setQ] = useState('');
   const [fDev, setFDev] = useState('');
+  const [fQuick, setFQuick] = useState('');   // '' | mios | frios | cita
   const [busy, setBusy] = useState(false);
   const [viewAs, setViewAs] = useState(null);
   const [showReg, setShowReg] = useState(false);
@@ -157,14 +158,20 @@ export default function CRM() {
   const visibles = useMemo(() => {
     if (!leads) return [];
     const s = q.trim().toLowerCase();
-    return leads.filter(l =>
+    const hace48h = Date.now() - 48 * 3600e3;
+    const pasaQuick = l =>
+      fQuick === 'mios' ? l.asesor_id === me?.id
+      : fQuick === 'frios' ? (!l.etapa || ['Nuevo', 'Contactado'].includes(l.etapa)) && new Date(l.actualizado || l.creado).getTime() < hace48h
+      : fQuick === 'cita' ? l.etapa === 'Cita'
+      : true;
+    return leads.filter(l => pasaQuick(l) &&
       l.estatus !== 'duplicado' &&
       (!effOrg || l.org_id === effOrg) &&
       (!mine || l.asesor_id === effId) &&
       (!fDev || l.dev_sku === fDev) &&
       (!s || (l.nombre || '').toLowerCase().includes(s) || (l.telefono || '').includes(s))
     );
-  }, [leads, mine, effId, effOrg, fDev, q]);
+  }, [leads, mine, effId, effOrg, fDev, q, fQuick, me?.id]);
 
   const revision = useMemo(
     () => (leads || []).filter(l => l.estatus === 'en_revision' && (!effOrg || l.org_id === effOrg)),
@@ -278,6 +285,8 @@ export default function CRM() {
             {devFiltros.map(([sku, nom]) => <option key={sku} value={sku}>{nom}</option>)}
           </select>
           <span className={'chip' + (mine ? ' on' : '')} onClick={() => setMine(m => !m)}>👤 Solo mis leads</span>
+          <span className={'chip' + (fQuick === 'frios' ? ' on' : '')} title="Nuevos o contactados sin movimiento en 48h" onClick={() => setFQuick(f => f === 'frios' ? '' : 'frios')}>🧊 Fríos +48h</span>
+          <span className={'chip' + (fQuick === 'cita' ? ' on' : '')} onClick={() => setFQuick(f => f === 'cita' ? '' : 'cita')}>📅 Con cita</span>
           <span className="count">{visibles.filter(l => l.estatus !== 'en_revision').length} en tablero</span>
         </div>
 

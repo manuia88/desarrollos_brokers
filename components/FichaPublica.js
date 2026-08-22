@@ -158,7 +158,8 @@ export default function FichaPublica({ sku, asesor, unidad, cliente }) {
     const nuevo = [...chat, { role: 'user', content: q }];
     setChat(nuevo); setChatIn(''); setChatBusy(true);
     try {
-      const r = await fetch('/api/ia/concierge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sku, pregunta: q, historial: chat, asesor }) });
+      let cid = ''; try { cid = localStorage.getItem('qc_cid') || (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)); localStorage.setItem('qc_cid', cid); } catch { cid = 'anon-' + sku; }
+      const r = await fetch('/api/agente/web', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sku, texto: q, cid, asesor }) });
       const j = await r.json();
       setChat([...nuevo, { role: 'assistant', content: j.answer || 'No pude responder ahorita, pero tu asesor te ayuda enseguida.' }]);
     } catch {

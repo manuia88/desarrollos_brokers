@@ -62,3 +62,8 @@ alter table public.ia_cuota_dia
 
 -- (auditoría funcional) Las policies no bastan sin GRANT de tabla — migración agente_grants:
 -- grant select on agente_conversaciones, wa_mensajes, ia_cuota_dia to authenticated;
+
+-- (sesión 2) Aviso "te están viendo": registrar_vista ahora notifica al asesor cuando un
+-- cliente identificado (client card) abre su ficha compartida — dedupe 1/hora por
+-- cliente+desarrollo (migraciones liga_abierta_aviso + liga_abierta_texto_limpio).
+-- Nota: el aviso usa desarrollos.nombre crudo (el mapa de títulos vive en JS, no se duplica en SQL).

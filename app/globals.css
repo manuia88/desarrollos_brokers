@@ -1620,3 +1620,17 @@ table.utbl{width:100%;border-collapse:collapse;font-size:.84rem}
 .lp-item.done .ck{background:var(--lime-soft);border-color:var(--lime-line);color:var(--lime)}
 .lp-bar{height:6px;background:var(--panel3);border-radius:99px;margin:.5rem 0 .7rem;overflow:hidden}
 .lp-bar i{display:block;height:100%;background:var(--lime);border-radius:99px}
+
+/* widget embebible /w/[org] */
+.wg{display:flex;flex-direction:column;height:100vh;background:var(--bg)}
+.wg-h{display:flex;justify-content:space-between;align-items:center;padding:.7rem .9rem;background:var(--panel);border-bottom:1px solid var(--line)}
+.wg-h span{font-size:.7rem;color:var(--lime)}
+.wg-hilo{flex:1;overflow-y:auto;padding:.8rem;display:flex;flex-direction:column;gap:.5rem}
+.wg-hola{color:var(--sub);font-size:.9rem;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.7rem .85rem}
+.wg-msg{max-width:82%;padding:.5rem .7rem;border-radius:12px;font-size:.9rem;line-height:1.45;white-space:pre-wrap}
+.wg-msg.yo{align-self:flex-end;background:var(--mag-soft);border:1px solid var(--mag-line)}
+.wg-msg.bot{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.wg-in{display:flex;gap:.4rem;padding:.6rem;border-top:1px solid var(--line);background:var(--panel)}
+.wg-in input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.55rem .75rem;color:var(--ink)}
+.wg-in button{background:var(--mag);color:#fff;border:none;border-radius:10px;padding:0 .9rem;font-size:1rem;cursor:pointer}
+.wg-in button:disabled{opacity:.5}
