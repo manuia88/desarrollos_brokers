@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import Nav from '../../components/Nav';
+import ChecklistArranque from '../../components/ChecklistArranque';
 import { ErrorCarga } from '../../components/ui';
 import { scoreLead, accionSugerida, diasSin } from '../../lib/leadscore';
 
@@ -132,6 +133,7 @@ export default function Hoy() {
       <Nav me={me} current="/hoy" />
       <main className="wrap">
         {errCarga && <ErrorCarga />}
+        <ChecklistArranque me={me} />
         <div className="buscar-intro">
           <h1>Hoy{nombre ? `, ${nombre}` : ''}</h1>
           <p>Tu cabina del día: la acción más importante primero, tus leads calientes y tus citas. Empieza por arriba.</p>

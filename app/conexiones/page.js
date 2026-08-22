@@ -15,11 +15,14 @@ export default function Conexiones() {
   const [form, setForm] = useState({ ambiente: 'produccion', api_key: '', etiqueta: '', cuota: '' });
   const [msg, setMsg] = useState(null);
   const [iaForm, setIaForm] = useState({ proveedor: 'anthropic', api_key: '' });
+  const [tgForm, setTgForm] = useState({ token: '' });
+  const [tgMsg, setTgMsg] = useState(null);
   const [iaMsg, setIaMsg] = useState(null);
   const [waForm, setWaForm] = useState({ phone_id: '', token: '' });
   const [waMsg, setWaMsg] = useState(null);
 
   const esDirectivo = me && ['director', 'gerente', 'independiente', 'super_admin'].includes(me.rol);
+  const puedeOrg = esDirectivo && me?.rol !== 'super_admin';   // quién conecta canales de la inmobiliaria
   const scope = me && me.rol === 'asesor' ? 'asesor' : 'org';
 
   async function cargar() {
@@ -79,6 +82,26 @@ export default function Conexiones() {
       else { setWaMsg({ t: 'ok', m: '✓ WhatsApp conectado. Configura la URL del webhook en Meta (abajo) para prender el agente.' }); setWaForm({ phone_id: '', token: '' }); cargar(); }
     } catch (e) { setWaMsg({ t: 'err', m: String(e?.message || e) }); }
   }
+  async function conectarTG() {
+    setTgMsg({ t: 'load' });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch('/api/integraciones/conectar', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + session?.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proveedor: 'telegram', scope: 'org', api_key: tgForm.token }),
+      });
+      const j = await r.json();
+      if (!r.ok || j.error) { setTgMsg({ t: 'err', m: j.error || 'No se pudo guardar el token.' }); return; }
+      const w = await fetch('/api/agente/panel', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + session?.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'telegram_webhook' }),
+      }).then(x => x.json()).catch(() => ({}));
+      setTgMsg(w.ok ? { t: 'ok', m: '✓ Telegram conectado y webhook registrado. Escríbele a tu bot para probarlo.' }
+                    : { t: 'err', m: 'Token guardado, pero el webhook no quedó: ' + (w.detalle || w.error || 'revisa el token.') });
+      setTgForm({ token: '' }); recargar();
+    } catch { setTgMsg({ t: 'err', m: 'Error de red.' }); }
+  }
+
 
   if (!me) return <div className="loading">Cargando…</div>;
 
@@ -161,6 +184,17 @@ export default function Conexiones() {
               <b>Callback URL:</b> <code>{typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook</code><br />
               <b>Verify Token:</b> <code>quierocasa</code> · Suscríbete al campo <code>messages</code>.
             </div>
+          </section>
+        )}
+
+        {puedeOrg && (
+          <section className="sec">
+            <h2>Agente de Telegram <span className="fnote" style={{ fontWeight: 400 }}>· gratis, listo en 5 minutos</span></h2>
+            <p className="fnote" style={{ marginTop: 0 }}>El canal más rápido de encender mientras Meta aprueba tu WhatsApp: crea un bot con <b>@BotFather</b> en Telegram (comando /newbot), pega aquí el token y listo — tu Asesor Digital contesta ahí con el mismo cerebro.</p>
+            <label className="lbl">Token del bot (de @BotFather)</label>
+            <input className="inp" type="password" value={tgForm.token} onChange={e => setTgForm({ token: e.target.value })} placeholder="123456789:AA..." />
+            <button className="btn mag block" style={{ marginTop: '.8rem' }} disabled={!tgForm.token || tgMsg?.t === 'load'} onClick={conectarTG}>{tgMsg?.t === 'load' ? 'Conectando…' : 'Conectar Telegram'}</button>
+            {tgMsg && tgMsg.t !== 'load' && <div className={'cap-msg ' + (tgMsg.t === 'ok' ? 'ok' : 'err')} style={{ marginTop: '.7rem' }}>{tgMsg.m}</div>}
           </section>
         )}
 

@@ -45,6 +45,10 @@ export async function POST(req) {
   let valida = true;
   if (proveedor === 'easybroker') valida = await validarEB(api_key, ambiente);
   else if (proveedor === 'ia') valida = await validarIA(ambiente, api_key);
+  else if (proveedor === 'telegram') {
+    try { const r = await fetch(`https://api.telegram.org/bot${api_key}/getMe`); const j = await r.json(); valida = !!j.ok; if (j.ok && !b.etiqueta) b.etiqueta = j.result?.username || null; }
+    catch { valida = false; }
+  }
 
   // Cuota opcional: máximo de anuncios vivos que esta cuenta puede tener en el portal.
   let cuota = null;

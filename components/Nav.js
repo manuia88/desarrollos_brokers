@@ -20,6 +20,7 @@ const BASE = [
   ] },
   { t: 'Clientes & ventas', items: [
     ['/clientes', 'Clientes', '👥'],
+    ['/conversaciones', 'Conversaciones', '💬'],
     ['/crm', 'CRM', '🧭'],
     ['/seguimiento', 'Seguimiento', '📌'],
     ['/copiloto', 'Copiloto', '🤖'],
