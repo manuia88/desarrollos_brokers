@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { svc, userFromToken } from '../../../../lib/googleServer';
 import { resolverIA } from '../../../../lib/ia';
 import { responderAgente } from '../../../../lib/agente';
-import { rateLimit } from '../../../../lib/ratelimit';
+import { rateLimit, cuotaIA } from '../../../../lib/ratelimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,8 +20,11 @@ export async function POST(req) {
   const db = svc();
   const { data: prof } = await db.from('profiles').select('org_id').eq('id', uid).maybeSingle();
   const { data: org } = prof?.org_id ? await db.from('orgs').select('nombre').eq('id', prof.org_id).maybeSingle() : { data: null };
-  const ia = await resolverIA(db, uid);   // cascada: broker -> org -> plataforma (es interno)
+  const ia = await resolverIA(db, uid, { permitirPlataforma: false });   // el broker prueba con SU llave, no la de la plataforma
   if (!ia) return NextResponse.json({ answer: 'Conecta tu llave de IA en Conexiones para probar al asistente.', disabled: true });
+  // Tope diario por org/usuario también en el sandbox (evita quemar la cuota probando en bucle).
+  const capKey = prof?.org_id ? 'org:' + prof.org_id : 'ase:' + uid;
+  if (!(await cuotaIA(db, capKey, Number(process.env.IA_MAX_DIA || 500)))) return NextResponse.json({ answer: 'Alcanzaste el límite de IA por hoy. Intenta mañana.', disabled: true });
 
   const historial = Array.isArray(b.historial) ? b.historial.filter(m => m?.role && typeof m.content === 'string').slice(-8) : [];
   try {

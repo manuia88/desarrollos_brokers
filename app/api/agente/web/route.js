@@ -15,7 +15,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
 
 export async function POST(req) {
   let b = {}; try { b = await req.json(); } catch { /* noop */ }
-  const texto = String(b.texto || '').trim();
+  const texto = String(b.texto || '').trim().slice(0, 1000);   // cap: endpoint público, evita abuso de almacenamiento
   const cid = String(b.cid || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 40);
   if (!texto || !cid) return NextResponse.json({ error: 'falta texto o cid' }, { status: 400 });
   if (!rateLimit('aw:' + clientIp(req), 12, 60e3) || !rateLimit('aw-cid:' + cid, 12, 60e3)) {

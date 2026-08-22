@@ -13,7 +13,10 @@ export const dynamic = 'force-dynamic';
 const MXN = n => n == null ? '—' : '$' + Math.round(n).toLocaleString('es-MX');
 
 export async function POST(req) {
-  if ((req.headers.get('x-cron-secret') || '') !== (process.env.CRON_SECRET || '')) {
+  const secret = process.env.CRON_SECRET;
+  const auth = req.headers.get('authorization');
+  // Fail-closed: sin CRON_SECRET configurado, nadie pasa.
+  if (!secret || (req.headers.get('x-cron-secret') !== secret && auth !== `Bearer ${secret}`)) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   const hora = Number(new Date().toLocaleString('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false }));
